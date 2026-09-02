@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\Shared.csproj" />
+    <ProjectReference Include="..\Projects.Contracts\Projects.Contracts.csproj" />
+    <ProjectReference Include="..\Traces.Contracts\Traces.Contracts.csproj" />
+    <ProjectReference Include="..\AxialCodes.Contracts\AxialCodes.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.34.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.57.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="opentelemetry-proto\trace.proto" GrpcServices="None" />
+    <Protobuf Include="opentelemetry-proto\common.proto" GrpcServices="None" />
+    <Protobuf Include="opentelemetry-proto\resource.proto" GrpcServices="None" />
+  </ItemGroup>
+</Project>

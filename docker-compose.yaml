@@ -1,0 +1,53 @@
+name: TraceEvalCompose
+
+services:
+  frontend:
+    build:
+      context: frontend/webapp
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8080
+    ports:
+      - "3000:8080"
+
+  backend:
+    build:
+      context: backend
+      dockerfile: dockerfile
+    environment:
+      ConnectionStrings__Default: Host=db;Port=5432;Database=mydb;Username=user;Password=password
+      # The default provider when first starting the application
+      AI__Provider: Ollama
+      AI__Ollama__Endpoint: http://host.docker.internal:11434
+      AI__Ollama__Model: gpt-oss:120b-cloud
+      Cors__AllowedOrigins: http://localhost:3000
+    ports:
+      - "8080:8080"
+
+  db:
+    image: postgres:18
+    container_name: traceeval_database
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+  migrator:
+    build:
+      context: backend
+      dockerfile: MigrationRunner/Dockerfile
+    depends_on:
+      - db
+    environment:
+      - ConnectionStrings__Default=Host=db;Port=5432;Database=mydb;Username=user;Password=password
+    restart: on-failure
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: traceeval_network

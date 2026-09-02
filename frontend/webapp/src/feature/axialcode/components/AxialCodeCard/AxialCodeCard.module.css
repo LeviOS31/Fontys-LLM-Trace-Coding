@@ -1,0 +1,15 @@
+.card {
+  cursor: pointer;
+  transition: box-shadow 140ms;
+}
+.card:hover {
+  --card-border-color: var(--accent-7);
+}
+
+.textBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}

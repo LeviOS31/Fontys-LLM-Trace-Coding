@@ -1,0 +1,9 @@
+.judge-template-row {
+  cursor: pointer;
+  transition: background 120ms ease;
+  outline: none;
+}
+
+.judge-template-row:hover {
+  background: var(--jade-a2);
+}

@@ -1,0 +1,3 @@
+namespace JudgeTemplates.Contracts.Features.SetAllJudgeTemplatesToDeprecated;
+
+public record SetAllJudgeTemplatesToDeprecatedResponse;

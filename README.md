@@ -48,24 +48,24 @@ The backend is a **modular monolith** ([ADR-001](docs/ADR/ADR-001-modular-monoli
 
 ### Main technologies
 
-| Area | Technology |
-|------|-----------|
-| Backend | ASP.NET Core Minimal APIs on **.NET 10** |
+| Area            | Technology                                                                |
+| --------------- | ------------------------------------------------------------------------- |
+| Backend         | ASP.NET Core Minimal APIs on **.NET 10**                                  |
 | Backend pattern | CQRS via source-generated **Mediator** (`Mediator.SourceGenerator` 3.0.1) |
-| ORM | **Entity Framework Core 10** + Npgsql (PostgreSQL provider) |
-| Database | **PostgreSQL 18** |
-| AI abstraction | **Microsoft.Extensions.AI** + **OllamaSharp** (Ollama provider) |
-| Validation | **FluentValidation 12** (pipeline behavior) |
-| Logging | **Serilog** (console sink) |
-| Frontend | **React 19** + **TypeScript 5** + **Vite 8** |
-| Data fetching | **TanStack React Query 5** |
-| UI | **Radix UI Themes** + `lucide-react` + `@visx` charts |
-| Routing | **React Router 7** |
-| Testing | xUnit + NSubstitute + Shouldly (backend); Vitest + Cypress (frontend) |
+| ORM             | **Entity Framework Core 10** + Npgsql (PostgreSQL provider)               |
+| Database        | **PostgreSQL 18**                                                         |
+| AI abstraction  | **Microsoft.Extensions.AI** + **OllamaSharp** (Ollama provider)           |
+| Validation      | **FluentValidation 12** (pipeline behavior)                               |
+| Logging         | **Serilog** (console sink)                                                |
+| Frontend        | **React 19** + **TypeScript 5** + **Vite 8**                              |
+| Data fetching   | **TanStack React Query 5**                                                |
+| UI              | **Radix UI Themes** + `lucide-react` + `@visx` charts                     |
+| Routing         | **React Router 7**                                                        |
+| Testing         | xUnit + NSubstitute + Shouldly (backend); Vitest + Cypress (frontend)     |
 
 ---
 
-## 2. Tech Stack (detail)
+## 2. Tech Stack (details)
 
 - **Backend framework:** ASP.NET Core Minimal APIs (.NET 10, `Microsoft.NET.Sdk.Web`). Entry point registers modules and maps endpoint groups.
 - **Frontend framework:** React 19 + Vite 8 with the **React Compiler** enabled (`babel-plugin-react-compiler` via `@vitejs/plugin-react`).
@@ -111,17 +111,17 @@ LLM-Trace-Coding-Platform/
 
 Each domain module follows the same internal layout (`Data/`, `Features/`, `Extensions/`). Current modules:
 
-| Module | Responsibility |
-|--------|---------------|
-| `Projects` | Project management (note: the `DbContext` lives under the `Project/` project) |
-| `ProjectVersions` | Versioning within projects |
-| `Traces` | Trace import (OTLP/JSONL), querying, **and open-coding features** |
-| `AxialCodes` | Axial code generation / interpretation |
-| `AssessmentCriteria` | Evaluation criteria definitions |
-| `JudgeTemplates` | LLM-judge template generation (uses Scriban) |
-| `Statistics` | Aggregate analytics per version |
-| `Settings` | LLM provider configuration (`ChatClientConfiguration`) |
-| `Shared` | Cross-cutting: `Result<T>`, `ErrorCode`, validation pipeline, `ChatClientBuilder` |
+| Module               | Responsibility                                                                    |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `Projects`           | Project management (note: the `DbContext` lives under the `Project/` project)     |
+| `ProjectVersions`    | Versioning within projects                                                        |
+| `Traces`             | Trace import (OTLP/JSONL), querying, **and open-coding features**                 |
+| `AxialCodes`         | Axial code generation / interpretation                                            |
+| `AssessmentCriteria` | Evaluation criteria definitions                                                   |
+| `JudgeTemplates`     | LLM-judge template generation (uses Scriban)                                      |
+| `Statistics`         | Aggregate analytics per version                                                   |
+| `Settings`           | LLM provider configuration (`ChatClientConfiguration`)                            |
+| `Shared`             | Cross-cutting: `Result<T>`, `ErrorCode`, validation pipeline, `ChatClientBuilder` |
 
 > There are also `Opencode/` and `Opencode.Contracts/` projects, but `Api/Program.cs` does **not** register an Opencode module — open-coding endpoints currently live inside the `Traces` module (`EditOpenCode`, `GetVersionOpencode`, etc.). Treat the standalone `Opencode` project as legacy unless you confirm otherwise.
 
@@ -174,7 +174,7 @@ Features/
 - **Logging:** Serilog, console sink, configured from the `Logging` section in `appsettings.json`.
 - **Error handling — the Result pattern** ([ADR-013](docs/ADR/ADR-013-result-pattern-error-handling.md)): handlers never throw for expected errors. They return an `ErrorCode` (implicitly converted to `Result<T>`) or the response object. `Api/Extensions/ResultExtensions.cs` (`ToHttpResult()`) maps error codes → HTTP status codes.
 
-  **Error codes** (`Shared/ErrorCode.cs`) include: `ValidationError`, `EntityNotFound`, `NoPermission`, `DatabaseError`, `NoChanges`, `Unauthorized`, `FileReadError`, `InvalidRequest`, `UnsupportedFileType`, `ProjectVersionNameAlreadyExists`, `LlmConfigError`. *(Verify the full current list in the source.)*
+  **Error codes** (`Shared/ErrorCode.cs`) include: `ValidationError`, `EntityNotFound`, `NoPermission`, `DatabaseError`, `NoChanges`, `Unauthorized`, `FileReadError`, `InvalidRequest`, `UnsupportedFileType`, `ProjectVersionNameAlreadyExists`, `LlmConfigError`. _(Verify the full current list in the source.)_
 
 - **Ownership:** call `entity.HasAccess(userId)` (`Shared/Extensions/AccessExtensions.cs`) before mutations.
 
@@ -242,17 +242,17 @@ This is a **feature-first** organisation: page components live under `feature/<n
 
 Defined declaratively in `App.tsx`; all pages are code-split with `React.lazy` + `<Suspense>`, nested inside a shared `<AppLayout>`:
 
-| Path | Page |
-|------|------|
-| `/` | Home |
-| `/traces` | Trace list |
-| `/projects/:id` | Project detail |
-| `/projects/:id/versions/:versionId/overview` | Version overview |
-| `/projects/:id/versions/:versionId/open-code` | Open coding |
+| Path                                                        | Page               |
+| ----------------------------------------------------------- | ------------------ |
+| `/`                                                         | Home               |
+| `/traces`                                                   | Trace list         |
+| `/projects/:id`                                             | Project detail     |
+| `/projects/:id/versions/:versionId/overview`                | Version overview   |
+| `/projects/:id/versions/:versionId/open-code`               | Open coding        |
 | `/projects/:id/versions/:versionId/open-code/:traceGroupId` | Trace group detail |
-| `/projects/:id/versions/:versionId/axial-code` | Axial coding |
-| `/projects/:id/versions/:versionId/judge-template` | Judge templates |
-| `*` | Not Found |
+| `/projects/:id/versions/:versionId/axial-code`              | Axial coding       |
+| `/projects/:id/versions/:versionId/judge-template`          | Judge templates    |
+| `*`                                                         | Not Found          |
 
 ### State management & API communication
 
@@ -269,20 +269,20 @@ Copy `.env.example` → `.env`. `VITE_API_URL` is the only variable needed to ru
 
 Run from `frontend/webapp/`.
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the Vite dev server (http://localhost:5173) with HMR |
-| `npm run build` | Type-check (`tsc -b`) then produce a production build (`vite build`) |
-| `npm run preview` | Serve the production build locally |
-| `npm run lint` | Run ESLint over `.ts`/`.tsx`, reporting unused disable directives |
-| `npm run lint:fix` | ESLint with `--fix` (auto-fix) |
-| `npm run test` | Run Vitest unit tests |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run prettier` | Format the project with Prettier (`--write`) |
-| `npm run prettier:check` | Check formatting without writing (used in CI) |
-| `npm run docker:up` | Start Postgres + MigrationRunner via `backend/Dbcompose.yaml` |
-| `npm run docker:down` | Stop those containers |
-| `npm run docker:reset` | Full reset: `down -v` then `up` (used before Cypress runs) |
+| Command                  | Description                                                          |
+| ------------------------ | -------------------------------------------------------------------- |
+| `npm run dev`            | Start the Vite dev server (http://localhost:5173) with HMR           |
+| `npm run build`          | Type-check (`tsc -b`) then produce a production build (`vite build`) |
+| `npm run preview`        | Serve the production build locally                                   |
+| `npm run lint`           | Run ESLint over `.ts`/`.tsx`, reporting unused disable directives    |
+| `npm run lint:fix`       | ESLint with `--fix` (auto-fix)                                       |
+| `npm run test`           | Run Vitest unit tests                                                |
+| `npm run test:watch`     | Run Vitest in watch mode                                             |
+| `npm run prettier`       | Format the project with Prettier (`--write`)                         |
+| `npm run prettier:check` | Check formatting without writing (used in CI)                        |
+| `npm run docker:up`      | Start Postgres + MigrationRunner via `backend/Dbcompose.yaml`        |
+| `npm run docker:down`    | Stop those containers                                                |
+| `npm run docker:reset`   | Full reset: `down -v` then `up` (used before Cypress runs)           |
 
 ### Build process
 
@@ -294,12 +294,12 @@ Run from `frontend/webapp/`.
 
 The full stack (`docker-compose.yaml`, project name `TraceEvalCompose`) is four services:
 
-| Service | Build context | Host port | Purpose |
-|---------|--------------|-----------|---------|
-| `frontend` | `frontend/webapp` | `3000` → 8080 | nginx serving the built SPA |
-| `backend` | `backend` | `8080` → 8080 | ASP.NET Core API |
-| `db` | `postgres:18` image | `5432` | PostgreSQL database |
-| `migrator` | `backend` (MigrationRunner/Dockerfile) | — | Applies all EF migrations, then exits (`restart: on-failure`) |
+| Service    | Build context                          | Host port     | Purpose                                                       |
+| ---------- | -------------------------------------- | ------------- | ------------------------------------------------------------- |
+| `frontend` | `frontend/webapp`                      | `3000` → 8080 | nginx serving the built SPA                                   |
+| `backend`  | `backend`                              | `8080` → 8080 | ASP.NET Core API                                              |
+| `db`       | `postgres:18` image                    | `5432`        | PostgreSQL database                                           |
+| `migrator` | `backend` (MigrationRunner/Dockerfile) | —             | Applies all EF migrations, then exits (`restart: on-failure`) |
 
 The `migrator` (`MigrationRunner`) injects every module's `DbContext` and calls `Database.MigrateAsync()` for each, with retry (5 attempts, 3s backoff) to wait for Postgres ([ADR-026](docs/ADR/ADR-026-migration-runner-modular-migrations.md)).
 
@@ -354,22 +354,22 @@ There is **no application-level seed script**. Seeding exists only for **Cypress
 
 ### Frontend (`frontend/webapp/.env`)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | Yes | Base URL of the backend API. Dev default: `https://localhost:7030`. In the Docker build it's passed as a build arg (`http://localhost:8080`). |
-| `TEST_DATABASE_URL` | Only for Cypress | Postgres connection string used by Cypress DB seeding. Default: `postgresql://user:password@localhost:5432/mydb`. |
+| Variable            | Required         | Description                                                                                                                                   |
+| ------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL`      | Yes              | Base URL of the backend API. Dev default: `https://localhost:7030`. In the Docker build it's passed as a build arg (`http://localhost:8080`). |
+| `TEST_DATABASE_URL` | Only for Cypress | Postgres connection string used by Cypress DB seeding. Default: `postgresql://user:password@localhost:5432/mydb`.                             |
 
 ### Backend (`appsettings.json` keys / `__` env-var overrides)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ConnectionStrings__Default` | Yes | PostgreSQL connection string. |
-| `Cors__AllowedOrigins` | Yes | Comma-separated allowed origins. Dev default: `http://localhost:5173,http://localhost:5248`. |
-| `AI__Provider` | Yes | LLM provider. Currently only `Ollama` is implemented. |
-| `AI__Ollama__Endpoint` | Yes (Ollama) | Ollama base URL, e.g. `http://localhost:11434/` (Docker: `http://host.docker.internal:11434`). |
-| `AI__Ollama__Model` | Yes (Ollama) | Default model, e.g. `gpt-oss:120b-cloud`. Changeable at runtime in app settings. |
-| `AI__Ollama__TimeoutMinutes` | No | Request timeout in minutes (default `10`). |
-| `Logging__LogLevel__*` | No | Standard .NET log-level configuration. |
+| Variable                     | Required     | Description                                                                                    |
+| ---------------------------- | ------------ | ---------------------------------------------------------------------------------------------- |
+| `ConnectionStrings__Default` | Yes          | PostgreSQL connection string.                                                                  |
+| `Cors__AllowedOrigins`       | Yes          | Comma-separated allowed origins. Dev default: `http://localhost:5173,http://localhost:5248`.   |
+| `AI__Provider`               | Yes          | LLM provider. Currently only `Ollama` is implemented.                                          |
+| `AI__Ollama__Endpoint`       | Yes (Ollama) | Ollama base URL, e.g. `http://localhost:11434/` (Docker: `http://host.docker.internal:11434`). |
+| `AI__Ollama__Model`          | Yes (Ollama) | Default model, e.g. `gpt-oss:120b-cloud`. Changeable at runtime in app settings.               |
+| `AI__Ollama__TimeoutMinutes` | No           | Request timeout in minutes (default `10`).                                                     |
+| `Logging__LogLevel__*`       | No           | Standard .NET log-level configuration.                                                         |
 
 ---
 
@@ -465,11 +465,11 @@ Per the PR template, every PR must include unit tests for changed business logic
 
 ## 11. Testing ([ADR-020](docs/ADR/ADR-020-testing-strategy.md))
 
-| Layer | Stack | How to run |
-|-------|-------|-----------|
-| Backend unit | xUnit + NSubstitute + Shouldly | `dotnet test backend/LlmTracing.sln` |
-| Frontend unit | Vitest + Testing Library (jsdom) | `npm run test` |
-| E2E | Cypress | `npx cypress open` / `npx cypress run` (from `frontend/webapp/`) |
+| Layer         | Stack                            | How to run                                                       |
+| ------------- | -------------------------------- | ---------------------------------------------------------------- |
+| Backend unit  | xUnit + NSubstitute + Shouldly   | `dotnet test backend/LlmTracing.sln`                             |
+| Frontend unit | Vitest + Testing Library (jsdom) | `npm run test`                                                   |
+| E2E           | Cypress                          | `npx cypress open` / `npx cypress run` (from `frontend/webapp/`) |
 
 **Cypress** resets and seeds the database before each run via Docker. `cypress.config.ts` runs `npm run docker:reset` on `before:run`, then registers `task` hooks (`resetDb`, `seedProjects`, `seedTraces`, …) that talk to Postgres directly. Requirements:
 
@@ -484,14 +484,14 @@ Per the PR template, every PR must include unit tests for changed business logic
 
 CI/CD runs on GitHub Actions (`.github/workflows/`):
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `ci-backend.yml` | push/PR to `main`/`dev` | Restore, build, csharpier check, `dotnet test` |
-| `ci-frontend.yml` | push/PR to `main`/`dev` | Install, prettier check, lint, build, Vitest |
-| `reusable.cypress-e2e.yml` | called by others | Full Dockerised E2E run |
-| `nightly.yml` | cron (Tue–Fri 01:00 UTC) | Nightly E2E suite |
-| `release.yml` | after CI succeeds on `main` | E2E gate, then **build & push images to Docker Hub** |
-| `reusable.sonarqube-dotnet.yml` / `reusable.sonarqube-nextjs.yml` | called by CI | SonarQube analysis (needs `SONAR_TOKEN`, `SONAR_HOST_URL` secrets) |
+| Workflow                                                          | Trigger                     | Purpose                                                            |
+| ----------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------ |
+| `ci-backend.yml`                                                  | push/PR to `main`/`dev`     | Restore, build, csharpier check, `dotnet test`                     |
+| `ci-frontend.yml`                                                 | push/PR to `main`/`dev`     | Install, prettier check, lint, build, Vitest                       |
+| `reusable.cypress-e2e.yml`                                        | called by others            | Full Dockerised E2E run                                            |
+| `nightly.yml`                                                     | cron (Tue–Fri 01:00 UTC)    | Nightly E2E suite                                                  |
+| `release.yml`                                                     | after CI succeeds on `main` | E2E gate, then **build & push images to Docker Hub**               |
+| `reusable.sonarqube-dotnet.yml` / `reusable.sonarqube-nextjs.yml` | called by CI                | SonarQube analysis (needs `SONAR_TOKEN`, `SONAR_HOST_URL` secrets) |
 
 **Production configuration:** containers are built from `backend/dockerfile`, `frontend/webapp/Dockerfile` (nginx), and `MigrationRunner/Dockerfile`, orchestrated by `docker-compose.yaml`. The design targets **local-first / self-hosted** deployment ([ADR-022](docs/ADR/ADR-022-local-first-deployment.md)); there is no managed cloud deployment pipeline beyond the Docker Hub image push.
 
@@ -499,19 +499,19 @@ CI/CD runs on GitHub Actions (`.github/workflows/`):
 
 ## 13. Troubleshooting
 
-| Symptom | Likely cause / fix |
-|---------|--------------------|
-| Frontend can't reach the API / CORS errors | Check `VITE_API_URL` in `.env` matches the running API, and that the API's `Cors__AllowedOrigins` includes the frontend origin. |
-| `VITE_API_URL` changes not taking effect in Docker | Vite inlines env at **build** time — rebuild the frontend image (it's a build arg, not a runtime env var). |
-| AI / generation requests fail (`LlmConfigError`) | Ensure Ollama is running and the model is pulled (`ollama pull gpt-oss:120b-cloud`). From Docker, the backend reaches the host via `http://host.docker.internal:11434`. |
-| Local AI generation extremely slow | Model may be on CPU — run `ollama ps` and confirm `100% GPU`; otherwise expect ~2–3 min/request. |
-| DB connection refused on startup | Postgres not up yet. The MigrationRunner retries 5×; for local dev wait for `npm run docker:up` to finish or check the `db` container. |
-| Migrations didn't apply / schema out of date | Inspect the `migrator` container logs; re-run `npm run docker:reset`, or apply manually per module (§7). |
-| **New/changed migration not applied after a rebuild** | **Known issue:** Docker reuses the old cached `migrator` image. Stop the container, delete the image, and restart — see the boxed note in §7. |
-| `dotnet` build fails with an SDK version error | Install .NET SDK 10 — it's pinned by `backend/global.json`. |
-| Large trace upload rejected | The API caps requests at 500 MB (set in `Program.cs`); split larger files. |
-| Cypress fails to start / stale data | It runs `docker:reset` before each run — ensure Docker is running and ports 5432/5173/7030 are free. |
-| csharpier / prettier CI failures | Run `dotnet csharpier .` (backend) and `npm run prettier` (frontend) before pushing. |
+| Symptom                                               | Likely cause / fix                                                                                                                                                      |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend can't reach the API / CORS errors            | Check `VITE_API_URL` in `.env` matches the running API, and that the API's `Cors__AllowedOrigins` includes the frontend origin.                                         |
+| `VITE_API_URL` changes not taking effect in Docker    | Vite inlines env at **build** time — rebuild the frontend image (it's a build arg, not a runtime env var).                                                              |
+| AI / generation requests fail (`LlmConfigError`)      | Ensure Ollama is running and the model is pulled (`ollama pull gpt-oss:120b-cloud`). From Docker, the backend reaches the host via `http://host.docker.internal:11434`. |
+| Local AI generation extremely slow                    | Model may be on CPU — run `ollama ps` and confirm `100% GPU`; otherwise expect ~2–3 min/request.                                                                        |
+| DB connection refused on startup                      | Postgres not up yet. The MigrationRunner retries 5×; for local dev wait for `npm run docker:up` to finish or check the `db` container.                                  |
+| Migrations didn't apply / schema out of date          | Inspect the `migrator` container logs; re-run `npm run docker:reset`, or apply manually per module (§7).                                                                |
+| **New/changed migration not applied after a rebuild** | **Known issue:** Docker reuses the old cached `migrator` image. Stop the container, delete the image, and restart — see the boxed note in §7.                           |
+| `dotnet` build fails with an SDK version error        | Install .NET SDK 10 — it's pinned by `backend/global.json`.                                                                                                             |
+| Large trace upload rejected                           | The API caps requests at 500 MB (set in `Program.cs`); split larger files.                                                                                              |
+| Cypress fails to start / stale data                   | It runs `docker:reset` before each run — ensure Docker is running and ports 5432/5173/7030 are free.                                                                    |
+| csharpier / prettier CI failures                      | Run `dotnet csharpier .` (backend) and `npm run prettier` (frontend) before pushing.                                                                                    |
 
 ---
 

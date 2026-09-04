@@ -13,15 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. Start containers in the background (-d) so the step doesn't freeze
-      - name: Build and Start Docker Containers
-        run: docker compose up --build -d
+      - name: Build Docker Images
+        run: docker compose build
 
-      # 2. (Optional but recommended) Wait for your app port to respond before testing
+      - name: Build and Start Docker Containers
+        run: docker compose up -d
+
       - name: Wait for App Readiness
         run: npx wait-on http://localhost:3000 --timeout 60000
 
-      # 5. Clean up containers after tests finish (runs even if tests fail)
       - name: Stop Docker Containers
-        if: always()
         run: docker compose down -v

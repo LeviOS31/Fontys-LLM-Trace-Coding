@@ -13,9 +13,12 @@ pipeline {
         }
 
         stage('Build') {
+            agent {
+                docker { image 'node:20' }
+            }
             steps {
+                sh 'npm install'
                 sh 'npm run build'
-                // e.g. sh 'mvn clean package' or sh 'npm install && npm run build'
             }
         }
 

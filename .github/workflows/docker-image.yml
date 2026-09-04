@@ -1,0 +1,26 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker Images
+        run: docker compose build
+
+      - name: Build and Start Docker Containers
+        run: docker compose up -d
+
+      - name: Wait for App Readiness
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Stop Docker Containers
+        run: docker compose down -v

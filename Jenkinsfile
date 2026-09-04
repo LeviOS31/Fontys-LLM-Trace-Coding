@@ -14,7 +14,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                npm run build
+                sh 'npm run build'
                 // e.g. sh 'mvn clean package' or sh 'npm install && npm run build'
             }
         }

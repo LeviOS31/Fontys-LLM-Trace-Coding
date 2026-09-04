@@ -133,18 +133,27 @@ jobs:
 
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
-        # The install script sets up and starts a systemd service on 127.0.0.1:11434
+        # The install script sets up a systemd service, but doesn't always
+        # leave it running — start it explicitly rather than assuming.
+
+      - name: Start Ollama service
+        run: |
+          sudo systemctl enable ollama
+          sudo systemctl start ollama
+          sudo systemctl status ollama --no-pager
 
       - name: Wait for Ollama to be ready
         run: |
-          for i in $(seq 1 15); do
+          for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:11434/api/version > /dev/null; then
               echo "Ollama is up"
               exit 0
             fi
             sleep 2
           done
-          echo "Ollama did not become ready in time"
+          echo "Ollama did not become ready in time — dumping diagnostics:"
+          sudo systemctl status ollama --no-pager || true
+          sudo journalctl -u ollama --no-pager | tail -n 100 || true
           exit 1
 
       - name: Write Compose override for CI networking

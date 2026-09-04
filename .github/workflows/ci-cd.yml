@@ -153,7 +153,7 @@ jobs:
           # without this mapping, unlike Docker Desktop on Mac/Windows.
 
       - name: Start stack
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d --build
 
       - name: Wait for backend to respond
         run: |
@@ -182,11 +182,11 @@ jobs:
 
       - name: Show logs on failure
         if: failure()
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml logs
 
       - name: Tear down
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml down -v
 
   deploy:
     name: Build & push images (main only)

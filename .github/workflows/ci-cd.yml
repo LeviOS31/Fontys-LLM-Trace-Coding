@@ -35,8 +35,13 @@ jobs:
         working-directory: backend
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
         working-directory: backend
+        run: |
+          if find . -iregex '.*\(Test\|Tests\)\.csproj$' | grep -q .; then
+            dotnet test --no-build --configuration Release --verbosity normal
+          else
+            echo "No .NET test projects found yet — skipping."
+          fi
 
   frontend:
     name: Frontend (Node)
@@ -61,7 +66,7 @@ jobs:
         working-directory: frontend/webapp
 
       - name: Test
-        run: npm test -- --watch=false
+        run: npm test -- --watch=false --passWithNoTests
         working-directory: frontend/webapp
 
   docker-build:
@@ -75,10 +80,81 @@ jobs:
       - name: Build all images via Compose
         run: docker compose build
 
+  smoke-test:
+    name: Smoke test full stack (with Ollama)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+        # The install script sets up and starts a systemd service on 127.0.0.1:11434
+
+      - name: Wait for Ollama to be ready
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://127.0.0.1:11434/api/version > /dev/null; then
+              echo "Ollama is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Ollama did not become ready in time"
+          exit 1
+
+      - name: Write Compose override for CI networking
+        run: |
+          cat > docker-compose.ci.yml <<'EOF'
+          services:
+            backend:
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+          EOF
+          # host.docker.internal doesn't resolve inside containers on Linux runners
+          # without this mapping, unlike Docker Desktop on Mac/Windows.
+
+      - name: Start stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --build
+
+      - name: Wait for backend to respond
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/ > /dev/null; then
+              echo "Backend is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend did not become ready in time"
+          exit 1
+          # Swap the URL above for a real /health endpoint if the backend has one.
+
+      - name: Wait for frontend to respond
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:3000/ > /dev/null; then
+              echo "Frontend is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Frontend did not become ready in time"
+          exit 1
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+
   deploy:
     name: Build & push images (main only)
     runs-on: ubuntu-latest
-    needs: [docker-build]
+    needs: [smoke-test]
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: read

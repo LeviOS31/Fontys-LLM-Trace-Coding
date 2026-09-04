@@ -229,6 +229,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Lowercase image name
+        run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+        # GHCR (and Docker generally) requires lowercase repository names.
+        # github.repository preserves the repo's actual case, so we normalize
+        # it here — GitHub Actions expressions have no built-in lowercase().
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:

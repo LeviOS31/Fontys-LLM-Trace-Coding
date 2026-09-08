@@ -1,0 +1,59 @@
+enum Feedback {
+  positive
+  negative
+}
+
+model Trace {
+  id        String    @id @unique @default(uuid())
+  name      String?
+  system    String?
+  input     String
+  output    String
+  openCode  String?
+  context   String?
+  feedback  Feedback?
+  isFlagged Boolean   @default(false)
+
+  parentId String?
+  parent   Trace?  @relation("Parent", fields: [parentId], references: [id], onDelete: Cascade)
+  traces   Trace[] @relation("Parent")
+
+  traceListId String
+  traceList   TraceList @relation(fields: [traceListId], references: [id], onDelete: Cascade)
+
+  fileId String
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  connections TraceConnection[]
+
+  axialCodeId String?
+  axialCode   AxialCode? @relation(fields: [axialCodeId], references: [id])
+}
+
+model TraceList {
+  id          String      @id @unique @default(uuid())
+  name        String      @default("")
+  axialCodeFeedback        String @default("")
+  createdAt   DateTime    @default(now())
+  completedAt DateTime?
+  axialCodes  AxialCode[]
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  traces Trace[]
+
+  files File[]
+}
+
+model TraceConnection {
+  id String @id @unique @default(uuid())
+
+  axialCodeId String
+  axialCode AxialCode @relation(fields: [axialCodeId], references: [id], onDelete: Cascade)
+
+  traceId String
+  trace Trace @relation(fields: [traceId], references: [id])
+
+  reason String
+}

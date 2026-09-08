@@ -1,0 +1,12 @@
+lint-web:
+  stage: lint
+  image: oven/bun
+  script:
+    - cd apps/web
+    - bun install
+    - bunx turbo telemetry disable
+    - bun -v
+    - ESLINT_CODE_QUALITY_REPORT=./gl-codequality.json bun run lint
+  artifacts:
+    reports:
+      codequality: ./apps/web/gl-codequality.json

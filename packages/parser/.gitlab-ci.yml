@@ -1,0 +1,26 @@
+lint-parser:
+  stage: lint
+  image: rust
+  script:
+    - cd packages/parser
+    - cargo -V
+    - rustup component add clippy
+    - cargo clippy --version
+    - cargo clippy -- -D warnings
+
+test-parser:
+  extends: .test-common
+  image: $CI_REGISTRY_IMAGE/nextest-rust:latest
+  script:
+    - cd packages/parser
+    - cargo -V
+    - cargo nextest --version
+    - cargo llvm-cov --version
+    - cargo llvm-cov --ignore-filename-regex 'src/lib\.rs' nextest
+    - cargo llvm-cov --ignore-filename-regex 'src/lib\.rs' report --cobertura --output-path target/llvm-cov-target/coverage.xml
+  coverage: '/TOTAL\s+(\d+\s+)+(\d+\.\d+\%)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: ./**/coverage.xml

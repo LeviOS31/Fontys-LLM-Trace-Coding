@@ -1,0 +1,49 @@
+variables:
+  GITLAB_ADVANCED_SAST_ENABLED: "true"
+  AST_ENABLE_MR_PIPELINES: "true"
+
+workflow:
+  rules:
+    - when: always
+
+stages:
+  - lint
+  - test
+  - convert
+
+.test-common:
+  stage: test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - ./**/*-junit.xml
+
+.prisma-generate:
+  before_script:
+    - cd packages/db
+    - bun install
+    - DATABASE_URL="postgresql://localhost:5432/pipeline" bunx prisma generate
+    - cd ../../
+
+include:
+  - local: "apps/web/.gitlab-ci.yml"
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_COMMIT_REF_PROTECTED == "true"
+      - changes:
+          - "apps/web/**/*"
+  - local: "apps/api/.gitlab-ci.yml"
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_COMMIT_REF_PROTECTED == "true"
+      - changes:
+          - "apps/api/**/*"
+  - local: "packages/parser/.gitlab-ci.yml"
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      - if: $CI_COMMIT_REF_PROTECTED == "true"
+      - changes:
+          - "packages/parser/**/*"
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml

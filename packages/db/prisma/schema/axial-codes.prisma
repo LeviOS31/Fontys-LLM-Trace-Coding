@@ -1,0 +1,14 @@
+model AxialCode {
+  id          String @id @unique @default(uuid())
+  title       String
+  description String
+  reason      String
+  feedback    String @default("")
+
+  traceListId String?
+  traceList   TraceList? @relation(fields: [traceListId], references: [id], onDelete: Cascade)
+
+  traces Trace[]
+
+  connections TraceConnection[]
+}

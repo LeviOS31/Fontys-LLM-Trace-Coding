@@ -1,0 +1,32 @@
+{
+  "name": "llm-trace-coding",
+  "private": true,
+  "scripts": {
+    "build": "bunx --bun turbo run build",
+    "generate": "bunx --bun turbo run generate",
+    "migrate": "bunx --bun turbo run migrate",
+    "dev": "bunx --bun turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-types": "turbo run check-types",
+    "test": "bunx --bun turbo run test",
+    "test:e2e": "bunx --bun turbo run test:e2e"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "turbo": "^2.8.10",
+    "typescript": "5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "bun@1.3.9",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "dependencies": {
+    "@types/bun": "^1.3.10",
+    "zustand": "^5.0.12"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@repo/generate-route-types",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "generate-route-types": "bun run cleanup-openapi.ts && bun run generate-types.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "@types/node": "^25.6.0"
+  }
+}

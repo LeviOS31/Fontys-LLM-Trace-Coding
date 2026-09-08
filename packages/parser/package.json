@@ -1,0 +1,16 @@
+{
+  "name": "@repo/parser",
+  "version": "0.1.0",
+  "main": "./pkg/parser.js",
+  "private": true,
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir ./pkg",
+    "lint": "cargo clippy -- -D warnings",
+    "format": "cargo fmt --all",
+    "test": "cargo nextest run --no-fail-fast --no-tests warn",
+    "clean": "rm -rf pkg target"
+  },
+  "dependencies": {
+    "wasm-pack": "^0.14.0"
+  }
+}

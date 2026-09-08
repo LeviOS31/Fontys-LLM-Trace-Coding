@@ -1,0 +1,19 @@
+{
+  "name": "@repo/db",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "private": true,
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate deploy"
+  },
+  "devDependencies": {
+    "prisma": "^7.4.1"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.4.1",
+    "@prisma/client": "^7.4.1",
+    "dotenv": "^17.3.1",
+    "pg": "^8.18.0"
+  }
+}

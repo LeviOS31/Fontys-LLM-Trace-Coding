@@ -1,0 +1,10 @@
+model File {
+  id   String @id @unique @default(uuid())
+  name String
+  size Int
+
+  traces Trace[]
+
+  traceListId String
+  traceList   TraceList @relation(fields: [traceListId], references: [id], onDelete: Cascade)
+}

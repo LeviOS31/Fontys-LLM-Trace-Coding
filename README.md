@@ -1,530 +1,886 @@
-# LLM-Trace-Coding-Platform
+# Project Transfer / Handover Document
 
-A full-stack web application for **qualitative coding of LLM traces**. It lets researchers import LLM execution traces (OpenTelemetry OTLP/JSONL), perform **open coding** and **axial coding** on them, define **assessment/judge criteria**, and generate AI-assisted analysis — keeping a human in the loop at every step.
-
-This document is the primary onboarding reference for developers joining the project. It is derived directly from the source code, configuration, and the Architecture Decision Records under [`docs/ADR/`](docs/ADR).
+**Project:** LLM Trace Coding
+**Repository:** llm-trace-coding
+**Version:** 1.0.0
 
 ---
 
-## 1. Project Overview
+## 1. Executive Summary
 
 ### Purpose
 
-The platform supports a qualitative-research workflow over LLM traces:
+LLM Trace Coding is a platform for ingesting, analyzing, and visualizing traces from Large Language Model (LLM) execution pipelines. It enables developers to upload code files, process them through a Rust-based parser, generate execution traces, and annotate those traces with axial codes for qualitative analysis. The platform supports feedback tracking, trace relationships, and project-level organization.
 
-1. **Import traces** — upload OTLP/JSONL trace files into a project version.
-2. **Open coding** — annotate individual traces / trace groups with codes.
-3. **Axial coding** — group open codes into higher-level categories (AI-assisted, non-iterative generation).
-4. **Assessment & Judge templates** — define evaluation criteria and generate LLM-judge templates from coded data.
-5. **Statistics / Overview** — view aggregate analytics per project version.
+### High-Level Architecture
 
-A local LLM (via **Ollama**) powers the AI-assisted generation steps. The design is explicitly **human-in-the-loop** ([ADR-017](docs/ADR/ADR-017-human-in-the-loop-design-principle.md)) and **local-first** ([ADR-022](docs/ADR/ADR-022-local-first-deployment.md)).
+The project is a Turborepo monorepo containing two applications and four shared packages:
 
-### High-level architecture
-
-```
-┌────────────────────┐      HTTPS/REST       ┌──────────────────────────┐
-│   Frontend (SPA)   │ ───────────────────▶  │  Backend API (.NET 10)   │
-│  React 19 + Vite   │   VITE_API_URL        │  Modular monolith / CQRS │
-│  Radix UI + RQuery │ ◀───────────────────  │  Minimal APIs + Mediator │
-└────────────────────┘      JSON             └────────────┬─────────────┘
-                                                          │ EF Core (Npgsql)
-                                            ┌─────────────┴─────────────┐
-                                            │      PostgreSQL 18         │
-                                            │ (one DbContext per module  │
-                                            │  — see ADR-004)            │
-                                            └────────────────────────────┘
-                                            ▲
-              ┌─────────────────────────────┘
-              │ Microsoft.Extensions.AI + OllamaSharp
-   ┌──────────┴──────────┐
-   │  Ollama (external)  │  default model: gpt-oss:120b-cloud
-   └─────────────────────┘
+```mermaid
+graph TB
+    subgraph Applications
+        Web[Web App - Next.js]
+        API[API Server - Elysia/Bun]
+    end
+    subgraph SharedPackages
+        DB[DB Package - Prisma]
+        Parser[Parser - Rust/WASM]
+        GenRoute[Route Type Generator]
+    end
+    subgraph ConfigPackages
+        ESLint[ESLint Config]
+        TSConfig[TypeScript Config]
+    end
+    Web -- "Eden client" --> API
+    API -- "@repo/db" --> DB
+    API -- "@repo/parser" --> Parser
+    Web -- "devDep" --> ESLint
+    Web -- "devDep" --> TSConfig
+    API -- "devDep" --> ESLint
+    API -- "devDep" --> TSConfig
 ```
 
-The backend is a **modular monolith** ([ADR-001](docs/ADR/ADR-001-modular-monolith-architecture.md)): each domain is an isolated .NET project with its own `DbContext` and migrations, communicating through `*.Contracts` projects rather than direct references ([ADR-005](docs/ADR/ADR-005-contracts-pattern-inter-module-communication.md)). A separate **MigrationRunner** console app applies all module migrations on startup. Everything is orchestrated with Docker Compose ([ADR-014](docs/ADR/ADR-014-docker-docker-compose.md)).
+### Main Technologies
 
-> **Note on ADR naming:** Some ADRs reference "Next.js". The actual frontend is **React 19 + Vite** (a single-page app), not Next.js. Trust the code over the ADR titles where they conflict.
+| Layer                   | Technology                                              |
+| ----------------------- | ------------------------------------------------------- |
+| Package Manager         | Bun (bun@1.3.9)                                         |
+| Monorepo Tool           | Turborepo v2                                            |
+| Web Frontend            | Next.js 16 / React 19                                   |
+| API Server              | Elysia with Bun runtime                                 |
+| Database ORM            | Prisma ORM v7                                           |
+| Database                | PostgreSQL 15                                           |
+| UI Components           | shadcn/ui (New York style) + Tailwind CSS v4            |
+| Parser                  | Rust compiled to WebAssembly via wasm-pack              |
+| E2E Testing             | Playwright with playwright-bdd                          |
+| CI/CD                   | GitLab CI (lint, test, convert, SAST, Secret-Detection) |
+| Container Orchestration | Docker Compose                                          |
 
-### Main technologies
+### Current Status
 
-| Area | Technology |
-|------|-----------|
-| Backend | ASP.NET Core Minimal APIs on **.NET 10** |
-| Backend pattern | CQRS via source-generated **Mediator** (`Mediator.SourceGenerator` 3.0.1) |
-| ORM | **Entity Framework Core 10** + Npgsql (PostgreSQL provider) |
-| Database | **PostgreSQL 18** |
-| AI abstraction | **Microsoft.Extensions.AI** + **OllamaSharp** (Ollama provider) |
-| Validation | **FluentValidation 12** (pipeline behavior) |
-| Logging | **Serilog** (console sink) |
-| Frontend | **React 19** + **TypeScript 5** + **Vite 8** |
-| Data fetching | **TanStack React Query 5** |
-| UI | **Radix UI Themes** + `lucide-react` + `@visx` charts |
-| Routing | **React Router 7** |
-| Testing | xUnit + NSubstitute + Shouldly (backend); Vitest + Cypress (frontend) |
+The project is in active development. Both the web application and API server are functional. The Rust parser package builds successfully and integrates with both applications. CI/CD pipelines are configured for linting, testing, converting BDD features, and SAST/Secret-Detection scanning across all packages.
 
 ---
 
-## 2. Tech Stack (detail)
-
-- **Backend framework:** ASP.NET Core Minimal APIs (.NET 10, `Microsoft.NET.Sdk.Web`). Entry point registers modules and maps endpoint groups.
-- **Frontend framework:** React 19 + Vite 8 with the **React Compiler** enabled (`babel-plugin-react-compiler` via `@vitejs/plugin-react`).
-- **Database:** PostgreSQL 18 (Docker image `postgres:18`).
-- **ORM:** EF Core 10 with `Npgsql.EntityFrameworkCore.PostgreSQL`. **One `DbContext` per module** ([ADR-004](docs/ADR/ADR-004-separate-dbcontext-per-module.md)).
-- **Authentication:** ⚠️ **Not implemented yet.** Every endpoint hardcodes `UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7")` with a `// TODO: Get from claims` comment. Entities implement `IUserOwned` and use `entity.HasAccess(userId)` so auth can be slotted in later ([ADR-023](docs/ADR/ADR-023-userid-forward-compatibility.md)).
-- **Message brokers:** None. Inter-module communication is in-process via Mediator + Contracts.
-- **Cloud services:** None required for local dev. CI pushes images to **Docker Hub** and runs **SonarQube** analysis. The default AI model `gpt-oss:120b-cloud` is a cloud-hosted Ollama model (free), but Ollama itself runs as an external dependency you control.
-- **Other important libraries:** `Scriban` (templating, used in Judge template generation), `Serilog.AspNetCore`, `Swashbuckle.AspNetCore` (Swagger), `react-resizable-panels` ([ADR-010](docs/ADR/ADR-010-react-resizable-panels.md)), `@visx/*` (charts).
-
----
-
-## 3. Project Structure
+## 2. Repository Structure
 
 ```
-LLM-Trace-Coding-Platform/
-├── backend/                 # .NET 10 solution (LlmTracing.sln)
-│   ├── Api/                 # Entry point: hosts, endpoints, DI wiring, Swagger, CORS
-│   ├── Shared/              # Result<T>, ErrorCode, validation behavior, AI ChatClientBuilder
-│   ├── Shared.Tests/
-│   ├── MigrationRunner/     # Console app: applies every module's EF migrations on startup
-│   ├── <Module>/            # Domain module (DbContext + Features/ CQRS handlers)
-│   ├── <Module>.Contracts/  # Cross-module query/response types (no circular deps)
-│   ├── <Module>.Tests/      # xUnit unit tests for that module
-│   ├── Dbcompose.yaml       # DB-only compose (Postgres + migrator) for local/dev/tests
-│   ├── dockerfile           # Builds the Api image
-│   ├── global.json          # Pins .NET SDK 10
-│   └── dotnet-tools.json    # Local tools (csharpier)
-├── frontend/
-│   └── webapp/              # React 19 + Vite SPA
-│       ├── src/             # Application source (see §5)
-│       ├── cypress/         # E2E tests + DB seed/reset helpers
-│       ├── Dockerfile       # Multi-stage build → nginx static serve
-│       ├── nginx.conf       # Serves the built SPA on port 8080
+llm-trace-coding
+├── apps/
+│   ├── api/                      # API server (Elysia + Bun)
+│   │   ├── src/index.ts          # Entry point
+│   │   ├── src/lib/              # API library utilities
+│   │   ├── src/modules/          # API route modules
+│   │   ├── test/                 # Unit tests
+│   │   ├── Dockerfile            # Production container image
+│   │   ├── bunfig.toml           # Bun configuration (test settings)
+│   │   ├── bun.lock              # Bun lockfile for API
+│   │   ├── eslint.config.mjs     # ESLint configuration
+│   │   ├── tsconfig.json         # TypeScript configuration
+│   │   └── package.json
+│   │
+│   └── web/                      # Web application (Next.js)
+│       ├── app/                  # Next.js App Router pages
+│       ├── components/           # React components (shadcn/ui + custom)
+│       ├── hooks/                # Custom React hooks
+│       ├── lib/                  # Utility functions
+│       ├── state/                # Zustand store
+│       ├── e2e/                  # Playwright E2E tests
+│       ├── public/               # Static assets
+│       ├── api-types.ts          # Generated API types (Eden)
+│       ├── next.config.ts        # Next.js configuration
+│       ├── next-env.d.ts         # Next.js type definitions
+│       ├── components.json       # shadcn/ui configuration
+│       ├── eslint.config.mjs     # ESLint configuration
+│       ├── postcss.config.mjs    # PostCSS configuration
+│       ├── playwright.config.ts  # Playwright configuration
+│       ├── tsconfig.json         # TypeScript configuration
+│       ├── Dockerfile            # Production container image
+│       ├── README.md             # Web app documentation
 │       └── package.json
-├── docs/ADR/                # Architecture Decision Records (ADR-001 … ADR-028)
-├── .github/workflows/       # CI/CD pipelines (backend, frontend, e2e, release, sonar)
-├── docker-compose.yaml      # Full stack: frontend + backend + db + migrator
-└── README.md
+│
+├── packages/
+│   ├── db/                       # Database package (Prisma ORM)
+│   │   ├── src/index.ts          # Re-exported Prisma client
+│   │   ├── prisma/schema/        # Prisma schema files (multi-file)
+│   │   ├── generated/prisma/     # Generated Prisma client output
+│   │   ├── prisma.config.ts      # Prisma configuration
+│   │   └── package.json
+│   │
+│   ├── parser/                   # Rust parser (WASM target)
+│   │   ├── src/                  # Rust source code
+│   │   ├── pkg/                  # Generated WASM bindings (JS + WASM)
+│   │   ├── Cargo.toml            # Rust package manifest (WASM library)
+│   │   ├── Cargo.lock            # Rust dependency lockfile
+│   │   ├── README.md             # Parser documentation
+│   │   └── package.json          # npm wrapper for wasm-pack (scripts: build, lint, format, test, clean)
+│   │
+│   ├── eslint-config/            # Shared ESLint configurations
+│   │   ├── README.md             # ESLint config documentation
+│   │   ├── base.js               # Base ESLint rules
+│   │   ├── next.js               # Next.js-specific rules
+│   │   └── react-internal.js     # React monorepo rules
+│   │
+│   ├── generate-route-types/     # API route type generator
+│   │   ├── generate-types.ts     # Generates TypeScript types from API
+│   │   ├── cleanup-openapi.ts    # Cleans OpenAPI artifacts
+│   │   ├── tsconfig.json         # TypeScript configuration
+│   │   └── package.json
+│   │
+│   └── typescript-config/        # Shared TypeScript configurations
+│       ├── base.json             # Base TS config
+│       ├── nextjs.json           # Next.js-specific TS config
+│       ├── react-library.json    # React library TS config
+│       └── package.json
+│
+├── .dockerignore                 # Docker ignore rules
+├── .env.example                  # Environment variable template
+├── .env                          # Local environment (gitignored)
+├── .gitignore                    # Git ignore rules
+├── .gitlab-ci.yml                # CI/CD pipeline
+├── .npmrc                        # npm/bun registry config (empty)
+├── .prettierrc                   # Prettier configuration
+├── .turbo/                       # Turborepo cache
+├── .vscode/                      # VS Code workspace settings (empty)
+├── README.md                     # Project README
+├── bun.lock                      # Bun lockfile
+├── docker-compose.yml            # Local Docker services
+├── package.json                  # Root workspace configuration
+├── turbo.json                    # Turborepo task configuration
+└── tsconfig.json                 # (not present at root)
 ```
 
-### Backend modules
+### Package Descriptions
 
-Each domain module follows the same internal layout (`Data/`, `Features/`, `Extensions/`). Current modules:
-
-| Module | Responsibility |
-|--------|---------------|
-| `Projects` | Project management (note: the `DbContext` lives under the `Project/` project) |
-| `ProjectVersions` | Versioning within projects |
-| `Traces` | Trace import (OTLP/JSONL), querying, **and open-coding features** |
-| `AxialCodes` | Axial code generation / interpretation |
-| `AssessmentCriteria` | Evaluation criteria definitions |
-| `JudgeTemplates` | LLM-judge template generation (uses Scriban) |
-| `Statistics` | Aggregate analytics per version |
-| `Settings` | LLM provider configuration (`ChatClientConfiguration`) |
-| `Shared` | Cross-cutting: `Result<T>`, `ErrorCode`, validation pipeline, `ChatClientBuilder` |
-
-> There are also `Opencode/` and `Opencode.Contracts/` projects, but `Api/Program.cs` does **not** register an Opencode module — open-coding endpoints currently live inside the `Traces` module (`EditOpenCode`, `GetVersionOpencode`, etc.). Treat the standalone `Opencode` project as legacy unless you confirm otherwise.
-
-The `*.Contracts` projects exist so one module can call another via Mediator without a circular project reference (e.g. `ProjectVersions` resolves a project through `Projects.Contracts`).
+| Package                         | Name                         | Purpose                                                                                                                                                                                                                    |
+| ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`                      | `@repo/web`                  | Next.js frontend application. Serves the UI, handles routing, state management with Zustand, and communicates with the API via Elysia Eden.                                                                                |
+| `apps/api`                      | `@repo/api`                  | Elysia-based API server running on Bun. Provides REST endpoints, integrates with the Rust parser, manages database operations through Prisma, and supports OpenAI/compatible LLM calls.                                    |
+| `packages/db`                   | `@repo/db`                   | Prisma ORM package. Contains database schema definitions, the generated Prisma client, and migration utilities. Shared by both `@repo/web` and `@repo/api`.                                                                |
+| `packages/parser`               | `@repo/parser`               | Rust library compiled to WebAssembly. Parses code files and generates trace data. Built independently and consumed as a JavaScript module by both applications. Dependencies: csv, regex, serde, serde_json, wasm-bindgen. |
+| `packages/eslint-config`        | `@repo/eslint-config`        | Shared ESLint configuration presets for the monorepo.                                                                                                                                                                      |
+| `packages/typescript-config`    | `@repo/typescript-config`    | Shared TypeScript compiler options for the monorepo.                                                                                                                                                                       |
+| `packages/generate-route-types` | `@repo/generate-route-types` | Utility that generates TypeScript types from the Elysia API's OpenAPI specification.                                                                                                                                       |
 
 ---
 
-## 4. Backend
-
-### Entry point — `Api/Program.cs`
-
-`Program.cs` is the composition root. In order it:
-
-1. Configures Kestrel + `FormOptions` for a **500 MB** max request/upload size (large trace files).
-2. Registers Swagger, the source-generated Mediator (`AddMediator`, scoped lifetime), and each module's DI via `Add<Module>Module(configuration)`.
-3. Configures CORS from `Cors:AllowedOrigins` (comma-separated).
-4. Configures Serilog from configuration + console sink.
-5. Maps each module's endpoint group (`Map<Module>Endpoints()`).
-
-### API architecture
-
-- **Minimal APIs**, grouped by module under `Api/Endpoints/<Module>/`. Each file is a static class with a `Map…Endpoints(this WebApplication app)` extension method, tagged with `.WithTags("…")` for Swagger.
-- Endpoints are thin: they build a request/query record and `await mediator.Send(request)`, then call `.ToHttpResult()`.
-- **REST conventions** ([ADR-012](docs/ADR/ADR-012-restful-api-design.md)), versioned under `/v1/...`, e.g.
-  `GET /v1/projects/{projectId:guid}/versions/{versionId:guid}/traces`.
-
-### CQRS feature structure ([ADR-006](docs/ADR/ADR-006-cqrs-mediatr.md))
-
-There are no traditional Controllers/Services/Repositories. Each use case is a self-contained vertical slice under `Features/`:
-
-```
-Features/
-  ImportTraces/
-    ImportTracesRequest.cs          # Record + inline FluentValidation validator
-    ImportTracesHandler.cs          # IRequestHandler<TRequest, Result<TResponse>>
-    ImportTracesResponse.cs         # Response DTO
-  GetTraceGroupSummary/
-    GetTraceGroupSummaryQuery.cs     # Queries use *Query.cs / *QueryValidator.cs
-    GetTraceGroupSummaryHandler.cs
-    GetTraceGroupSummaryResponse.cs
-```
-
-- **Handlers** = the "service" layer. They take a request, use the module's `DbContext` directly (no separate repository layer — EF Core's `DbSet`/`IQueryable` is the repository), and return `Result<T>`.
-- **Models / Entities** live in `<Module>/Data/Models/` and the `DbContext` in `<Module>/Data/`. Entities implement `IUserOwned`.
-- **Configuration / DI:** `<Module>/Extensions/ApplicationExtensions.cs` registers the `DbContext` (Npgsql, connection string `"Default"`) and any module services.
-
-### Validation, logging, error handling
-
-- **Validation:** FluentValidation validators are defined inline next to each request. `Shared/Middleware/FeatureRequestValidatorBehavior.cs` is a Mediator pipeline behavior that runs validation **before** every handler ([ADR-008](docs/ADR/ADR-008-fluentvalidation-mediatr-pipeline.md)). On failure it short-circuits with `ValidationError`.
-- **Logging:** Serilog, console sink, configured from the `Logging` section in `appsettings.json`.
-- **Error handling — the Result pattern** ([ADR-013](docs/ADR/ADR-013-result-pattern-error-handling.md)): handlers never throw for expected errors. They return an `ErrorCode` (implicitly converted to `Result<T>`) or the response object. `Api/Extensions/ResultExtensions.cs` (`ToHttpResult()`) maps error codes → HTTP status codes.
-
-  **Error codes** (`Shared/ErrorCode.cs`) include: `ValidationError`, `EntityNotFound`, `NoPermission`, `DatabaseError`, `NoChanges`, `Unauthorized`, `FileReadError`, `InvalidRequest`, `UnsupportedFileType`, `ProjectVersionNameAlreadyExists`, `LlmConfigError`. *(Verify the full current list in the source.)*
-
-- **Ownership:** call `entity.HasAccess(userId)` (`Shared/Extensions/AccessExtensions.cs`) before mutations.
-
-### AI integration
-
-`Shared/Builders/ChatClientBuilder.cs` implements a fluent builder (`WithProvider/WithEndpoint/WithModel/Build`) returning a `Result<IChatClient>` (`Microsoft.Extensions.AI`). Today only the `ollama` provider is wired (via `OllamaSharp`), backed by an `IHttpClientFactory` client named `"ollama"`. Provider config is stored in the `Settings` module (`ChatClientConfiguration`) and defaults come from the `AI` config section ([ADR-021](docs/ADR/ADR-021-microsoft-extensions-ai-abstraction.md)).
-
-### Backend commands
-
-```bash
-# Build the solution
-dotnet build backend/LlmTracing.sln
-
-# Run the API (from backend/)
-dotnet run --project Api          # Swagger at https://localhost:7030/swagger
-
-# Run all tests
-dotnet test backend/LlmTracing.sln
-
-# Run one module's tests
-dotnet test backend/Traces.Tests
-
-# Run a single test by name
-dotnet test backend/Projects.Tests --filter "FullyQualifiedName~CreateProjectHandlerTests"
-
-# Format C# (csharpier — restore tools first)
-dotnet tool restore
-dotnet csharpier .
-```
-
-> The backend has no `package.json`/npm scripts; it is driven entirely by the `dotnet` CLI. EF migration commands are documented in §7 (Database).
-
----
-
-## 5. Frontend
-
-Located in `frontend/webapp/`.
-
-### Folder structure (`src/`)
-
-```
-src/
-├── main.tsx            # Bootstraps React: BrowserRouter → QueryClientProvider → Radix Theme → App
-├── App.tsx             # Route definitions (React Router 7), all pages lazy-loaded via React.lazy
-├── queryClient.ts      # Shared TanStack Query client
-├── globals.css
-├── components/         # App-wide layout (AppLayout, Sidebar + sub-components, ui/)
-├── feature/            # One folder per feature; each has components/ and hooks/
-│   ├── home/  traces/  projects/  versions/  overview/
-│   ├── opencode/       (incl. traceGroup/ with trace + LLM views)
-│   ├── axialcode/      assessmentCriteria/  judgeTemplate/  settings/
-├── shared/
-│   ├── api/            # Per-domain API clients (projects.ts, traces.ts, …) + queryKeys.ts + api.ts (BASE_URL)
-│   ├── types/          # TypeScript domain types (project, version, trace, …)
-│   ├── components/     # Shared UI (e.g. NotFoundPage)
-│   ├── styling/        # colors.ts (Radix theme tokens), shared styles
-│   └── util/
-├── lib/
-└── assets/
-```
-
-This is a **feature-first** organisation: page components live under `feature/<name>/`, with co-located `components/` and `hooks/`. Cross-feature concerns live in `shared/`.
-
-### Routing
-
-Defined declaratively in `App.tsx`; all pages are code-split with `React.lazy` + `<Suspense>`, nested inside a shared `<AppLayout>`:
-
-| Path | Page |
-|------|------|
-| `/` | Home |
-| `/traces` | Trace list |
-| `/projects/:id` | Project detail |
-| `/projects/:id/versions/:versionId/overview` | Version overview |
-| `/projects/:id/versions/:versionId/open-code` | Open coding |
-| `/projects/:id/versions/:versionId/open-code/:traceGroupId` | Trace group detail |
-| `/projects/:id/versions/:versionId/axial-code` | Axial coding |
-| `/projects/:id/versions/:versionId/judge-template` | Judge templates |
-| `*` | Not Found |
-
-### State management & API communication
-
-- **Server state:** TanStack React Query. Cache keys are centralised in `src/shared/api/queryKeys.ts`. Per-domain fetch functions live in `src/shared/api/*.ts`.
-- **Base URL:** `src/shared/api/api.ts` exports `BASE_URL = import.meta.env.VITE_API_URL`.
-- **UI/local state:** plain React state/hooks (React Compiler enabled, so manual memoization is largely unnecessary).
-- **UI library:** Radix UI Themes, configured in `main.tsx` with theme tokens from `shared/styling/colors.ts`.
-
-### Environment configuration
-
-Copy `.env.example` → `.env`. `VITE_API_URL` is the only variable needed to run the SPA (defaults shown in §8). `TEST_DATABASE_URL` is used by Cypress DB seeding.
-
-### Frontend npm scripts
-
-Run from `frontend/webapp/`.
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the Vite dev server (http://localhost:5173) with HMR |
-| `npm run build` | Type-check (`tsc -b`) then produce a production build (`vite build`) |
-| `npm run preview` | Serve the production build locally |
-| `npm run lint` | Run ESLint over `.ts`/`.tsx`, reporting unused disable directives |
-| `npm run lint:fix` | ESLint with `--fix` (auto-fix) |
-| `npm run test` | Run Vitest unit tests |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run prettier` | Format the project with Prettier (`--write`) |
-| `npm run prettier:check` | Check formatting without writing (used in CI) |
-| `npm run docker:up` | Start Postgres + MigrationRunner via `backend/Dbcompose.yaml` |
-| `npm run docker:down` | Stop those containers |
-| `npm run docker:reset` | Full reset: `down -v` then `up` (used before Cypress runs) |
-
-### Build process
-
-`npm run build` runs the TypeScript project-reference build then Vite. The Docker image (`frontend/webapp/Dockerfile`) is multi-stage: build the SPA, then serve the static `dist/` with nginx (`nginx.conf`) on port 8080. `VITE_API_URL` must be passed as a **build arg** because Vite inlines env vars at build time (see `docker-compose.yaml`).
-
----
-
-## 6. Services Summary
-
-The full stack (`docker-compose.yaml`, project name `TraceEvalCompose`) is four services:
-
-| Service | Build context | Host port | Purpose |
-|---------|--------------|-----------|---------|
-| `frontend` | `frontend/webapp` | `3000` → 8080 | nginx serving the built SPA |
-| `backend` | `backend` | `8080` → 8080 | ASP.NET Core API |
-| `db` | `postgres:18` image | `5432` | PostgreSQL database |
-| `migrator` | `backend` (MigrationRunner/Dockerfile) | — | Applies all EF migrations, then exits (`restart: on-failure`) |
-
-The `migrator` (`MigrationRunner`) injects every module's `DbContext` and calls `Database.MigrateAsync()` for each, with retry (5 attempts, 3s backoff) to wait for Postgres ([ADR-026](docs/ADR/ADR-026-migration-runner-modular-migrations.md)).
-
----
-
-## 7. Database
-
-- **Technology:** PostgreSQL 18 (Docker).
-- **ORM / schema location:** EF Core 10. Schema is code-first; entities live in `backend/<Module>/Data/Models/`, each module's `DbContext` in `backend/<Module>/Data/`.
-- **Migrations location:** `backend/<Module>/Migrations/` — **each module owns its migrations** ([ADR-026](docs/ADR/ADR-026-migration-runner-modular-migrations.md)).
-- **Connection configuration:** connection string `"Default"`. Locally set it in `backend/Api/appsettings.json` (defaults to `Host=localhost;Port=5432;Database=mydb;Username=user;Password=password`). In Docker it's supplied via the `ConnectionStrings__Default` env var.
-- **Applying migrations at runtime:** the `MigrationRunner` service runs them automatically on `docker compose up`.
-
-### Creating, running, and rolling back migrations
-
-Replace `<Module>` with the project whose schema changed (e.g. `Traces`, `Projects`, `ProjectVersions`, `AxialCodes`, `AssessmentCriteria`, `JudgeTemplates`, `Settings`). All commands use `Api` as the startup project.
-
-```bash
-# Create a migration
-dotnet ef migrations add <MigrationName> --project backend/<Module> --startup-project backend/Api
-
-# Apply migrations to the local DB
-dotnet ef database update --project backend/<Module> --startup-project backend/Api
-
-# Roll back to a specific earlier migration (apply down-scripts)
-dotnet ef database update <PreviousMigrationName> --project backend/<Module> --startup-project backend/Api
-
-# Remove the last (unapplied) migration
-dotnet ef migrations remove --project backend/<Module> --startup-project backend/Api
-```
-
-> Run migration commands **per module** — there is no single "migrate everything" CLI command outside the MigrationRunner.
-
-> ⚠️ **Known issue — stale `migrator` image.** When you change the MigrationRunner or add/modify a migration, Docker Compose will keep using the **previously built `migrator` image**, so your new migrations won't be applied. You must manually rebuild it: stop the stack, delete the old image, and restart.
->
-> ```bash
-> docker compose stop migrator
-> docker compose rm -f migrator          # remove the stopped container
-> docker image rm traceevalcompose-migrator   # delete the cached image (name may vary)
-> docker compose up --build migrator     # rebuild and re-run
-> ```
->
-> If you're unsure of the image name, list it with `docker image ls | grep migrator`. A full `docker compose up --build` from a clean state also works, but targeted removal is faster.
-
-### Seeding
-
-There is **no application-level seed script**. Seeding exists only for **Cypress E2E tests**: `frontend/webapp/cypress/db/` (`seedDb.ts`, `resetDb.ts`, `db.ts`) connects directly to Postgres via the `pg` driver using `TEST_DATABASE_URL`, with seed payloads in `cypress/testData/`. If you need dev seed data, that requires developer input — it is not yet built.
-
----
-
-## 8. Environment Variables
-
-### Frontend (`frontend/webapp/.env`)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_API_URL` | Yes | Base URL of the backend API. Dev default: `https://localhost:7030`. In the Docker build it's passed as a build arg (`http://localhost:8080`). |
-| `TEST_DATABASE_URL` | Only for Cypress | Postgres connection string used by Cypress DB seeding. Default: `postgresql://user:password@localhost:5432/mydb`. |
-
-### Backend (`appsettings.json` keys / `__` env-var overrides)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ConnectionStrings__Default` | Yes | PostgreSQL connection string. |
-| `Cors__AllowedOrigins` | Yes | Comma-separated allowed origins. Dev default: `http://localhost:5173,http://localhost:5248`. |
-| `AI__Provider` | Yes | LLM provider. Currently only `Ollama` is implemented. |
-| `AI__Ollama__Endpoint` | Yes (Ollama) | Ollama base URL, e.g. `http://localhost:11434/` (Docker: `http://host.docker.internal:11434`). |
-| `AI__Ollama__Model` | Yes (Ollama) | Default model, e.g. `gpt-oss:120b-cloud`. Changeable at runtime in app settings. |
-| `AI__Ollama__TimeoutMinutes` | No | Request timeout in minutes (default `10`). |
-| `Logging__LogLevel__*` | No | Standard .NET log-level configuration. |
-
----
-
-## 9. Running the Project
+## 3. Local Development Setup
 
 ### Prerequisites
 
-- **.NET SDK 10** (pinned in `backend/global.json`)
-- **Node.js 22** (CI uses Node 22) + npm
-- **Docker** + Docker Compose
-- **Ollama** installed separately (the compose stack does **not** run Ollama)
+| Requirement | Minimum Version   | Notes                            |
+| ----------- | ----------------- | -------------------------------- |
+| OS          | macOS 14+ / Linux | Windows requires WSL2            |
+| Bun         | 1.3.9+            | https://bun.sh/docs/installation |
+| Node.js     | 20.x+             | For Turborepo tooling            |
+| Rust        | 1.75+             | For building the parser package  |
+| Docker      | 24.0+             | For local PostgreSQL             |
+| Git         | 2.40+             | For version control              |
 
-### Recommended AI model setup
-
-By default the app uses `gpt-oss:120b-cloud` — a free cloud-hosted Ollama model that gives the best results for axial coding / qualitative analysis. Pull it before starting:
-
-```bash
-ollama pull gpt-oss:120b-cloud
-```
-
-To run a fully local model instead, `llama3.1:8b` is recommended (a capable GPU is strongly advised — local generation can take ~2–3 min/request). Verify GPU usage with `ollama ps` (look for `100% GPU`).
-
-### Option A — Full stack via Docker Compose
+### One-Time Setup
 
 ```bash
-ollama pull gpt-oss:120b-cloud      # once
-docker compose up --build           # from repo root
+# 1. Install all workspace dependencies
+bun i
+
+# 2. Configure environment variables
+cp .env.example .env
+# Edit .env and set your values (see Section 5 for details)
+
+# 3. Copy env into packages/db
+cp .env ./packages/db/.env
+
+# 4. Initialize the database
+cd packages/db
+bunx prisma generate
+bunx prisma migrate dev
+cd ../..
+
+# 5. Build the Rust parser
+cd packages/parser
+bun run build
+cd ../..
 ```
 
-- Frontend → http://localhost:3000
-- Backend API → http://localhost:8080
-- Postgres → localhost:5432
-- `migrator` runs migrations automatically, then exits.
-
-### Option B — Local development (hot reload)
+### Starting Development Servers
 
 ```bash
-# 1. Start Postgres + run migrations (from frontend/webapp/)
-npm run docker:up
+# Start all services in one command (recommended)
+bun dev
 
-# 2. Backend (from backend/)
-dotnet run --project Api            # https://localhost:7030  (Swagger at /swagger)
-
-# 3. Frontend (from frontend/webapp/)
-cp .env.example .env                # ensure VITE_API_URL points at the backend
-npm install
-npm run dev                         # http://localhost:5173
+# This runs both the API server and web app concurrently
 ```
 
-### Production build
+The above command starts:
 
-- Backend image: `docker build -f backend/dockerfile backend/`
-- Frontend image: `docker build -f frontend/webapp/Dockerfile --build-arg VITE_API_URL=<url> frontend/webapp/`
-- Or simply `docker compose up --build` to build all images.
+- **API server** at `http://localhost:3001`
+- **Web application** at `http://localhost:3000`
 
----
+### Docker for Database
 
-## 10. Development Workflow
+```bash
+docker compose start db
+```
 
-### Add a new API endpoint / feature (backend)
+### Development Workflow
 
-1. In the relevant module, create a `Features/<FeatureName>/` folder with:
-   - `<FeatureName>Request.cs` (or `…Query.cs`) — a record **plus** an inline FluentValidation validator.
-   - `<FeatureName>Handler.cs` — `IRequestHandler<TRequest, Result<TResponse>>`; use the module `DbContext`, return an `ErrorCode` or the response.
-   - `<FeatureName>Response.cs`.
-2. If another module needs to call it, add the request/response to that module's `*.Contracts` project.
-3. Map it in `Api/Endpoints/<Module>/<Module>Endpoints.cs`: build the request, `mediator.Send(...)`, return `.ToHttpResult()`, tag with `.WithTags(...)`.
-4. Add a handler unit test in `<Module>.Tests` (xUnit + NSubstitute + Shouldly).
-
-### Add a new database model
-
-1. Add the entity to `<Module>/Data/Models/` (implement `IUserOwned` if user-owned).
-2. Register it on the module's `DbContext`.
-3. Create + apply a migration (see §7).
-
-### Add a frontend page
-
-1. Create `src/feature/<name>/<Name>Page.tsx` (+ `components/`, `hooks/`).
-2. Add a lazy route in `src/App.tsx`.
-3. Add API functions in `src/shared/api/<name>.ts` and a cache key in `queryKeys.ts`; fetch via React Query.
-
-### Coding conventions, linting, formatting
-
-- **Backend:** csharpier (config in `backend/.csharpierrc.json`); `dotnet csharpier .` ([ADR-028](docs/ADR/ADR-028-code-formatting-prettier-csharpier.md)). CI fails on formatting drift.
-- **Frontend:** ESLint (`eslint.config.js`) + Prettier (`.prettierrc`). Run `npm run lint:fix` and `npm run prettier`. CI runs `prettier:check`, `lint`, `build`, and `test`.
-- **Static analysis:** SonarQube on both backend and frontend ([ADR-018](docs/ADR/ADR-018-static-code-analysis-sonarqube-eslint.md)); config in `sonar-project.properties`.
-
-### Pull request requirements
-
-Per the PR template, every PR must include unit tests for changed business logic, Cypress E2E tests matching acceptance criteria, local verification of all relevant scenarios, and a **complete** backend + frontend implementation (no partial PRs).
+1. Ensure `.env` is configured with database credentials matching your Docker setup.
+2. Run `bun dev` to start both applications.
+3. Make changes — the web app uses Next.js hot reload; the API server uses Elysia's built-in dev mode.
+4. For database schema changes:
+   - Edit the schema in `packages/db/prisma/schema/`
+   - Run `cd packages/db && bunx prisma migrate dev --name <description>`
+   - Commit the new migration file
+5. For parser changes:
+   - Edit Rust source in `packages/parser/src/`
+   - Run `cd packages/parser && bun run build`
+   - The generated WASM bindings are in `packages/parser/pkg/`
+6. Run tests:
+   - Unit tests: `bun run test` (from workspace root)
+   - E2E tests: `bun run test:e2e`
 
 ---
 
-## 11. Testing ([ADR-020](docs/ADR/ADR-020-testing-strategy.md))
+## 4. Build & Deployment
 
-| Layer | Stack | How to run |
-|-------|-------|-----------|
-| Backend unit | xUnit + NSubstitute + Shouldly | `dotnet test backend/LlmTracing.sln` |
-| Frontend unit | Vitest + Testing Library (jsdom) | `npm run test` |
-| E2E | Cypress | `npx cypress open` / `npx cypress run` (from `frontend/webapp/`) |
+### Docker Deployment
 
-**Cypress** resets and seeds the database before each run via Docker. `cypress.config.ts` runs `npm run docker:reset` on `before:run`, then registers `task` hooks (`resetDb`, `seedProjects`, `seedTraces`, …) that talk to Postgres directly. Requirements:
+#### Docker Compose (Local/Dev)
 
-- Frontend running at `http://localhost:5173`, API at `https://localhost:7030`, Docker available.
-- Test data lives in `cypress/testData/`; specs in `cypress/e2e/`.
+The `docker-compose.yml` file defines:
 
-**Coverage / integration tests:** there is no dedicated coverage threshold or separate integration-test suite configured in the repo. Add this if required — it needs developer input.
+- **PostgreSQL 15** (`db`) — Database service on port 5432
+- **Web App** (`llmtc-frontend`) — Next.js app on port 3000
+- **API Server** (`llmtc-backend`) — Elysia API on port 3001
+
+```bash
+docker compose up -d
+```
+
+#### Production Container Images
+
+Both `apps/web/Dockerfile` and `apps/api/Dockerfile` follow a multi-stage build pattern:
+
+**Web App (`apps/web/Dockerfile`):**
+
+1. **Builder stage** (based on `oven/bun:1-alpine`):
+   - Installs dependencies, generates Prisma client, builds the Rust parser, runs Turborepo build
+2. **Runner stage** (based on `oven/bun:1-alpine`):
+   - Copies built artifacts, exposes port 3000
+3. Uses non-root user `appuser` for security
+
+**API Server (`apps/api/Dockerfile`):**
+
+1. **Builder stage** (based on `oven/bun:1-alpine`):
+   - Installs dependencies, generates Prisma client, builds the API
+2. **Runner stage** (based on `oven/bun:1-alpine`):
+   - Copies built artifacts, exposes port 3001
+3. Uses non-root user `appuser` for security
+
+### CI/CD Pipeline (GitLab)
+
+The `.gitlab-ci.yml` defines the following pipeline stages:
+
+| Stage  | Jobs                                                     | Purpose                                     |
+| ------ | -------------------------------------------------------- | ------------------------------------------- |
+| `lint` | `lint-api`, `lint-web`, `lint-eslint`, `lint-typescript` | ESLint checks across all packages           |
+| `test` | `test-api`, `test-web`, `test-generate-route-types`      | Unit tests across packages                  |
+| `sast` | `sast`                                                   | GitLab SAST security scanning               |
+| `e2e`  | `e2e`                                                    | Playwright E2E tests (runs on every commit) |
+
+### Deployment Checklist
+
+- [ ] Environment variables configured in deployment target
+- [ ] Database migrations applied (`bunx prisma migrate deploy`)
+- [ ] Prisma client regenerated (`bunx prisma generate`)
+- [ ] Rust parser built (`bun run build` in `packages/parser`)
+- [ ] All builds pass (`bun run build`)
+- [ ] E2E tests pass (`bun run test:e2e`)
+- [ ] Docker images built (`docker compose build`)
 
 ---
 
-## 12. Deployment ([ADR-019](docs/ADR/ADR-019-cicd-pipeline-strategy.md))
+## 5. Configuration
 
-CI/CD runs on GitHub Actions (`.github/workflows/`):
+### Environment Variables
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `ci-backend.yml` | push/PR to `main`/`dev` | Restore, build, csharpier check, `dotnet test` |
-| `ci-frontend.yml` | push/PR to `main`/`dev` | Install, prettier check, lint, build, Vitest |
-| `reusable.cypress-e2e.yml` | called by others | Full Dockerised E2E run |
-| `nightly.yml` | cron (Tue–Fri 01:00 UTC) | Nightly E2E suite |
-| `release.yml` | after CI succeeds on `main` | E2E gate, then **build & push images to Docker Hub** |
-| `reusable.sonarqube-dotnet.yml` / `reusable.sonarqube-nextjs.yml` | called by CI | SonarQube analysis (needs `SONAR_TOKEN`, `SONAR_HOST_URL` secrets) |
+Copy `.env.example` to `.env` and configure the following:
 
-**Production configuration:** containers are built from `backend/dockerfile`, `frontend/webapp/Dockerfile` (nginx), and `MigrationRunner/Dockerfile`, orchestrated by `docker-compose.yaml`. The design targets **local-first / self-hosted** deployment ([ADR-022](docs/ADR/ADR-022-local-first-deployment.md)); there is no managed cloud deployment pipeline beyond the Docker Hub image push.
+| Variable              | Required    | Description                                                                                             |
+| --------------------- | ----------- | ------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_URL`     | No          | Public URL of the web application. Default: `http://localhost:3000`                                     |
+| `NEXT_PUBLIC_API_URL` | No          | Public URL of the API server. Default: `http://localhost:3001`                                          |
+| `DATABASE_URL`        | Yes         | PostgreSQL connection string. Use `postgresql://user:pass@localhost:5432/dbname` for local development. |
+| `OPENAI_API_KEY`      | Conditional | Required if using OpenAI for AI features. Can be any OpenAI-compatible API key.                         |
+| `OPENAI_URL`          | Conditional | Base URL for OpenAI-compatible API.                                                                     |
+| `OPENAI_MODEL`        | Conditional | Model name to use with OpenAI-compatible API.                                                           |
+
+### Database Configuration
+
+The database uses Prisma ORM v7 with a **multi-file schema** located in `packages/db/prisma/schema/`. This means the schema is split across multiple `.prisma` files that are imported via the main `schema.prisma` file.
+
+Key Prisma config is in `packages/db/prisma.config.ts`:
+
+- Schema directory: `prisma/schema/`
+- Output directory: `../generated/prisma/`
+- Schema file: `schema.prisma`
+- TS client: enabled
+- Accent support: enabled
+
+### shadcn/ui Configuration
+
+Configured via `apps/web/components.json`:
+
+- Style: **New York**
+- Base color: **zinc**
+- Icon library: **lucide-react**
+- Aliases: `@` maps to `apps/web`
+
+### Turborepo Configuration
+
+Defined in `turbo.json`:
+
+- **Global env**: `NEXT_PUBLIC_URL`, `NEXT_PUBLIC_API_URL`, `DATABASE_URL`, `OPENAI_MODEL`, `OPENAI_URL`, `OPENAI_API_KEY`
+- **Global deps**: `.env`
+- **Tasks**:
+  - `build`: depends on `^build` (upstream), outputs `.next/**`, `target/release/**`, `pkg/**`, caches output
+  - `generate`: generates types
+  - `migrate`: runs database migrations
+  - `lint`: linting
+  - `check-types`: type checking
+  - `test`: no deps, no cache
+  - `test:e2e`: no deps, no cache
+  - `dev`: no deps, no cache, persistent (runs forever)
+
+### ESLint Configuration
+
+Defined in `packages/eslint-config/`:
+
+- **Base rules** (`base.js`): TypeScript support, React hooks, import sorting, security, unused imports
+- **Next.js rules** (`next.js`): Extends base + Next.js-specific rules
+- **React internal rules** (`react-internal.js`): Prevents importing components from other workspace packages without explicit `@/` prefix
 
 ---
 
-## 13. Troubleshooting
+## 6. Database Management
 
-| Symptom | Likely cause / fix |
-|---------|--------------------|
-| Frontend can't reach the API / CORS errors | Check `VITE_API_URL` in `.env` matches the running API, and that the API's `Cors__AllowedOrigins` includes the frontend origin. |
-| `VITE_API_URL` changes not taking effect in Docker | Vite inlines env at **build** time — rebuild the frontend image (it's a build arg, not a runtime env var). |
-| AI / generation requests fail (`LlmConfigError`) | Ensure Ollama is running and the model is pulled (`ollama pull gpt-oss:120b-cloud`). From Docker, the backend reaches the host via `http://host.docker.internal:11434`. |
-| Local AI generation extremely slow | Model may be on CPU — run `ollama ps` and confirm `100% GPU`; otherwise expect ~2–3 min/request. |
-| DB connection refused on startup | Postgres not up yet. The MigrationRunner retries 5×; for local dev wait for `npm run docker:up` to finish or check the `db` container. |
-| Migrations didn't apply / schema out of date | Inspect the `migrator` container logs; re-run `npm run docker:reset`, or apply manually per module (§7). |
-| **New/changed migration not applied after a rebuild** | **Known issue:** Docker reuses the old cached `migrator` image. Stop the container, delete the image, and restart — see the boxed note in §7. |
-| `dotnet` build fails with an SDK version error | Install .NET SDK 10 — it's pinned by `backend/global.json`. |
-| Large trace upload rejected | The API caps requests at 500 MB (set in `Program.cs`); split larger files. |
-| Cypress fails to start / stale data | It runs `docker:reset` before each run — ensure Docker is running and ports 5432/5173/7030 are free. |
-| csharpier / prettier CI failures | Run `dotnet csharpier .` (backend) and `npm run prettier` (frontend) before pushing. |
+### Prisma Commands
+
+All Prisma commands must be executed from the `packages/db` directory:
+
+```bash
+cd packages/db
+```
+
+| Command                                        | Description                                    |
+| ---------------------------------------------- | ---------------------------------------------- |
+| `bunx prisma generate`                         | Generate the Prisma client                     |
+| `bunx prisma db pull`                          | Pull schema changes from the database          |
+| `bunx prisma migrate dev --name <description>` | Create and apply a new migration (development) |
+| `bunx prisma migrate deploy`                   | Apply pending migrations (production)          |
+| `bunx prisma migrate reset`                    | Reset the database to initial state            |
+| `bunx prisma studio`                           | Open Prisma Studio GUI for database management |
+| `bunx prisma format`                           | Format schema files                            |
+
+### Database Schema Overview
+
+The schema is defined across multiple files in `packages/db/prisma/schema/`. The main `schema.prisma` contains only the generator and datasource configuration; all models are defined in separate files.
+
+```mermaid
+erDiagram
+    Project ||--o{ TraceList : "has"
+    TraceList ||--o{ Trace : "contains"
+    TraceList ||--o{ AxialCode : "categorized-by"
+    TraceList ||--o{ File : "includes"
+    Trace }o--|| Trace : "parent"
+    Trace ||--o{ TraceConnection : "linked-via"
+    Trace ||--o{ TraceConnection : "target-of"
+    AxialCode ||--o{ TraceConnection : "reason-for"
+    AxialCode ||--o{ Trace : "assigned-to"
+    File ||--o{ Trace : "produced"
+
+    Project {
+        String id PK
+        String name
+        String description
+        DateTime createdAt
+        String assessmentCriteria
+    }
+
+    TraceList {
+        String id PK
+        String name
+        DateTime createdAt
+        DateTime completedAt
+        String projectId FK
+    }
+
+    Trace {
+        String id PK
+        String name
+        String system
+        String input
+        String output
+        String openCode
+        String context
+        Feedback feedback
+        Boolean isFlagged
+        String parentId
+        String traceListId FK
+        String fileId FK
+        String axialCodeId FK
+    }
+
+    AxialCode {
+        String id PK
+        String title
+        String description
+        String reason
+        String traceListId FK
+    }
+
+    TraceConnection {
+        String id PK
+        String axialCodeId FK
+        String traceId FK
+        String reason
+    }
+
+    File {
+        String id PK
+        String name
+        Int size
+        String traceListId FK
+    }
+
+    Job {
+        String id PK
+        JobStatus status
+        String error
+        Json metadata
+        DateTime createdAt
+        DateTime updatedAt
+    }
+```
+
+### Enums
+
+| Enum        | Values                              | Used By |
+| ----------- | ----------------------------------- | ------- |
+| `JobStatus` | `PROCESSING`, `COMPLETED`, `FAILED` | `Job`   |
+| `Feedback`  | `positive`, `negative`              | `Trace` |
+
+### Schema Files
+
+| File                 | Models                                              |
+| -------------------- | --------------------------------------------------- |
+| `schema.prisma`      | Generator & datasource configuration only           |
+| `job.prisma`         | `Job`, `JobStatus`                                  |
+| `trace.prisma`       | `Trace`, `TraceList`, `TraceConnection`, `Feedback` |
+| `axial-codes.prisma` | `AxialCode`                                         |
+| `project.prisma`     | `Project`                                           |
+| `file.prisma`        | `File`                                              |
+
+### Key Relationships
+
+- **Project** has many **TraceLists** (cascade delete)
+- **TraceList** has many **Traces**, **AxialCodes**, and **Files** (cascade delete)
+- **Trace** has a self-referencing **parent** relation (cascade delete on child)
+- **Trace** belongs to one **File** and one **TraceList** (cascade delete)
+- **Trace** optionally belongs to one **AxialCode**
+- **TraceConnection** links a **Trace** to an **AxialCode** with a reason (cascade delete on axialCode)
+- **File** belongs to one **TraceList** (cascade delete)
+- **AxialCode** optionally belongs to one **TraceList** (cascade delete)
+
+### Migrations
+
+Migrations are stored in `packages/db/prisma/migrations/`. Each migration contains:
+
+- `migration.sql` — The SQL to apply
+- `migration_lock.toml` — Lock file for migration tracking
+
+To create a new migration after schema changes:
+
+```bash
+cd packages/db
+bunx prisma migrate dev --name add_new_field
+```
+
+This generates a new migration file and applies it to the database.
 
 ---
 
-## 14. Further Reading
+## 7. API & Parser Packages
 
-The [`docs/ADR/`](docs/ADR) directory documents the rationale behind every major decision (architecture, CQRS, per-module DbContexts, the Contracts pattern, the Result pattern, AI abstraction, testing and CI strategy, etc.). Start with `ADR-001` and `ADR-002` for the big picture.
+### API Server (`apps/api`)
+
+The API server is built with **Elysia** running on the **Bun** runtime. It provides the backend for the web application.
+
+**Entry point:** `apps/api/src/index.ts`
+
+**Dependencies:** `@elysiajs/cors`, `@elysiajs/swagger`, `@langchain/openai`, `@repo/db`, `@repo/parser`, `@sinclair/typebox`, `elysia`, `zod`
+
+**Key capabilities:**
+
+- REST API endpoints (details in codebase)
+- Integration with the Rust parser for code trace generation
+- Database operations through `@repo/db` (Prisma client)
+- OpenAI/compatible LLM integration via LangChain
+- OpenAPI documentation generation via Elysia Swagger
+- Eden client types for type-safe frontend communication
+
+**Running tests:**
+
+```bash
+cd apps/api
+bun test
+```
+
+### Rust Parser (`packages/parser`)
+
+The parser is a **Rust** library compiled to **WebAssembly (WASM)** using `wasm-pack`. It analyzes code files and generates trace data.
+
+**Build process:**
+
+```bash
+cd packages/parser
+bun run build
+```
+
+This runs `wasm-pack build --target web`, producing:
+
+- `pkg/parser_bg.wasm` — The compiled WASM binary
+- `pkg/parser.js` — JavaScript bindings
+- `pkg/parser.d.ts` — TypeScript type definitions
+- `pkg/parser_snippets.js` — Helper utilities
+
+**Dependencies:**
+
+- `wasm-bindgen` — Rust/WASM interop
+- `serde`, `serde_json` — JSON serialization
+- `csv`, `regex` — Data parsing utilities
+- `console_error_panic_hook` — Better error messages in browser
+
+**Important:** The generated files in `packages/parser/pkg/` should be committed to the repository. When making changes to the Rust source, rebuild and commit the updated `pkg/` directory.
+
+### Route Type Generator (`packages/generate-route-types`)
+
+Generates TypeScript types from the Elysia API's OpenAPI specification using Elysia's Eden feature.
+
+```bash
+cd packages/generate-route-types
+bun run generate-route-types
+```
+
+- `generate-route-types` — Runs `cleanup-openapi.ts` then `generate-types.ts`
+
+These types enable type-safe API calls from the web frontend via Eden.
 
 ---
 
-### Items requiring developer input
+## 8. Frontend (`apps/web`)
 
-- **Authentication** is not implemented (hardcoded `UserId`); the real claims-based flow is TODO.
-- **Application-level DB seeding** does not exist (only Cypress test seeding).
-- **Code-coverage thresholds / dedicated integration tests** are not configured.
-- The standalone **`Opencode`** project is not registered in `Program.cs` — confirm whether it is active or legacy before building on it.
-- Several **ADRs reference "Next.js"** while the implementation is React + Vite — verify intent when relevant.
+### Technology Stack
+
+- **Framework:** Next.js 16.1.6 with App Router
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS v4 with `@theme` configuration
+- **UI Library:** shadcn/ui (New York style, zinc color palette)
+- **State Management:** Zustand with `persist` middleware (localStorage)
+- **API Client:** Elysia Eden for type-safe API communication
+- **Data Tables:** TanStack React Table
+- **Charts:** Recharts 3.8.0
+- **Markdown:** react-markdown
+- **Icons:** lucide-react
+- **Themes:** next-themes
+- **Dates:** date-fns
+- **UI Utilities:** class-variance-authority, clsx, tailwind-merge, sonner, tw-animate-css
+- **Testing:** Playwright with playwright-bdd for E2E tests
+
+### Project Structure
+
+```
+apps/web/
+├── app/                    # Next.js App Router
+│   ├── [projectId]/        # Dynamic route for project-specific pages
+│   ├── layout.tsx          # Root layout
+│   └── page.tsx            # Home page
+├── components/             # React components
+│   └── ui/                 # shadcn/ui components
+├── hooks/                  # Custom React hooks
+├── lib/                    # Utility functions
+├── state/                  # Zustand stores
+├── e2e/                    # Playwright E2E tests
+│   ├── tests/              # BDD test files (*.feature, *.steps.ts)
+│   └── utils/              # Test utilities
+├── public/                 # Static assets
+├── next.config.ts          # Next.js configuration
+├── components.json         # shadcn/ui configuration
+└── package.json
+```
+
+### Key Configuration
+
+**`next.config.ts`:**
+
+- Output mode: `standalone` for optimized Docker deployment
+- `outputFileTracingRoot` set to monorepo root for proper file tracing
+
+**`components.json` (shadcn/ui):**
+
+- Style: New York
+- Base color: zinc
+- Icon library: lucide-react
+- Component directory: `components/ui`
+- RSC: enabled
+
+### Development
+
+```bash
+# Start web app only
+turbo dev --filter=@repo/web
+
+# Build web app only
+turbo build --filter=@repo/web
+
+# Run E2E tests
+bun run test:e2e
+```
+
+### State Management
+
+The frontend uses Zustand stores in `apps/web/state/`. The store is configured with `persist` middleware to persist state to localStorage.
+
+---
+
+## 9. Testing
+
+### Test Types and Commands
+
+| Type                | Command             | Location                                                | Framework                   |
+| ------------------- | ------------------- | ------------------------------------------------------- | --------------------------- |
+| Unit Tests (API)    | `bun run test`      | `apps/api/test/`, `packages/generate-route-types/test/` | Bun test                    |
+| Unit Tests (Parser) | `cargo nextest run` | `packages/parser/src/`                                  | cargo nextest               |
+| E2E Tests           | `bun run test:e2e`  | `apps/web/e2e/`                                         | Playwright + playwright-bdd |
+
+### Unit Tests
+
+Unit tests use Bun's built-in test runner. They are located in the `test/` directory of each package.
+
+```bash
+# Run all tests across the monorepo
+bun run test
+
+# Run tests for a specific package
+turbo test --filter=@repo/api
+turbo test --filter=@repo/generate-route-types
+```
+
+### E2E Tests
+
+E2E tests use Playwright with a BDD (Behavior-Driven Development) plugin. Tests are written as:
+
+- `.feature` files — Gherkin-style test scenarios (Given/When/Then)
+- `.steps.ts` files — Step definition implementations
+
+```bash
+# Run all E2E tests
+bun run test:e2e
+
+# Run E2E tests in headed mode (see browser)
+bun run test:e2e --headed
+
+# Run E2E tests for a specific feature
+bun run test:e2e --grep "<feature-name>"
+```
+
+### CI Integration
+
+- **Unit tests** run in the `test` stage of the GitLab CI pipeline
+- **E2E tests** run in the `e2e` stage on every commit to the main branch
+- Test failures block the pipeline and prevent deployment
+
+---
+
+## 10. Troubleshooting
+
+### Common Issues
+
+#### `bun dev` fails with database connection errors
+
+**Cause:** PostgreSQL is not running or `.env` has incorrect credentials.
+
+**Fix:**
+
+```bash
+# Ensure Docker services are running
+docker compose up -d
+
+# Verify database is accessible
+docker compose exec postgres pg_isready
+
+# Check .env DATABASE_URL matches your Docker setup
+cat .env | grep DATABASE_URL
+```
+
+#### Prisma client is out of sync
+
+**Cause:** Schema changes not reflected in the generated client.
+
+**Fix:**
+
+```bash
+cd packages/db
+bunx prisma generate
+bunx prisma migrate dev
+```
+
+#### Parser WASM not found
+
+**Cause:** The Rust parser has not been built or the `pkg/` directory is stale.
+
+**Fix:**
+
+```bash
+cd packages/parser
+bun run build
+# Verify output files exist
+ls pkg/
+```
+
+#### TypeScript errors in workspace packages
+
+**Cause:** Missing type generation or stale build artifacts.
+
+**Fix:**
+
+```bash
+# Clean and rebuild everything
+rm -rf .turbo node_modules
+bun install
+bun run build
+```
+
+#### E2E tests fail
+
+**Cause:** API server or database not running during test execution.
+
+**Fix:**
+
+```bash
+# Ensure all services are running
+bun dev &
+# Wait for services to start, then run tests
+bun run test:e2e
+```
+
+### Useful Diagnostic Commands
+
+```bash
+# Check all running services
+docker compose ps
+
+# View application logs
+docker compose logs -f
+
+# Check Turborepo cache status
+turbo doctor
+
+# Verify workspace dependencies
+bun install --frozen-lockfile
+
+# Check Prisma schema validity
+cd packages/db && bunx prisma validate
+
+# Check Rust parser compilation
+cd packages/parser && cargo check
+```
+
+---
+
+## 11. Quick Reference — All Commands
+
+### Root-Level Commands
+
+| Command               | Description                               |
+| --------------------- | ----------------------------------------- |
+| `bun install`         | Install all workspace dependencies        |
+| `bun dev`             | Start all development servers (API + Web) |
+| `bun run build`       | Build all packages                        |
+| `bun run generate`    | Generate route types and Prisma client    |
+| `bun run migrate`     | Run database migrations                   |
+| `bun run lint`        | Lint all packages                         |
+| `bun run format`      | Format all files with Prettier            |
+| `bun run check-types` | Type check all packages                   |
+| `bun run test`        | Run all unit tests                        |
+| `bun run test:e2e`    | Run Playwright E2E tests                  |
+
+### Turborepo Filter Commands
+
+| Command                             | Description               |
+| ----------------------------------- | ------------------------- |
+| `turbo dev --filter=@repo/web`      | Start only the web app    |
+| `turbo dev --filter=@repo/api`      | Start only the API server |
+| `turbo build --filter=@repo/web`    | Build only the web app    |
+| `turbo build --filter=@repo/api`    | Build only the API server |
+| `turbo build --filter=@repo/parser` | Build only the parser     |
+| `turbo test --filter=@repo/api`     | Test only the API server  |
+
+### Database Commands (run from `packages/db`)
+
+| Command                                 | Description                   |
+| --------------------------------------- | ----------------------------- |
+| `bunx prisma generate`                  | Generate Prisma client        |
+| `bunx prisma migrate dev --name <desc>` | Create and apply migration    |
+| `bunx prisma migrate deploy`            | Apply migrations (production) |
+| `bunx prisma db pull`                   | Pull schema from database     |
+| `bunx prisma studio`                    | Open Prisma Studio GUI        |
+| `bunx prisma format`                    | Format schema files           |
+
+### Parser Commands (run from `packages/parser`)
+
+| Command         | Description                |
+| --------------- | -------------------------- |
+| `bun run build` | Build WASM with wasm-pack  |
+| `cargo check`   | Check Rust code for errors |
+| `cargo test`    | Run Rust unit tests        |
+
+### Docker Commands
+
+| Command                                         | Description           |
+| ----------------------------------------------- | --------------------- |
+| `docker compose up -d`                          | Start all services    |
+| `docker compose down`                           | Stop all services     |
+| `docker compose logs -f`                        | View logs             |
+| `docker compose exec postgres psql -U postgres` | Open PostgreSQL shell |
+
+### Route Type Generator (run from `packages/generate-route-types`)
+
+| Command                        | Description                                             |
+| ------------------------------ | ------------------------------------------------------- |
+| `bun run generate-route-types` | Generate TypeScript types from API (cleans & generates) |
+
+---
+
+## 12. Onboarding Checklist
+
+Use this checklist when onboarding a new developer:
+
+- [ ] **Prerequisites installed** — Bun, Node.js, Rust, Docker, Git
+- [ ] **Repository cloned** — `git clone` and navigate to project root
+- [ ] **Dependencies installed** — `bun install` completes successfully
+- [ ] **Environment configured** — `.env` file created and filled in
+- [ ] **Database initialized** — Prisma generated and migrations applied
+- [ ] **Parser built** — `bun run build` in `packages/parser` succeeds
+- [ ] **Full build passes** — `bun run build` completes without errors
+- [ ] **Development servers start** — `bun dev` starts both apps
+- [ ] **Web app accessible** — http://localhost:3000 loads correctly
+- [ ] **API server accessible** — http://localhost:3001 responds
+- [ ] **Unit tests pass** — `bun run test` succeeds
+- [ ] **E2E tests pass** — `bun run test:e2e` succeeds
+- [ ] **Code review of first PR** — Submit a small change and open a PR
+- [ ] **CI pipeline understood** — Review `.gitlab-ci.yml` and pipeline stages
+
+---
+
+_End of document._

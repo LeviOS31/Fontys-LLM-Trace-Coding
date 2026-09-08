@@ -1,0 +1,9 @@
+model Project {
+  id          String   @id @unique @default(uuid())
+  name        String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  assessmentCriteria String @default("")
+
+  traceLists TraceList[]
+}

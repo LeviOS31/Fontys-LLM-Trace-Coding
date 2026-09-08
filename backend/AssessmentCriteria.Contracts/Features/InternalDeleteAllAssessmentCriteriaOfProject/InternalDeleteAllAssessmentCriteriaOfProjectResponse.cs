@@ -1,3 +1,0 @@
-namespace AssessmentCriteria.Contracts.Features.InternalDeleteAllAssessmentCriteriaOfProject;
-
-public record InternalDeleteAllAssessmentCriteriaOfProjectResponse { }

@@ -1,0 +1,46 @@
+lint-api:
+  stage: lint
+  image: oven/bun
+  script:
+    - cd apps/api
+    - bun install
+    - bunx turbo telemetry disable
+    - bun -v
+    - ESLINT_CODE_QUALITY_REPORT=./gl-codequality.json bun run lint
+  artifacts:
+    reports:
+      codequality: ./apps/api/gl-codequality.json
+
+test-api:
+  extends:
+    - .test-common
+    - .prisma-generate
+  image: oven/bun
+  script:
+    - cd apps/api
+    - bun install
+    - bunx turbo telemetry disable
+    - bun -v
+    - bun run test
+  coverage: '/All files[^|]*\|[^|]*\s+[\d\.]+[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    paths:
+      - ./**/lcov.info
+
+convert:
+  image: rust
+  stage: convert
+  dependencies:
+    - test-api
+  needs:
+    - test-api
+  script:
+    - cd apps/api
+    - cargo -V
+    - cargo install lcov2xml
+    - lcov2xml coverage/lcov.info
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: ./**/coverage.xml

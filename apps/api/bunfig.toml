@@ -1,0 +1,6 @@
+[test]
+coverage = true
+coverageReporter = ["text","lcov"]
+
+[test.reporter]
+junit = "./api-junit.xml"

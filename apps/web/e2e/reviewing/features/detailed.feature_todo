@@ -1,0 +1,7 @@
+Feature: Detailed trace reviewing and evaluation
+  As a reviewer, I want to be able to see a detailed view of a trace, so that I can take more context into account in my evaluation.
+
+  Scenario Outline: Positive review
+    Given There are other parents/children of the current trace in the tree view
+    When I click on a trace in the tree view that is not the current trace
+    Then A sheet/slide is opened on the right side of the screen where the information of the trace is visible

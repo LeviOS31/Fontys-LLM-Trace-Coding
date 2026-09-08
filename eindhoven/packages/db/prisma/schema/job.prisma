@@ -1,0 +1,16 @@
+enum JobStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Job {
+  id      String    @id @default(uuid())
+  status  JobStatus @default(PROCESSING)
+  error   String?   @db.Text
+
+  metadata    Json?     @default("{}")
+
+  createdAt DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}

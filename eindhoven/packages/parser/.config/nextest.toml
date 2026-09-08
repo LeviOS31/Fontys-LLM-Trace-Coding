@@ -1,0 +1,31 @@
+[store]
+dir = "target/nextest"
+
+[profile.default]
+default-filter = "all()"
+
+retries = 0
+
+test-threads = "num-cpus"
+threads-required = 1
+
+status-level = "pass"
+final-status-level = "flaky"
+
+failure-output = "immediate"
+success-output = "never"
+
+fail-fast = true
+
+slow-timeout = { period = "60s" }
+leak-timeout = "100ms"
+
+archive.include = []
+
+[profile.default.junit]
+path = "parser-junit.xml"
+report-name = "nextest-run"
+store-success-output = false
+store-failure-output = true
+
+[profile.default-miri]

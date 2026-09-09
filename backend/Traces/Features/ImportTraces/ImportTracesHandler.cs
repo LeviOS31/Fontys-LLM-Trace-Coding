@@ -258,7 +258,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
                 {
                     SpanEventId = spanEventInDb.EventId,
                     Key = spanEventAttribute.Key,
-                    Value = TruncateString(GetAnyValueAsString(spanEventAttribute.Value), 2560),
+                    Value = TruncateString(GetAnyValueAsString(spanEventAttribute.Value), 16384),
                     TraceAttributeType = GetTraceAttributeType(spanEventAttribute.Value),
                 };
                 _tracesDbContext.SpanEventAttributes.Add(spanEventAtributeInDb);
@@ -274,7 +274,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
             {
                 SpanId = traceScopeSpan.TraceScopeSpanId,
                 Key = spanAttribute.Key,
-                Value = TruncateString(GetAnyValueAsString(spanAttribute.Value), 2560),
+                Value = TruncateString(GetAnyValueAsString(spanAttribute.Value), 16384),
                 TraceAttributeType = GetTraceAttributeType(spanAttribute.Value),
             };
             _tracesDbContext.SpanAttributes.Add(attribute);

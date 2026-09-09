@@ -36,8 +36,8 @@ namespace Traces.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(2560)
-                        .HasColumnType("character varying(2560)");
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
 
                     b.HasKey("SpanId", "Key");
 
@@ -82,8 +82,8 @@ namespace Traces.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(2560)
-                        .HasColumnType("character varying(2560)");
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
 
                     b.HasKey("SpanEventId", "Key");
 
@@ -197,8 +197,8 @@ namespace Traces.Migrations
 
                     b.Property<string>("Version")
                         .IsRequired()
-                        .HasMaxLength(2560)
-                        .HasColumnType("character varying(2560)");
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
 
                     b.HasKey("TraceScopeId");
 

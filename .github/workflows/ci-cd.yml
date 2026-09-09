@@ -1,0 +1,293 @@
+name: CI/CD
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  NODE_VERSION: "22"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          # global.json in backend/ pins the exact SDK version
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend/**/*.csproj', 'backend/**/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore
+        working-directory: backend
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+        working-directory: backend
+
+      - name: Test
+        working-directory: backend
+        run: |
+          if find . -iregex '.*\(Test\|Tests\)\.csproj$' | grep -q .; then
+            dotnet test --no-build --configuration Release --verbosity normal
+          else
+            echo "No .NET test projects found yet — skipping."
+          fi
+
+  frontend:
+    name: Frontend (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache node_modules
+        id: node-modules-cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/webapp/node_modules
+          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/webapp/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci
+        working-directory: frontend/webapp
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend/webapp
+
+      - name: Test
+        run: npm test -- --watch=false --passWithNoTests
+        working-directory: frontend/webapp
+
+  docker-build:
+    name: Docker build (with layer cache)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/dockerfile
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend/webapp
+          file: ./frontend/webapp/Dockerfile
+          push: false
+          build-args: |
+            VITE_API_URL=http://localhost:8080
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Build migrator image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/MigrationRunner/Dockerfile
+          push: false
+          cache-from: type=gha,scope=migrator
+          cache-to: type=gha,mode=max,scope=migrator
+
+  smoke-test:
+    name: Smoke test full stack (with Ollama)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+        # The install script sets up a systemd service, but doesn't always
+        # leave it running — start it explicitly rather than assuming.
+
+      - name: Start Ollama service
+        run: |
+          sudo systemctl enable ollama
+          sudo systemctl start ollama
+          sudo systemctl status ollama --no-pager
+
+      - name: Wait for Ollama to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:11434/api/version > /dev/null; then
+              echo "Ollama is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Ollama did not become ready in time — dumping diagnostics:"
+          sudo systemctl status ollama --no-pager || true
+          sudo journalctl -u ollama --no-pager | tail -n 100 || true
+          exit 1
+
+      - name: Write Compose override for CI networking
+        run: |
+          cat > docker-compose.ci.yml <<'EOF'
+          services:
+            db:
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+                interval: 5s
+                timeout: 5s
+                retries: 10
+            migrator:
+              depends_on:
+                db:
+                  condition: service_healthy
+            backend:
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+              depends_on:
+                db:
+                  condition: service_healthy
+                migrator:
+                  condition: service_completed_successfully
+          EOF
+          # host.docker.internal doesn't resolve inside containers on Linux runners
+          # without this mapping, unlike Docker Desktop on Mac/Windows.
+          # depends_on/healthcheck ensure db is ready before migrator runs,
+          # and migrator finishes before backend starts — otherwise backend
+          # can race Postgres and crash-loop or hang on startup.
+
+      - name: Start stack
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d --build
+
+      - name: Wait for backend to respond
+        run: |
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/ || echo "000")
+            if [ "$status" != "000" ]; then
+              echo "Backend is up (HTTP $status)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend did not become ready in time"
+          exit 1
+          # Any HTTP response (even 404) means the server is listening and
+          # answering requests. Requiring a 2xx here would wrongly fail on
+          # a backend with no route at "/", which is what happened before.
+          # Swap the URL above for a real /health endpoint if the backend has one.
+
+      - name: Wait for frontend to respond
+        run: |
+          for i in $(seq 1 15); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/ || echo "000")
+            if [ "$status" != "000" ]; then
+              echo "Frontend is up (HTTP $status)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Frontend did not become ready in time"
+          exit 1
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml down -v
+
+  deploy:
+    name: Build & push images (main only)
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lowercase image name
+        run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+        # GHCR (and Docker generally) requires lowercase repository names.
+        # github.repository preserves the repo's actual case, so we normalize
+        # it here — GitHub Actions expressions have no built-in lowercase().
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/dockerfile
+          push: true
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend/webapp
+          file: ./frontend/webapp/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=http://localhost:8080
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}
+
+      - name: Build & push migrator image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/MigrationRunner/Dockerfile
+          push: true
+          cache-from: type=gha,scope=migrator
+          cache-to: type=gha,mode=max,scope=migrator
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:${{ github.sha }}

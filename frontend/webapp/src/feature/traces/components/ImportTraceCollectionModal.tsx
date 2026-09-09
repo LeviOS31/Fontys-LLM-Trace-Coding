@@ -21,7 +21,7 @@ export default function ImportTraceCollectionModal({
   projectId,
   projectVersionId,
 }: Readonly<ImportTraceCollectionModalProps>) {
-  const { mutate, isPending, isError, reset } = useImportTraceCollection();
+  const { mutate, isPending, isError, error, reset } = useImportTraceCollection();
 
   const [name, setName] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -82,7 +82,9 @@ export default function ImportTraceCollectionModal({
             <Callout.Icon>
               <Info />
             </Callout.Icon>
-            <Callout.Text>Import failed. Please try again.</Callout.Text>
+            <Callout.Text>
+              {error instanceof Error ? error.message : 'Import failed. Please try again.'}
+            </Callout.Text>
           </Callout.Root>
         )}
 
@@ -119,7 +121,7 @@ export default function ImportTraceCollectionModal({
             <Text color="red">*</Text>
           </Text>
           <Text size="1" color="gray">
-            Supported formats: .jsonl (otlp/jsonl trace export)
+            Supported formats: .json or .jsonl (OTLP trace export)
           </Text>
           <input
             id="trace-file"

@@ -87,6 +87,11 @@ jobs:
     name: Smoke test full stack (with Ollama)
     runs-on: ubuntu-latest
     needs: [backend, frontend]
+    env:
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      # docker-compose.yaml now reads this from the environment instead of
+      # a hardcoded value — this job needs to actually provide it, or
+      # Compose passes Postgres a blank password and it refuses to start.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -239,7 +244,7 @@ jobs:
     needs: [smoke-test]
     if: github.ref == 'refs/heads/main'
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Checkout
@@ -250,6 +255,13 @@ jobs:
         # GHCR (and Docker generally) requires lowercase repository names.
         # github.repository preserves the repo's actual case, so we normalize
         # it here — GitHub Actions expressions have no built-in lowercase().
+
+      - name: Set build version
+        run: echo "BUILD_VERSION=build-${{ github.run_number }}" >> "$GITHUB_ENV"
+        # github.run_number auto-increments on every run of this workflow —
+        # no manual tagging needed. Each deploy gets a stable, human-readable
+        # version (build-42, build-43, ...) you can pin to and roll back to,
+        # in addition to the immutable commit SHA already used below.
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -271,6 +283,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ env.BUILD_VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
 
       - name: Build & push frontend image
@@ -285,6 +298,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=frontend
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ env.BUILD_VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}
 
       - name: Build & push migrator image
@@ -297,4 +311,85 @@ jobs:
           cache-to: type=gha,mode=max,scope=migrator
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:${{ env.BUILD_VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:${{ github.sha }}
+
+      - name: Generate release compose file
+        run: |
+          cat > docker-compose.release.yml <<EOF
+          name: TraceEvalCompose
+
+          services:
+            frontend:
+              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ env.BUILD_VERSION }}
+              ports:
+                - "3000:8080"
+
+            backend:
+              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ env.BUILD_VERSION }}
+              environment:
+                ConnectionStrings__Default: Host=db;Port=5432;Database=mydb;Username=user;Password=\${POSTGRES_PASSWORD}
+                AI__Provider: Ollama
+                AI__Ollama__Endpoint: http://host.docker.internal:11434
+                AI__Ollama__Model: gpt-oss:120b-cloud
+                Cors__AllowedOrigins: http://localhost:3000
+              ports:
+                - "8080:8080"
+
+            db:
+              image: postgres:18
+              container_name: traceeval_database
+              environment:
+                POSTGRES_USER: user
+                POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
+                POSTGRES_DB: mydb
+              ports:
+                - "5432:5432"
+              volumes:
+                - postgres_data:/var/lib/postgresql
+
+            migrator:
+              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:${{ env.BUILD_VERSION }}
+              depends_on:
+                - db
+              environment:
+                - ConnectionStrings__Default=Host=db;Port=5432;Database=mydb;Username=user;Password=\${POSTGRES_PASSWORD}
+              restart: on-failure
+
+          volumes:
+            postgres_data:
+
+          networks:
+            default:
+              name: traceeval_network
+          EOF
+          # \${POSTGRES_PASSWORD} is left as a literal Compose variable, not
+          # resolved here — Compose reads it from a .env file (or the shell
+          # environment) at "docker compose up" time, on whoever's machine
+          # actually runs this. Nothing sensitive gets baked into the file
+          # or committed anywhere.
+
+          cat > .env.example <<'EOF'
+          # Copy this to .env and set a real value before running:
+          #   cp .env.example .env
+          POSTGRES_PASSWORD=changeme
+          EOF
+        # Same shape as the real docker-compose.yaml, but every "build:" section
+        # is replaced with "image:" pointing at this exact build's pushed tag.
+        # Anyone running this file needs Docker only — no source code, no
+        # Dockerfiles, nothing gets built locally.
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_VERSION }}
+          name: ${{ env.BUILD_VERSION }}
+          files: |
+            docker-compose.release.yml
+            .env.example
+          generate_release_notes: true
+        # Creates the git tag (e.g. build-42) automatically and attaches the
+        # compose file as a downloadable asset. To roll back: open an older
+        # Release, download its docker-compose.release.yml, and run
+        # `docker compose -f docker-compose.release.yml up -d` — that pulls
+        # the exact images from that build, nothing rebuilt.

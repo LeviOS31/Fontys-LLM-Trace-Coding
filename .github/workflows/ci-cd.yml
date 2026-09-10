@@ -83,8 +83,8 @@ jobs:
         run: npm test -- --watch=false --passWithNoTests
         working-directory: frontend/webapp
 
-  docker-build:
-    name: Docker build (with layer cache)
+  smoke-test:
+    name: Smoke test full stack (with Ollama)
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     steps:
@@ -93,54 +93,84 @@ jobs:
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
+        # Required for the GHA cache backend — the default Docker builder
+        # can't import/export it, only the docker-container driver this sets up.
 
-      - name: Build backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          file: ./backend/dockerfile
-          push: false
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,mode=max,scope=backend
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend/webapp
-          file: ./frontend/webapp/Dockerfile
-          push: false
-          build-args: |
-            VITE_API_URL=http://localhost:8080
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
-
-      - name: Build migrator image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          file: ./backend/MigrationRunner/Dockerfile
-          push: false
-          cache-from: type=gha,scope=migrator
-          cache-to: type=gha,mode=max,scope=migrator
-
-  smoke-test:
-    name: Smoke test full stack (with Ollama)
-    runs-on: ubuntu-latest
-    needs: [docker-build]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Ollama
-        run: curl -fsSL https://ollama.com/install.sh | sh
-        # The install script sets up a systemd service, but doesn't always
-        # leave it running — start it explicitly rather than assuming.
-
-      - name: Start Ollama service
+      - name: Write Compose override for CI networking
         run: |
-          sudo systemctl enable ollama
-          sudo systemctl start ollama
-          sudo systemctl status ollama --no-pager
+          cat > docker-compose.ci.yml <<'EOF'
+          services:
+            db:
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+                interval: 5s
+                timeout: 5s
+                retries: 10
+            migrator:
+              build:
+                cache_from:
+                  - type=gha,scope=migrator
+                cache_to:
+                  - type=gha,mode=max,scope=migrator
+              depends_on:
+                db:
+                  condition: service_healthy
+            backend:
+              build:
+                cache_from:
+                  - type=gha,scope=backend
+                cache_to:
+                  - type=gha,mode=max,scope=backend
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+              depends_on:
+                db:
+                  condition: service_healthy
+                migrator:
+                  condition: service_completed_successfully
+            frontend:
+              build:
+                cache_from:
+                  - type=gha,scope=frontend
+                cache_to:
+                  - type=gha,mode=max,scope=frontend
+          EOF
+          # host.docker.internal doesn't resolve inside containers on Linux runners
+          # without this mapping, unlike Docker Desktop on Mac/Windows.
+          # depends_on/healthcheck ensure db is ready before migrator runs,
+          # and migrator finishes before backend starts — otherwise backend
+          # can race Postgres and crash-loop or hang on startup.
+
+      - name: Install Ollama & build images in parallel
+        env:
+          COMPOSE_BAKE: "true"
+        run: |
+          (
+            curl -fsSL https://ollama.com/install.sh | sh
+            sudo systemctl enable ollama
+            sudo systemctl start ollama
+          ) &
+          OLLAMA_PID=$!
+
+          docker compose -f docker-compose.yaml -f docker-compose.ci.yml build &
+          BUILD_PID=$!
+
+          ollama_status=0
+          build_status=0
+          wait "$OLLAMA_PID" || ollama_status=$?
+          wait "$BUILD_PID" || build_status=$?
+
+          if [ "$ollama_status" -ne 0 ]; then
+            echo "Ollama install/start failed"
+          fi
+          if [ "$build_status" -ne 0 ]; then
+            echo "Docker image build failed"
+          fi
+          [ "$ollama_status" -eq 0 ] && [ "$build_status" -eq 0 ]
+        # Ollama setup and the Docker image build don't depend on each other —
+        # one needs the network and systemd, the other needs Docker — so running
+        # them as background jobs and waiting on both means the job takes as
+        # long as the SLOWER of the two, not the sum of both.
 
       - name: Wait for Ollama to be ready
         run: |
@@ -155,38 +185,15 @@ jobs:
           sudo systemctl status ollama --no-pager || true
           sudo journalctl -u ollama --no-pager | tail -n 100 || true
           exit 1
-
-      - name: Write Compose override for CI networking
-        run: |
-          cat > docker-compose.ci.yml <<'EOF'
-          services:
-            db:
-              healthcheck:
-                test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
-                interval: 5s
-                timeout: 5s
-                retries: 10
-            migrator:
-              depends_on:
-                db:
-                  condition: service_healthy
-            backend:
-              extra_hosts:
-                - "host.docker.internal:host-gateway"
-              depends_on:
-                db:
-                  condition: service_healthy
-                migrator:
-                  condition: service_completed_successfully
-          EOF
-          # host.docker.internal doesn't resolve inside containers on Linux runners
-          # without this mapping, unlike Docker Desktop on Mac/Windows.
-          # depends_on/healthcheck ensure db is ready before migrator runs,
-          # and migrator finishes before backend starts — otherwise backend
-          # can race Postgres and crash-loop or hang on startup.
+        # Short-circuits almost immediately in practice, since the service was
+        # already started above — kept as a real readiness check (not just a
+        # log) with diagnostics on failure, since "started" and "accepting
+        # requests" aren't quite the same guarantee.
 
       - name: Start stack
-        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d --build
+        run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d
+        # No --build here — images were already built above, so this just
+        # starts containers from what's already on disk.
 
       - name: Wait for backend to respond
         run: |

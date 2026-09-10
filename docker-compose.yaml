@@ -15,7 +15,7 @@ services:
       context: backend
       dockerfile: dockerfile
     environment:
-      ConnectionStrings__Default: Host=db;Port=5432;Database=mydb;Username=user;Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Default: Host=db;Port=5432;Database=mydb;Username=user;Password=${POSTGRES_PASSWORD:-password}
       AI__Provider: Ollama
       AI__Ollama__Endpoint: http://host.docker.internal:11434
       AI__Ollama__Model: gpt-oss:120b-cloud
@@ -28,7 +28,7 @@ services:
     container_name: traceeval_database
     environment:
       POSTGRES_USER: user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: mydb
     ports:
       - "5432:5432"
@@ -41,7 +41,7 @@ services:
     depends_on:
       - db
     environment:
-      - ConnectionStrings__Default=Host=db;Port=5432;Database=mydb;Username=user;Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Default=Host=db;Port=5432;Database=mydb;Username=user;Password=${POSTGRES_PASSWORD:-password}
     restart: on-failure
 
 volumes:

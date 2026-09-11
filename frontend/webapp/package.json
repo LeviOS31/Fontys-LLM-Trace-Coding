@@ -13,9 +13,9 @@
     "test:watch": "vitest --watch",
     "prettier": "prettier . --write",
     "prettier:check": "prettier . --check",
-    "docker:up": "docker compose -f ../../backend/Dbcompose.yaml up -d",
-    "docker:down": "docker compose -f ../../backend/Dbcompose.yaml down",
-    "docker:reset": "docker compose -f ../../backend/Dbcompose.yaml down -v && docker compose -f ../../backend/Dbcompose.yaml up -d"
+    "docker:up": "docker compose --env-file ../../.env -f ../../backend/Dbcompose.yaml up -d",
+    "docker:down": "docker compose --env-file ../../.env -f ../../backend/Dbcompose.yaml down",
+    "docker:reset": "docker compose --env-file ../../.env -f ../../backend/Dbcompose.yaml down -v && docker compose --env-file ../../.env -f ../../backend/Dbcompose.yaml up -d"
   },
   "dependencies": {
     "@radix-ui/colors": "3.0.0",

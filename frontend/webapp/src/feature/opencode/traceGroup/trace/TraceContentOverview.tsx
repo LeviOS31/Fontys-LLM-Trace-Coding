@@ -17,10 +17,14 @@ export function TraceContentOverview({
   versionId,
 }: Readonly<Props>) {
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const container = event.currentTarget;
-    const scrollTop = container.scrollTop;
+    const source = event.currentTarget;
+    const viewport = source.matches('[data-radix-scroll-area-viewport]')
+      ? source
+      : source.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
 
-    const containerCenter = scrollTop + container.clientHeight / 2;
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenter = viewportRect.top + viewportRect.height / 2;
 
     let closestSpanId: string | null = null;
     let minDistanceToCenter = Infinity;
@@ -32,9 +36,9 @@ export function TraceContentOverview({
         ) as HTMLElement;
 
         if (element) {
-          const elementTop = element.offsetTop;
-          const elementCenter = elementTop + element.offsetHeight / 2;
-          const distanceToCenter = Math.abs(containerCenter - elementCenter);
+          const elementRect = element.getBoundingClientRect();
+          const elementCenter = elementRect.top + elementRect.height / 2;
+          const distanceToCenter = Math.abs(viewportCenter - elementCenter);
 
           if (distanceToCenter < minDistanceToCenter) {
             minDistanceToCenter = distanceToCenter;
@@ -48,7 +52,7 @@ export function TraceContentOverview({
   };
 
   return (
-    <Flex direction="column" style={{ position: 'relative', height: '90vh' }}>
+    <Flex direction="column" style={{ position: 'relative', height: '100%', minHeight: 0 }}>
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ScrollArea
           type="hover"

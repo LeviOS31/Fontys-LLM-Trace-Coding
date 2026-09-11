@@ -53,28 +53,41 @@ export function LlmContent({
       const isFullyVisible =
         elementRect.top >= viewportRect.top && elementRect.bottom <= viewportRect.bottom;
       if (isFullyVisible) return;
+
+      viewport.scrollTo({
+        top: viewport.scrollTop + elementRect.top - viewportRect.top,
+        behavior: 'smooth',
+      });
+      return;
     }
 
     element.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [selectedTraceId]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = event.currentTarget.scrollTop;
-    const scrollBottom = scrollTop + event.currentTarget.clientHeight;
+    const source = event.currentTarget;
+    const viewport = source.matches('[data-radix-scroll-area-viewport]')
+      ? source
+      : source.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenter = viewportRect.top + viewportRect.height / 2;
 
     let currentTraceId: string | null = null;
+    let closestDistance = Infinity;
 
     for (const msg of llmMessages) {
       const element = document.querySelector(
         `[data-trace-id="${msg.relatedTraceId}"]`
       ) as HTMLElement;
       if (element) {
-        const elementTop = element.offsetTop;
-        const elementBottom = elementTop + element.offsetHeight;
+        const elementRect = element.getBoundingClientRect();
+        const distance = Math.abs(elementRect.top + elementRect.height / 2 - viewportCenter);
 
-        if (elementTop < scrollBottom && elementBottom > scrollTop) {
+        if (distance < closestDistance) {
+          closestDistance = distance;
           currentTraceId = msg.relatedTraceId;
-          break;
         }
       }
     }
@@ -87,7 +100,12 @@ export function LlmContent({
   };
 
   return (
-    <ScrollArea type="hover" scrollbars="vertical" style={{ height: '90vh' }} onScroll={onScroll}>
+    <ScrollArea
+      type="hover"
+      scrollbars="vertical"
+      style={{ height: '100%', minHeight: 0 }}
+      onScroll={onScroll}
+    >
       <Flex direction="column" py="3">
         <Box px="4">
           <Heading>LLM chat interaction</Heading>
@@ -98,7 +116,7 @@ export function LlmContent({
             {(index === 1 || msg.relatedTraceId !== llmMessages[index - 1]?.relatedTraceId) &&
               index !== 0 && <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
             <Box
-              key={msg.index}
+              key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
               onClick={() => setSelectedTrace(msg.relatedTraceId)}
               style={{
                 cursor: index === 0 ? 'auto' : 'pointer',

@@ -5,11 +5,9 @@ import { Group as ResizableGroup, Panel as ResizablePanel } from 'react-resizabl
 import CustomResizeHandle from '../../../shared/components/CustomResizeHandle';
 import { useEffect, useMemo, useState } from 'react';
 import { isTyping } from '../../../shared/util/shortcutHelpers';
-import { LlmNav } from './LLM/LlmNav';
 import { LlmContent } from './LLM/LlmContent';
-import { TraceNav } from './trace/TraceNav';
+import { TraceTreeNav } from './trace/TraceTreeNav';
 import { TraceContentOverview } from './trace/TraceContentOverview';
-import { TraceGroupNavBar } from './TraceGroupNavBar';
 
 export type PageParams = {
   id: string;
@@ -151,11 +149,6 @@ export default function TraceGroupPage() {
   if (isDetailLoading || isDetailError) {
     return (
       <Flex direction="column" gap="2">
-        <TraceGroupNavBar
-          projectId={id!}
-          versionId={versionId!}
-          activeTraceGroupId={traceGroupId!}
-        />
         {isDetailError ? (
           <Text color="red">Error loading trace group details.</Text>
         ) : (
@@ -167,44 +160,76 @@ export default function TraceGroupPage() {
 
   return (
     <Flex direction="column" gap="2">
-      <TraceGroupNavBar projectId={id!} versionId={versionId!} activeTraceGroupId={traceGroupId!} />
-
-      <ResizableGroup>
+      <ResizableGroup
+        orientation="horizontal"
+        style={{ width: '100%', height: '90vh', minHeight: 0 }}
+      >
         {isLlmGroup && (
           <>
-            <ResizablePanel defaultSize={20} minSize={20}>
-              <LlmNav
-                llmMessages={llmMessages}
+            <ResizablePanel defaultSize={22} minSize={18}>
+              <TraceTreeNav
+                projectId={id!}
+                versionId={versionId!}
+                activeTraceGroupId={traceGroupId!}
+                traces={selectedTraceGroup!.traces}
                 selectedTraceId={effectiveSelectedTrace}
-                setSelectedTrace={setSelectedTrace}
                 scrollTraceId={scrollTrace}
+                selectedSpanId={scrollSpanIndex}
+                setSelectedTrace={setSelectedTrace}
+                setSelectedSpan={setScrollSpanIndex}
               />
             </ResizablePanel>
 
             <CustomResizeHandle />
 
-            <ResizablePanel defaultSize={100} minSize={20}>
+            <ResizablePanel defaultSize={78} minSize={40}>
               <LlmContent
                 llmMessages={llmMessages}
                 selectedTraceId={effectiveSelectedTrace}
                 setSelectedTrace={setSelectedTrace}
-                onScrollChange={setScrollTrace}
+                onScrollChange={(traceId) => {
+                  setScrollTrace(traceId);
+                  if (traceId) setSelectedTrace(traceId);
+                }}
               />
             </ResizablePanel>
 
-            {effectiveSelectedTrace && <CustomResizeHandle />}
+            {effectiveSelectedTrace && (
+              <>
+                <CustomResizeHandle />
+
+                <ResizablePanel defaultSize={30} minSize={25}>
+                  <TraceContentOverview
+                    trace={selectedTraceObject!}
+                    setScrollSpanIndex={setScrollSpanIndex}
+                    projectId={id!}
+                    versionId={versionId!}
+                  />
+                </ResizablePanel>
+              </>
+            )}
           </>
         )}
 
-        {effectiveSelectedTrace && (
+        {!isLlmGroup && effectiveSelectedTrace && (
           <>
-            <ResizablePanel defaultSize={40} minSize={20}>
-              <TraceNav trace={selectedTraceObject!} scrollSpanIndex={scrollSpanIndex} />
+            <ResizablePanel defaultSize={30} minSize={20}>
+              <TraceTreeNav
+                projectId={id!}
+                versionId={versionId!}
+                activeTraceGroupId={traceGroupId!}
+                traces={selectedTraceGroup!.traces}
+                selectedTraceId={effectiveSelectedTrace}
+                scrollTraceId={null}
+                selectedSpanId={scrollSpanIndex}
+                setSelectedTrace={setSelectedTrace}
+                setSelectedSpan={setScrollSpanIndex}
+              />
             </ResizablePanel>
 
             <CustomResizeHandle />
 
-            <ResizablePanel defaultSize={100} minSize={20}>
+            <ResizablePanel defaultSize={25} minSize={25}>
               <TraceContentOverview
                 trace={selectedTraceObject!}
                 setScrollSpanIndex={setScrollSpanIndex}

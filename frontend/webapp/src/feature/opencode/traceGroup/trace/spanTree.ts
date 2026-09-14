@@ -2,6 +2,18 @@ import type { TraceScopeSpanView } from '../../../../shared/types/trace';
 
 export type SpanNode = TraceScopeSpanView & { children: SpanNode[] };
 
+export type MessageTreeAnchor = {
+  relatedTraceId: string;
+  relatedSpanId: string;
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export type MessageSpanNode = SpanNode & {
+  displayName?: string;
+  messageRole?: MessageTreeAnchor['role'];
+};
+
 export function buildSpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
   const spanMap = new Map<string, SpanNode>();
   for (const span of spans) {
@@ -76,6 +88,59 @@ export function buildDisplaySpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
   }
 
   return tree;
+}
+
+function isChat(span: TraceScopeSpanView): boolean {
+  return span.name.toLowerCase().includes('openai.chat');
+}
+
+export function buildMessageAwareSpanTree(
+  spans: TraceScopeSpanView[],
+  messages: MessageTreeAnchor[]
+): MessageSpanNode[] {
+  const spanTree = buildSpanTree(spans);
+  const workflow = flattenSpanTree(spanTree).find(isWorkflow);
+  if (!workflow) return buildDisplaySpanTree(spans) as MessageSpanNode[];
+
+  const messageNodes: MessageSpanNode[] = [];
+  const chatSpanIds = [...new Set(messages.map((message) => message.relatedSpanId))];
+  for (const spanId of chatSpanIds) {
+    const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId && isChat(span));
+    if (!chatSpan) continue;
+
+    const chatMessages = messages.filter(
+      (message) => message.relatedSpanId === chatSpan.traceScopeSpanId
+    );
+    const userMessage = chatMessages.find((message) => message.role === 'user');
+    const assistantMessage = chatMessages.find((message) => message.role === 'assistant');
+
+    if (userMessage) {
+      messageNodes.push({
+        ...chatSpan,
+        children: assistantMessage
+          ? [
+              {
+                ...chatSpan,
+                children: [],
+                displayName: chatSpan.name,
+                messageRole: 'assistant',
+              } as MessageSpanNode,
+            ]
+          : [],
+        displayName: userMessage.content,
+        messageRole: 'user',
+      });
+    } else if (assistantMessage) {
+      messageNodes.push({
+        ...chatSpan,
+        children: [],
+        displayName: chatSpan.name,
+        messageRole: 'assistant',
+      });
+    }
+  }
+
+  return [{ ...workflow, children: messageNodes }];
 }
 
 export function flattenSpanTree(spans: SpanNode[]): SpanNode[] {

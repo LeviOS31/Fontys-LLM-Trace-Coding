@@ -2,8 +2,9 @@ import { Badge, Box, Flex, Heading, ScrollArea, Text } from '@radix-ui/themes';
 import {
   ChevronDown,
   ChevronRight,
+  UserPen,
   GitBranch,
-  ListTree,
+  ListCollapse,
   MessageCircle,
   Workflow,
 } from 'lucide-react';
@@ -11,7 +12,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { TraceDetailView } from '../../../../shared/types/trace';
 import { useTraceGroupSummaryList } from '../../../traces/hooks/useTraceGroupSummaryList';
-import { buildDisplaySpanTree, type SpanNode } from './spanTree';
+import {
+  buildMessageAwareSpanTree,
+  type MessageSpanNode,
+  type MessageTreeAnchor,
+  type SpanNode,
+} from './spanTree';
 
 type Props = {
   projectId: string;
@@ -23,6 +29,8 @@ type Props = {
   selectedSpanId: string | null;
   setSelectedTrace: (traceId: string) => void;
   setSelectedSpan: (spanId: string | null) => void;
+  requestChatScroll: (spanId: string, role: 'user' | 'assistant') => void;
+  messageAnchors: MessageTreeAnchor[];
 };
 
 function getModelName(trace: TraceDetailView): string {
@@ -40,17 +48,23 @@ function getSpanCount(trace: TraceDetailView): number {
   return trace.traceScopes.reduce((count, scope) => count + scope.spans.length, 0);
 }
 
-function getTreeIcon(span: SpanNode) {
+function getTreeIcon(span: SpanNode, messageRole?: MessageSpanNode['messageRole']) {
+  if (messageRole === 'user') return UserPen;
+  if (messageRole === 'assistant') return MessageCircle;
   const name = span.name.toLowerCase();
   if (name.includes('chat') || name.includes('completion')) return MessageCircle;
-  if (name.includes('task')) return ListTree;
+  if (name.includes('task')) return ListCollapse;
   return Workflow;
 }
 
 type SpanTreeProps = {
   spans: SpanNode[];
+  traceId: string;
   selectedSpanId: string | null;
   setSelectedSpan: (spanId: string) => void;
+  setSelectedTrace: (traceId: string) => void;
+  requestChatScroll: (spanId: string, role: 'user' | 'assistant') => void;
+  messageAnchors: MessageTreeAnchor[];
   depth?: number;
 };
 
@@ -58,103 +72,125 @@ type SpanTreeProps = {
 const MAX_INDENT_DEPTH = 6;
 const INDENT_PX = 14;
 
-function SpanTree({ spans, selectedSpanId, setSelectedSpan, depth = 0 }: Readonly<SpanTreeProps>) {
+function SpanTree({
+  spans,
+  traceId,
+  selectedSpanId,
+  setSelectedSpan,
+  setSelectedTrace,
+  requestChatScroll,
+  messageAnchors,
+  depth = 0,
+}: Readonly<SpanTreeProps>) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   return (
     <Flex direction="column" style={{ minWidth: 0 }}>
-      {[...spans]
-        .sort((a, b) => a.startTimeUnixNano - b.startTimeUnixNano)
-        .map((span) => {
-          const hasChildren = span.children.length > 0;
-          const isCollapsed = collapsed[span.traceScopeSpanId] ?? false;
-          const isSelected = selectedSpanId === span.traceScopeSpanId;
-          const Icon = getTreeIcon(span);
-          const indent = Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PX;
+      {(spans.some((span) => (span as MessageSpanNode).messageRole)
+        ? spans
+        : [...spans].sort((a, b) => a.startTimeUnixNano - b.startTimeUnixNano)
+      ).map((span) => {
+        const hasChildren = span.children.length > 0;
+        const isCollapsed = collapsed[span.traceScopeSpanId] ?? false;
+        const isSelected = selectedSpanId === span.traceScopeSpanId;
+        const messageSpan = span as MessageSpanNode;
+        const Icon = getTreeIcon(span, messageSpan.messageRole);
+        const indent = Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PX;
 
-          const handleSelect = () => {
-            setSelectedSpan(span.traceScopeSpanId);
-            const target = document.querySelector(
-              `[data-span-id="${span.traceScopeSpanId}"]`
-            ) as HTMLElement | null;
-            target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          };
+        const handleSelect = () => {
+          setSelectedSpan(span.traceScopeSpanId);
+          setSelectedTrace(traceId);
+          if (messageSpan.messageRole) {
+            requestChatScroll(span.traceScopeSpanId, messageSpan.messageRole);
+          }
+          const target = document.querySelector(
+            `[data-span-id="${span.traceScopeSpanId}"]`
+          ) as HTMLElement | null;
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
 
-          return (
-            <Box key={span.traceScopeSpanId} style={{ paddingLeft: `${indent}px`, minWidth: 0 }}>
-              <Flex
-                align="center"
-                gap="1"
-                onClick={handleSelect}
-                style={{
-                  minHeight: 24,
-                  padding: '2px 6px',
-                  borderLeft: isSelected ? '2px solid var(--accent-9)' : '2px solid transparent',
-                  backgroundColor: isSelected ? 'var(--accent-a3)' : 'transparent',
-                  cursor: 'pointer',
-                  minWidth: 0,
-                }}
-              >
-                {hasChildren ? (
-                  <button
-                    type="button"
-                    aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${span.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedSpan(span.traceScopeSpanId);
-                      setCollapsed((previous) => ({
-                        ...previous,
-                        [span.traceScopeSpanId]: !isCollapsed,
-                      }));
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 16,
-                      minWidth: 16,
-                      height: 16,
-                      flexShrink: 0,
-                      padding: 0,
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--gray-11)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                  </button>
-                ) : (
-                  <Box style={{ width: 16, minWidth: 16, height: 16, flexShrink: 0 }} />
-                )}
-                <Icon size={13} style={{ flexShrink: 0 }} />
-                <Text
-                  size="1"
-                  color={isSelected ? undefined : 'gray'}
-                  weight={isSelected ? 'bold' : 'regular'}
+        return (
+          <Box
+            key={`${span.traceScopeSpanId}-${messageSpan.messageRole ?? 'span'}`}
+            style={{ paddingLeft: `${indent}px`, minWidth: 0 }}
+          >
+            <Flex
+              align="center"
+              gap="1"
+              onClick={handleSelect}
+              style={{
+                minHeight: 24,
+                padding: '2px 6px',
+                borderLeft: isSelected ? '2px solid var(--accent-9)' : '2px solid transparent',
+                backgroundColor: isSelected ? 'var(--accent-a3)' : 'transparent',
+                cursor: 'pointer',
+                minWidth: 0,
+              }}
+            >
+              {hasChildren ? (
+                <button
+                  type="button"
+                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${span.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedSpan(span.traceScopeSpanId);
+                    setCollapsed((previous) => ({
+                      ...previous,
+                      [span.traceScopeSpanId]: !isCollapsed,
+                    }));
+                  }}
                   style={{
-                    minWidth: 0,
-                    flex: 1,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 16,
+                    minWidth: 16,
+                    height: 16,
+                    flexShrink: 0,
+                    padding: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    color: 'var(--gray-11)',
+                    cursor: 'pointer',
                   }}
                 >
-                  {span.name}
-                </Text>
-              </Flex>
-
-              {hasChildren && !isCollapsed && (
-                <SpanTree
-                  spans={span.children}
-                  selectedSpanId={selectedSpanId}
-                  setSelectedSpan={setSelectedSpan}
-                  depth={depth + 1}
-                />
+                  {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                </button>
+              ) : (
+                <Box style={{ width: 16, minWidth: 16, height: 16, flexShrink: 0 }} />
               )}
-            </Box>
-          );
-        })}
+              <Icon size={13} style={{ flexShrink: 0 }} />
+              <Text
+                size="1"
+                color={isSelected ? undefined : 'gray'}
+                weight={isSelected ? 'bold' : 'regular'}
+                style={{
+                  minWidth: 0,
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {messageSpan.displayName ?? span.name}
+              </Text>
+            </Flex>
+
+            {hasChildren && !isCollapsed && (
+              <SpanTree
+                spans={span.children}
+                traceId={traceId}
+                selectedSpanId={selectedSpanId}
+                setSelectedSpan={setSelectedSpan}
+                setSelectedTrace={setSelectedTrace}
+                requestChatScroll={requestChatScroll}
+                messageAnchors={messageAnchors}
+                depth={depth + 1}
+              />
+            )}
+          </Box>
+        );
+      })}
     </Flex>
   );
 }
@@ -169,6 +205,8 @@ export function TraceTreeNav({
   selectedSpanId,
   setSelectedTrace,
   setSelectedSpan,
+  requestChatScroll,
+  messageAnchors,
 }: Readonly<Props>) {
   const navigate = useNavigate();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useTraceGroupSummaryList(
@@ -202,7 +240,10 @@ export function TraceTreeNav({
     const isActive = trace.traceId === selectedTraceId;
     const isScrolledTo = trace.traceId === scrollTraceId;
     const isExpanded = expandedTraceIds.has(trace.traceId);
-    const spans = buildDisplaySpanTree(trace.traceScopes.flatMap((scope) => scope.spans));
+    const spans = buildMessageAwareSpanTree(
+      trace.traceScopes.flatMap((scope) => scope.spans),
+      messageAnchors
+    );
 
     return (
       <Box key={trace.traceId} style={{ position: 'relative', paddingLeft: 12, minWidth: 0 }}>
@@ -279,7 +320,7 @@ export function TraceTreeNav({
             }}
           >
             <Flex align="center" gap="2" mb="1" style={{ minWidth: 0 }}>
-              <GitBranch size={14} color="var(--accent-9)" style={{ flexShrink: 0 }} />
+              <ListCollapse size={14} color="var(--accent-9)" style={{ flexShrink: 0 }} />
               <Text
                 size="2"
                 weight={isActive ? 'bold' : 'regular'}
@@ -314,8 +355,12 @@ export function TraceTreeNav({
         {isExpanded && (
           <SpanTree
             spans={spans}
+            traceId={trace.traceId}
             selectedSpanId={selectedSpanId}
             setSelectedSpan={setSelectedSpan}
+            setSelectedTrace={setSelectedTrace}
+            requestChatScroll={requestChatScroll}
+            messageAnchors={messageAnchors}
           />
         )}
       </Box>

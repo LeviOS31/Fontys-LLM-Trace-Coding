@@ -21,6 +21,7 @@ export type LlmMessage = {
   content: string;
   index: number;
   relatedTraceId: string;
+  relatedSpanId: string;
   modelName?: string;
   amountOfSpans?: number;
 };
@@ -57,6 +58,7 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
             content: contentAttr.value,
             index: i,
             relatedTraceId: trace.traceId,
+            relatedSpanId: span.traceScopeSpanId,
             modelName: span.attributes.find((attr) => attr.key === 'gen_ai.request.model')?.value,
             amountOfSpans: trace.traceScopes.reduce((acc, s) => acc + s.spans.length, 0),
           });
@@ -75,6 +77,7 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
             content: completionContentAttr.value,
             index: i,
             relatedTraceId: trace.traceId,
+            relatedSpanId: span.traceScopeSpanId,
           });
         }
       }
@@ -100,6 +103,8 @@ export default function TraceGroupPage() {
 
   const [scrollTrace, setScrollTrace] = useState<string | null>(null);
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
+  const [scrollMessageRole, setScrollMessageRole] = useState<'user' | 'assistant' | null>(null);
+  const [chatScrollRequest, setChatScrollRequest] = useState(0);
 
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
 
@@ -177,6 +182,15 @@ export default function TraceGroupPage() {
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
+                requestChatScroll={(spanId, role) => {
+                  setChatScrollRequest((request) => request + 1);
+                  setScrollSpanIndex(spanId);
+                  setScrollMessageRole(role);
+                }}
+                messageAnchors={llmMessages.filter(
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
+                    message.role === 'user' || message.role === 'assistant'
+                )}
               />
             </ResizablePanel>
 
@@ -187,6 +201,9 @@ export default function TraceGroupPage() {
                 llmMessages={llmMessages}
                 selectedTraceId={effectiveSelectedTrace}
                 setSelectedTrace={setSelectedTrace}
+                scrollRequest={chatScrollRequest}
+                selectedSpanId={scrollSpanIndex}
+                selectedMessageRole={scrollMessageRole}
                 onScrollChange={(traceId) => {
                   setScrollTrace(traceId);
                   if (traceId) setSelectedTrace(traceId);
@@ -224,6 +241,12 @@ export default function TraceGroupPage() {
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
+                requestChatScroll={(spanId, role) => {
+                  setChatScrollRequest((request) => request + 1);
+                  setScrollSpanIndex(spanId);
+                  setScrollMessageRole(role);
+                }}
+                messageAnchors={[]}
               />
             </ResizablePanel>
 

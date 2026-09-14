@@ -10,7 +10,10 @@ import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 type Props = {
   llmMessages: LlmMessage[];
   selectedTraceId: string | null;
+  selectedSpanId: string | null;
+  selectedMessageRole: 'user' | 'assistant' | null;
   setSelectedTrace: (traceId: string) => void;
+  scrollRequest: number;
   onScrollChange: (traceId: string | null) => void;
 };
 
@@ -26,7 +29,10 @@ function normalizeContent(content: string): string {
 export function LlmContent({
   llmMessages,
   selectedTraceId,
+  selectedSpanId,
+  selectedMessageRole,
   setSelectedTrace,
+  scrollRequest,
   onScrollChange,
 }: Readonly<Props>) {
   const [relatedTraceHover, setRelatedTraceHover] = useState<string | null>(null);
@@ -41,15 +47,24 @@ export function LlmContent({
   useEffect(() => {
     if (!selectedTraceId) return;
 
-    const element = document.querySelector(
+    const spanSelector = selectedSpanId
+      ? `[data-trace-id="${selectedTraceId}"][data-span-id="${selectedSpanId}"]`
+      : null;
+    const element = spanSelector
+      ? ((document.querySelector(
+          `${spanSelector}[data-message-role="${selectedMessageRole ?? 'user'}"]`
+        ) as HTMLElement | null) ?? (document.querySelector(spanSelector) as HTMLElement | null))
+      : null;
+    const traceElement = document.querySelector(
       `[data-trace-id="${selectedTraceId}"]`
     ) as HTMLElement | null;
-    if (!element) return;
+    const target = element ?? traceElement;
+    if (!target) return;
 
-    const viewport = element.closest('[data-radix-scroll-area-viewport]');
+    const viewport = target.closest('[data-radix-scroll-area-viewport]');
     if (viewport) {
       const viewportRect = viewport.getBoundingClientRect();
-      const elementRect = element.getBoundingClientRect();
+      const elementRect = target.getBoundingClientRect();
       const isFullyVisible =
         elementRect.top >= viewportRect.top && elementRect.bottom <= viewportRect.bottom;
       if (isFullyVisible) return;
@@ -61,8 +76,8 @@ export function LlmContent({
       return;
     }
 
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [selectedTraceId]);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedTraceId, selectedSpanId, selectedMessageRole, scrollRequest]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const source = event.currentTarget;
@@ -136,6 +151,8 @@ export function LlmContent({
               px="4"
               py="1"
               data-trace-id={msg.relatedTraceId}
+              data-span-id={msg.relatedSpanId}
+              data-message-role={msg.role}
             >
               {/* Title and divider */}
               {(index === 1 || msg.relatedTraceId !== llmMessages[index - 1]?.relatedTraceId) &&

@@ -38,8 +38,8 @@ namespace Projects.Features.GetAllAssessmentCriteriaOfProject
                     criteriaList = assessmentCriteria
                     .Select(c => new GetAllAssessmentCriteriaOfProjectResponse.AssessmentCriteria
                     {
-                        CriteriaId = c.CriteriaId,
-                        Criteria = c.Criteria
+                        CriterionId = c.CriteriaId,
+                        Criterion = c.Criteria
                     })
                     .ToList(),
                 };

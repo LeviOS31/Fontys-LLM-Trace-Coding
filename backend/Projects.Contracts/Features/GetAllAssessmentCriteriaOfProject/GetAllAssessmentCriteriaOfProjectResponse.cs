@@ -6,8 +6,8 @@
 
         public record AssessmentCriteria
         {
-            public required Guid CriteriaId { get; set; }
-            public required string Criteria { get; set; }
+            public required Guid CriterionId { get; set; }
+            public required string Criterion { get; set; }
         }
     }
 }

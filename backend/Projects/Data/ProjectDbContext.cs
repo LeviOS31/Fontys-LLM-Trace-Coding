@@ -11,7 +11,7 @@ public class ProjectDbContext : DbContext
         : base(options) { }
 
     public virtual DbSet<Project> Projects { get; set; }
-    public virtual DbSet<AssessmentCriteriaModel> AssessmentCriteria { get; set; }
+    public virtual DbSet<AssessmentCriteriaModel> AssessmentCriterias { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

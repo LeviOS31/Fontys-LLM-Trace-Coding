@@ -25,6 +25,6 @@ internal sealed class ProjectEntityConfiguration : IEntityTypeConfiguration<Proj
         builder.HasKey(x => x.ProjectId);
         builder.Property(x => x.Name).HasMaxLength(Project.MaxNameLength);
         builder.Property(x => x.Description).HasMaxLength(Project.MaxDescriptionLength);
-        builder.HasMany(x => x.AssessmentCriteria).WithOne(x=>x.Project).HasForeignKey(x => x.ProjectId).IsRequired();
+        builder.HasMany(x => x.AssessmentCriteria).WithOne(x=>x.project).HasForeignKey(x => x.ProjectId).IsRequired();
     }
 }

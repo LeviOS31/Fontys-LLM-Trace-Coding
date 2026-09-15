@@ -6,8 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Shared\Shared.csproj" />
     <ProjectReference Include="..\Projects.Contracts\Projects.Contracts.csproj" />
+    <ProjectReference Include="..\ProjectVersions.Contracts\ProjectVersions.Contracts.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
     <ProjectReference Include="..\Traces.Contracts\Traces.Contracts.csproj" />
     <ProjectReference Include="..\AxialCodes.Contracts\AxialCodes.Contracts.csproj" />
   </ItemGroup>

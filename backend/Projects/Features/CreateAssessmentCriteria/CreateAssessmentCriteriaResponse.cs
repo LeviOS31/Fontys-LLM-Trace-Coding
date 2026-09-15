@@ -8,7 +8,7 @@ namespace Projects.Features.CreateAssessmentCriteria
     {
         public required Guid CriteriaId { get; init; }
         public required Guid ProjectId { get; init; }
-        public required List<string> Criteria { get; init; }
+        public required string Criteria { get; init; }
 
     }
 }

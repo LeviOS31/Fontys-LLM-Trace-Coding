@@ -1,4 +1,3 @@
-using AssessmentCriteria.Data;
 using AxialCodes.Data;
 using JudgeTemplates.Data;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +12,6 @@ namespace MigrationRunner;
 public class MigrationRunner
 {
     private readonly ILogger<MigrationRunner> _logger;
-    private readonly AssessmentCriteriaDbContext _assessmentCriteriaDbContext;
     private readonly ProjectDbContext _projectDb;
     private readonly ProjectVersionsDbContext _projectVersionsDb;
     private readonly TracesDbContext _tracesDb;
@@ -23,7 +21,6 @@ public class MigrationRunner
 
     public MigrationRunner(
         ILogger<MigrationRunner> logger,
-        AssessmentCriteriaDbContext assessmentCriteriaDbContext,
         ProjectDbContext projectDb,
         ProjectVersionsDbContext projectVersionsDb,
         TracesDbContext tracesDb,
@@ -33,7 +30,6 @@ public class MigrationRunner
     )
     {
         _logger = logger;
-        _assessmentCriteriaDbContext = assessmentCriteriaDbContext;
         _projectDb = projectDb;
         _projectVersionsDb = projectVersionsDb;
         _tracesDb = tracesDb;
@@ -46,7 +42,6 @@ public class MigrationRunner
     {
         _logger.LogInformation("Starting database migrations...");
 
-        await MigrateWithRetry(_assessmentCriteriaDbContext, "AssessmentCriteria");
         await MigrateWithRetry(_projectDb, "Projects");
         await MigrateWithRetry(_projectVersionsDb, "ProjectVersions");
         await MigrateWithRetry(_tracesDb, "Traces");

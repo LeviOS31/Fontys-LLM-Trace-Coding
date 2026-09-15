@@ -1,5 +1,4 @@
-﻿using AssessmentCriteria.Data;
-using AxialCodes.Data;
+﻿using AxialCodes.Data;
 using JudgeTemplates.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +20,6 @@ Console.WriteLine("Connection string: '" + connectionString + "'");
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-builder.Services.AddDbContext<AssessmentCriteriaDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<ProjectDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<ProjectVersionsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<TracesDbContext>(options => options.UseNpgsql(connectionString));

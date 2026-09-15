@@ -25,7 +25,6 @@ namespace Projects.Data.Models
             builder.Property(x => x.Criteria).HasMaxLength(AssessmentCriteria.MaxLength);
             builder.Property(x => x.ProjectId).IsRequired();
             builder.HasOne(x => x.project).WithMany(x => x.AssessmentCriteria).HasForeignKey(x => x.ProjectId).IsRequired();
-            builder.HasOne<Project>().WithMany(x => x.AssessmentCriteria).HasForeignKey(x => x.ProjectId).IsRequired();
         }
     }
 }

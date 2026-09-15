@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AssessmentCriteria.Contracts\AssessmentCriteria.Contracts.csproj" />
     <ProjectReference Include="..\ProjectVersions.Contracts\ProjectVersions.Contracts.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>

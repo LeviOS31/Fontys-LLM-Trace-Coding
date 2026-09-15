@@ -1,6 +1,6 @@
 namespace Api.Endpoints.AssessmentCriteria.Dtos;
 
-public record CreateAssessmentCriterionDto
+public record CreateAssessmentCriteriaDto
 {
-    public required string Criterion { get; init; }
+    public required string Criteria { get; init; }
 }

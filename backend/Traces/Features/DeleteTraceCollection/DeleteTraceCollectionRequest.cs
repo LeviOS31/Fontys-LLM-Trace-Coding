@@ -1,5 +1,4 @@
 ﻿using Mediator;
-using Projects.Contracts.Features.GetProject;
 using Shared;
 
 namespace Traces.Features.DeleteTraceCollection;

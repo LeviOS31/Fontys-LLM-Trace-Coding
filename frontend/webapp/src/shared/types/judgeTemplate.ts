@@ -1,5 +1,6 @@
 export interface JudgeTemplate {
   id: string;
+  axialCodeId: string;
   name: string;
   description: string;
   template: string;
@@ -17,4 +18,8 @@ export interface CreateJudgeTemplatePayload {
 
 export interface CreateJudgeTemplateResponse {
   judgeTemplateId: string;
+}
+
+export interface UpdateJudgeTemplatePayload {
+  content: string;
 }

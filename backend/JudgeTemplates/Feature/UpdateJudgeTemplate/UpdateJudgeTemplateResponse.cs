@@ -1,0 +1,3 @@
+namespace JudgeTemplates.Feature.UpdateJudgeTemplate;
+
+public record UpdateJudgeTemplateResponse;

@@ -3,6 +3,7 @@ import type {
   CreateJudgeTemplatePayload,
   CreateJudgeTemplateResponse,
   GetJudgeTemplatesResponse,
+  UpdateJudgeTemplatePayload,
 } from '../types/judgeTemplate.ts';
 
 export async function getJudgeTemplates(
@@ -48,4 +49,22 @@ export async function createJudgeTemplate(
   });
   if (!response.ok) throw new Error('Failed to create judge template');
   return response.json();
+}
+
+export async function updateJudgeTemplate(
+  projectId: string,
+  projectVersionId: string,
+  judgeTemplateId: string,
+  payload: UpdateJudgeTemplatePayload
+): Promise<void> {
+  const url = new URL(
+    `/v1/projects/${projectId}/versions/${projectVersionId}/judge-templates/${judgeTemplateId}`,
+    BASE_URL
+  );
+  const response = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error('Failed to update judge template');
 }

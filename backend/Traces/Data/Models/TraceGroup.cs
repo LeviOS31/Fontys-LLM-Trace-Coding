@@ -16,7 +16,7 @@ internal sealed class TraceGroupEntityConfiguration : IEntityTypeConfiguration<T
     public void Configure(EntityTypeBuilder<TraceGroup> builder)
     {
         builder.HasKey(x => x.TraceGroupId);
-        builder.HasMany(x => x.Traces).WithOne().HasForeignKey(x => x.TraceGroupId);
+        builder.HasMany(x => x.Traces).WithOne(x => x.TraceGroup).HasForeignKey(x => x.TraceGroupId);
         builder.Property(x => x.TraceGroupType);
     }
 }

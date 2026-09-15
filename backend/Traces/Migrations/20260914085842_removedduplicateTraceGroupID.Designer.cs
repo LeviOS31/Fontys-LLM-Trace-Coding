@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Traces.Data;
@@ -11,9 +12,11 @@ using Traces.Data;
 namespace Traces.Migrations
 {
     [DbContext(typeof(TracesDbContext))]
-    partial class TracesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914085842_removedduplicateTraceGroupID")]
+    partial class removedduplicateTraceGroupID
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

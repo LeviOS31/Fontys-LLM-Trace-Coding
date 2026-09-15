@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Traces.Data;
@@ -11,9 +12,11 @@ using Traces.Data;
 namespace Traces.Migrations
 {
     [DbContext(typeof(TracesDbContext))]
-    partial class TracesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914082611_HopefullyremovedduplicateTraceGroupID")]
+    partial class HopefullyremovedduplicateTraceGroupID
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -106,6 +109,9 @@ namespace Traces.Migrations
                     b.Property<Guid?>("TraceGroupId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("TraceGroupId1")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -114,6 +120,8 @@ namespace Traces.Migrations
                     b.HasIndex("TraceCollectionId");
 
                     b.HasIndex("TraceGroupId");
+
+                    b.HasIndex("TraceGroupId1");
 
                     b.ToTable("Traces");
                 });
@@ -276,9 +284,13 @@ namespace Traces.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Traces.Data.Models.TraceGroup", "TraceGroup")
+                    b.HasOne("Traces.Data.Models.TraceGroup", null)
                         .WithMany("Traces")
                         .HasForeignKey("TraceGroupId");
+
+                    b.HasOne("Traces.Data.Models.TraceGroup", "TraceGroup")
+                        .WithMany()
+                        .HasForeignKey("TraceGroupId1");
 
                     b.Navigation("TraceCollection");
 

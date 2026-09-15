@@ -1,13 +1,13 @@
-using AssessmentCriteria.Contracts.Features.InternalDeleteAllAssessmentCriteriaOfProject;
-using FluentValidation;
+//using AssessmentCriteria.Contracts.Features.InternalDeleteAllAssessmentCriteriaOfProject;
+//using FluentValidation;
 
-namespace AssessmentCriteria.Features.InternalDeleteAllAssessmentCriteriaOfProject;
+//namespace AssessmentCriteria.Features.InternalDeleteAllAssessmentCriteriaOfProject;
 
-public class InternalDeleteAllAssessmentCriteriaOfProjectRequestValidator
-    : AbstractValidator<InternalDeleteAllAssessmentCriteriaOfProjectRequest>
-{
-    public InternalDeleteAllAssessmentCriteriaOfProjectRequestValidator()
-    {
-        RuleFor(x => x.ProjectId).NotEmpty();
-    }
-}
+//public class InternalDeleteAllAssessmentCriteriaOfProjectRequestValidator
+//    : AbstractValidator<InternalDeleteAllAssessmentCriteriaOfProjectRequest>
+//{
+//    public InternalDeleteAllAssessmentCriteriaOfProjectRequestValidator()
+//    {
+//        RuleFor(x => x.ProjectId).NotEmpty();
+//    }
+//}

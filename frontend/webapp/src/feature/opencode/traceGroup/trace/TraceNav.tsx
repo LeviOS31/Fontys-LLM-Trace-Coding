@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { TraceDetailView } from '../../../../shared/types/trace';
 import { getSpanCategory } from './getSpanCategory';
 import { buildSpanTree, type SpanNode } from './spanTree';
+import { scrollSpanIntoView } from './spanScroll';
 
 type Props = {
   trace: TraceDetailView;
@@ -32,11 +33,7 @@ function SpanTree({ spans, selectedSpanId, depth = 0 }: Readonly<SpanTreeProps>)
         const isCollapsed = collapsed[span.traceScopeSpanId] ?? false;
 
         const handleNavigate = () => {
-          const target = document.querySelector(
-            `[data-span-id="${span.traceScopeSpanId}"]`
-          ) as HTMLElement | null;
-
-          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          scrollSpanIntoView(span.traceScopeSpanId);
         };
 
         return (

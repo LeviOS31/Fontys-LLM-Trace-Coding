@@ -18,6 +18,7 @@ import {
   type MessageTreeAnchor,
   type SpanNode,
 } from './spanTree';
+import { scrollSpanIntoView } from './spanScroll';
 
 type Props = {
   projectId: string;
@@ -102,11 +103,9 @@ function SpanTree({
           setSelectedTrace(traceId);
           if (messageSpan.messageRole) {
             requestChatScroll(span.traceScopeSpanId, messageSpan.messageRole);
+            return;
           }
-          const target = document.querySelector(
-            `[data-span-id="${span.traceScopeSpanId}"]`
-          ) as HTMLElement | null;
-          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          scrollSpanIntoView(span.traceScopeSpanId);
         };
 
         return (

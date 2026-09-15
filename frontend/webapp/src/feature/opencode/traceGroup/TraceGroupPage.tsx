@@ -206,7 +206,6 @@ export default function TraceGroupPage() {
                 selectedMessageRole={scrollMessageRole}
                 onScrollChange={(traceId) => {
                   setScrollTrace(traceId);
-                  if (traceId) setSelectedTrace(traceId);
                 }}
               />
             </ResizablePanel>

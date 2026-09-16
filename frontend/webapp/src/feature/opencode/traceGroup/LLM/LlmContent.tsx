@@ -14,7 +14,11 @@ type Props = {
   selectedMessageRole: 'user' | 'assistant' | null;
   setSelectedTrace: (traceId: string) => void;
   scrollRequest: number;
-  onScrollChange: (traceId: string | null) => void;
+  onScrollChange: (
+    traceId: string | null,
+    spanId: string | null,
+    role: 'user' | 'assistant' | null
+  ) => void;
 };
 
 // Strip leading whitespace per line so markdown never mistakes
@@ -89,28 +93,30 @@ export function LlmContent({
     const viewportRect = viewport.getBoundingClientRect();
     const viewportCenter = viewportRect.top + viewportRect.height / 2;
 
-    let currentTraceId: string | null = null;
+    let closest: { traceId: string; spanId: string; role: 'user' | 'assistant' } | null = null;
     let closestDistance = Infinity;
 
     for (const msg of llmMessages) {
-      const element = document.querySelector(
-        `[data-trace-id="${msg.relatedTraceId}"]`
-      ) as HTMLElement;
-      if (element) {
-        const elementRect = element.getBoundingClientRect();
-        const distance = Math.abs(elementRect.top + elementRect.height / 2 - viewportCenter);
+      if (msg.role !== 'user' && msg.role !== 'assistant') continue; // skip system messages
 
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          currentTraceId = msg.relatedTraceId;
-        }
+      const element = document.querySelector(
+        `[data-trace-id="${msg.relatedTraceId}"][data-span-id="${msg.relatedSpanId}"][data-message-role="${msg.role}"]`
+      ) as HTMLElement | null;
+      if (!element) continue;
+
+      const elementRect = element.getBoundingClientRect();
+      const distance = Math.abs(elementRect.top + elementRect.height / 2 - viewportCenter);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = { traceId: msg.relatedTraceId, spanId: msg.relatedSpanId, role: msg.role };
       }
     }
 
-    if (currentTraceId) {
-      onScrollChange(currentTraceId);
+    if (closest) {
+      onScrollChange(closest.traceId, closest.spanId, closest.role);
     } else {
-      onScrollChange(null);
+      onScrollChange(null, null, null);
     }
   };
 

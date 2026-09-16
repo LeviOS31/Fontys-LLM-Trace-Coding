@@ -32,6 +32,8 @@ type Props = {
   setSelectedSpan: (spanId: string | null) => void;
   requestChatScroll: (spanId: string, role: 'user' | 'assistant') => void;
   messageAnchors: MessageTreeAnchor[];
+  selectedNodeKey: string | null;
+  setSelectedNodeKey: (nodeKey: string | null) => void;
 };
 
 function getModelName(trace: TraceDetailView): string {
@@ -123,6 +125,7 @@ function SpanTree({
               align="center"
               gap="1"
               onClick={handleSelect}
+              data-node-key={nodeKey}
               style={{
                 minHeight: 24,
                 padding: '2px 6px',
@@ -214,6 +217,8 @@ export function TraceTreeNav({
   setSelectedSpan,
   requestChatScroll,
   messageAnchors,
+  selectedNodeKey,
+  setSelectedNodeKey,
 }: Readonly<Props>) {
   const navigate = useNavigate();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useTraceGroupSummaryList(
@@ -226,7 +231,6 @@ export function TraceTreeNav({
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
     () => new Set([activeTraceGroupId])
   );
-  const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
   const groups = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -243,6 +247,37 @@ export function TraceTreeNav({
   useEffect(() => {
     setExpandedGroupIds((previous) => new Set(previous).add(activeTraceGroupId));
   }, [activeTraceGroupId]);
+
+  useEffect(() => {
+    if (!selectedNodeKey) return;
+
+    const target = document.querySelector(
+      `[data-node-key="${CSS.escape(selectedNodeKey)}"]`
+    ) as HTMLElement | null;
+    if (!target) return;
+
+    const viewport = target.closest('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      const viewportRect = viewport.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const isFullyVisible =
+        targetRect.top >= viewportRect.top && targetRect.bottom <= viewportRect.bottom;
+      if (isFullyVisible) return;
+
+      viewport.scrollTo({
+        top:
+          viewport.scrollTop +
+          targetRect.top -
+          viewportRect.top -
+          viewportRect.height / 2 +
+          targetRect.height / 2,
+        behavior: 'smooth',
+      });
+      return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [selectedNodeKey]);
 
   const traceNodes = traces.map((trace, index) => {
     const isActive = trace.traceId === selectedTraceId;

@@ -105,6 +105,7 @@ export default function TraceGroupPage() {
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
   const [scrollMessageRole, setScrollMessageRole] = useState<'user' | 'assistant' | null>(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
+  const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
 
@@ -191,6 +192,8 @@ export default function TraceGroupPage() {
                   (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
                     message.role === 'user' || message.role === 'assistant'
                 )}
+                selectedNodeKey={selectedNodeKey}
+                setSelectedNodeKey={setSelectedNodeKey}
               />
             </ResizablePanel>
 
@@ -204,8 +207,9 @@ export default function TraceGroupPage() {
                 scrollRequest={chatScrollRequest}
                 selectedSpanId={scrollSpanIndex}
                 selectedMessageRole={scrollMessageRole}
-                onScrollChange={(traceId) => {
+                onScrollChange={(traceId, spanId, role) => {
                   setScrollTrace(traceId);
+                  setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
                 }}
               />
             </ResizablePanel>
@@ -236,7 +240,7 @@ export default function TraceGroupPage() {
                 activeTraceGroupId={traceGroupId!}
                 traces={selectedTraceGroup!.traces}
                 selectedTraceId={effectiveSelectedTrace}
-                scrollTraceId={null}
+                scrollTraceId={scrollTrace}
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
@@ -245,7 +249,12 @@ export default function TraceGroupPage() {
                   setScrollSpanIndex(spanId);
                   setScrollMessageRole(role);
                 }}
-                messageAnchors={[]}
+                messageAnchors={llmMessages.filter(
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
+                    message.role === 'user' || message.role === 'assistant'
+                )}
+                selectedNodeKey={selectedNodeKey}
+                setSelectedNodeKey={setSelectedNodeKey}
               />
             </ResizablePanel>
 

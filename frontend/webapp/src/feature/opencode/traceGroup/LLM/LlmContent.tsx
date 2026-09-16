@@ -10,8 +10,15 @@ import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 type Props = {
   llmMessages: LlmMessage[];
   selectedTraceId: string | null;
+  selectedSpanId: string | null;
+  selectedMessageRole: 'user' | 'assistant' | null;
   setSelectedTrace: (traceId: string) => void;
-  onScrollChange: (traceId: string | null) => void;
+  scrollRequest: number;
+  onScrollChange: (
+    traceId: string | null,
+    spanId: string | null,
+    role: 'user' | 'assistant' | null
+  ) => void;
 };
 
 // Strip leading whitespace per line so markdown never mistakes
@@ -26,7 +33,10 @@ function normalizeContent(content: string): string {
 export function LlmContent({
   llmMessages,
   selectedTraceId,
+  selectedSpanId,
+  selectedMessageRole,
   setSelectedTrace,
+  scrollRequest,
   onScrollChange,
 }: Readonly<Props>) {
   const [relatedTraceHover, setRelatedTraceHover] = useState<string | null>(null);
@@ -41,53 +51,82 @@ export function LlmContent({
   useEffect(() => {
     if (!selectedTraceId) return;
 
-    const element = document.querySelector(
+    const spanSelector = selectedSpanId
+      ? `[data-trace-id="${selectedTraceId}"][data-span-id="${selectedSpanId}"]`
+      : null;
+    const element = spanSelector
+      ? ((document.querySelector(
+          `${spanSelector}[data-message-role="${selectedMessageRole ?? 'user'}"]`
+        ) as HTMLElement | null) ?? (document.querySelector(spanSelector) as HTMLElement | null))
+      : null;
+    const traceElement = document.querySelector(
       `[data-trace-id="${selectedTraceId}"]`
     ) as HTMLElement | null;
-    if (!element) return;
+    const target = element ?? traceElement;
+    if (!target) return;
 
-    const viewport = element.closest('[data-radix-scroll-area-viewport]');
+    const viewport = target.closest('[data-radix-scroll-area-viewport]');
     if (viewport) {
       const viewportRect = viewport.getBoundingClientRect();
-      const elementRect = element.getBoundingClientRect();
+      const elementRect = target.getBoundingClientRect();
       const isFullyVisible =
         elementRect.top >= viewportRect.top && elementRect.bottom <= viewportRect.bottom;
       if (isFullyVisible) return;
+
+      viewport.scrollTo({
+        top: viewport.scrollTop + elementRect.top - viewportRect.top,
+        behavior: 'smooth',
+      });
+      return;
     }
 
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [selectedTraceId]);
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [selectedTraceId, selectedSpanId, selectedMessageRole, scrollRequest]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = event.currentTarget.scrollTop;
-    const scrollBottom = scrollTop + event.currentTarget.clientHeight;
+    const source = event.currentTarget;
+    const viewport = source.matches('[data-radix-scroll-area-viewport]')
+      ? source
+      : source.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
 
-    let currentTraceId: string | null = null;
+    const viewportRect = viewport.getBoundingClientRect();
+    const viewportCenter = viewportRect.top + viewportRect.height / 2;
+
+    let closest: { traceId: string; spanId: string; role: 'user' | 'assistant' } | null = null;
+    let closestDistance = Infinity;
 
     for (const msg of llmMessages) {
-      const element = document.querySelector(
-        `[data-trace-id="${msg.relatedTraceId}"]`
-      ) as HTMLElement;
-      if (element) {
-        const elementTop = element.offsetTop;
-        const elementBottom = elementTop + element.offsetHeight;
+      if (msg.role !== 'user' && msg.role !== 'assistant') continue; // skip system messages
 
-        if (elementTop < scrollBottom && elementBottom > scrollTop) {
-          currentTraceId = msg.relatedTraceId;
-          break;
-        }
+      const element = document.querySelector(
+        `[data-trace-id="${msg.relatedTraceId}"][data-span-id="${msg.relatedSpanId}"][data-message-role="${msg.role}"]`
+      ) as HTMLElement | null;
+      if (!element) continue;
+
+      const elementRect = element.getBoundingClientRect();
+      const distance = Math.abs(elementRect.top + elementRect.height / 2 - viewportCenter);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = { traceId: msg.relatedTraceId, spanId: msg.relatedSpanId, role: msg.role };
       }
     }
 
-    if (currentTraceId) {
-      onScrollChange(currentTraceId);
+    if (closest) {
+      onScrollChange(closest.traceId, closest.spanId, closest.role);
     } else {
-      onScrollChange(null);
+      onScrollChange(null, null, null);
     }
   };
 
   return (
-    <ScrollArea type="hover" scrollbars="vertical" style={{ height: '90vh' }} onScroll={onScroll}>
+    <ScrollArea
+      type="hover"
+      scrollbars="vertical"
+      style={{ height: '100%', minHeight: 0 }}
+      onScroll={onScroll}
+    >
       <Flex direction="column" py="3">
         <Box px="4">
           <Heading>LLM chat interaction</Heading>
@@ -98,7 +137,7 @@ export function LlmContent({
             {(index === 1 || msg.relatedTraceId !== llmMessages[index - 1]?.relatedTraceId) &&
               index !== 0 && <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
             <Box
-              key={msg.index}
+              key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
               onClick={() => setSelectedTrace(msg.relatedTraceId)}
               style={{
                 cursor: index === 0 ? 'auto' : 'pointer',
@@ -118,6 +157,8 @@ export function LlmContent({
               px="4"
               py="1"
               data-trace-id={msg.relatedTraceId}
+              data-span-id={msg.relatedSpanId}
+              data-message-role={msg.role}
             >
               {/* Title and divider */}
               {(index === 1 || msg.relatedTraceId !== llmMessages[index - 1]?.relatedTraceId) &&

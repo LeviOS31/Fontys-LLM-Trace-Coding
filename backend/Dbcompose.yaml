@@ -1,5 +1,4 @@
-﻿version: "3.8"
-name: TestDbCompose
+﻿name: TestDbCompose
 
 services:
   db:
@@ -13,6 +12,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   migrator:
     build:
@@ -21,7 +25,7 @@ services:
     depends_on:
       - db
     environment:
-      - ConnectionStrings__Default=Host=db;Port=5432;Database=mydb;Username=user;Password=password
+      - ConnectionStrings__Default=Host=db;Port=5432;Database=mydb;Username=user;Password=${POSTGRES_PASSWORD}
     restart: on-failure
 
   pgadmin:

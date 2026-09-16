@@ -12,6 +12,7 @@ export type MessageTreeAnchor = {
 export type MessageSpanNode = SpanNode & {
   displayName?: string;
   messageRole?: MessageTreeAnchor['role'];
+  nodeKey?: string;
 };
 
 export function buildSpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
@@ -124,11 +125,13 @@ export function buildMessageAwareSpanTree(
                 children: [],
                 displayName: chatSpan.name,
                 messageRole: 'assistant',
+                nodeKey: `${chatSpan.traceScopeSpanId}-assistant`,
               } as MessageSpanNode,
             ]
           : [],
         displayName: userMessage.content,
         messageRole: 'user',
+        nodeKey: `${chatSpan.traceScopeSpanId}-user`,
       });
     } else if (assistantMessage) {
       messageNodes.push({
@@ -136,6 +139,7 @@ export function buildMessageAwareSpanTree(
         children: [],
         displayName: chatSpan.name,
         messageRole: 'assistant',
+        nodeKey: `${chatSpan.traceScopeSpanId}-assistant`,
       });
     }
   }

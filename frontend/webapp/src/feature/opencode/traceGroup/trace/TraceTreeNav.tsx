@@ -67,6 +67,8 @@ type SpanTreeProps = {
   requestChatScroll: (spanId: string, role: 'user' | 'assistant') => void;
   messageAnchors: MessageTreeAnchor[];
   depth?: number;
+  selectedNodeKey?: string | null;
+  setSelectedNodeKey?: (nodeKey: string | null) => void;
 };
 
 // Cap indentation so deeply nested spans don't push the row width out.
@@ -82,6 +84,8 @@ function SpanTree({
   requestChatScroll,
   messageAnchors,
   depth = 0,
+  selectedNodeKey,
+  setSelectedNodeKey,
 }: Readonly<SpanTreeProps>) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -93,12 +97,14 @@ function SpanTree({
       ).map((span) => {
         const hasChildren = span.children.length > 0;
         const isCollapsed = collapsed[span.traceScopeSpanId] ?? false;
-        const isSelected = selectedSpanId === span.traceScopeSpanId;
         const messageSpan = span as MessageSpanNode;
+        const nodeKey = messageSpan.nodeKey ?? span.traceScopeSpanId;
+        const isSelected = selectedNodeKey === nodeKey;
         const Icon = getTreeIcon(span, messageSpan.messageRole);
         const indent = Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PX;
 
         const handleSelect = () => {
+          setSelectedNodeKey?.(nodeKey);
           setSelectedSpan(span.traceScopeSpanId);
           setSelectedTrace(traceId);
           if (messageSpan.messageRole) {
@@ -185,6 +191,8 @@ function SpanTree({
                 requestChatScroll={requestChatScroll}
                 messageAnchors={messageAnchors}
                 depth={depth + 1}
+                selectedNodeKey={selectedNodeKey}
+                setSelectedNodeKey={setSelectedNodeKey}
               />
             )}
           </Box>
@@ -218,6 +226,7 @@ export function TraceTreeNav({
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
     () => new Set([activeTraceGroupId])
   );
+  const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
   const groups = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -360,6 +369,8 @@ export function TraceTreeNav({
             setSelectedTrace={setSelectedTrace}
             requestChatScroll={requestChatScroll}
             messageAnchors={messageAnchors}
+            selectedNodeKey={selectedNodeKey}
+            setSelectedNodeKey={setSelectedNodeKey}
           />
         )}
       </Box>

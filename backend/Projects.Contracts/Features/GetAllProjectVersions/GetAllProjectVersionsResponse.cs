@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
+﻿
 namespace Projects.Contracts.Features.GetAllProjectVersions
 {
     public record GetAllProjectVersionsResponse

@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Projects.Data;
-using ProjectVersions.Data;
 using Settings.Data;
 using Traces.Data;
 
@@ -21,7 +20,6 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 builder.Services.AddDbContext<ProjectDbContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddDbContext<ProjectVersionsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<TracesDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<AxialCodeDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<SettingsDbContext>(options => options.UseNpgsql(connectionString));

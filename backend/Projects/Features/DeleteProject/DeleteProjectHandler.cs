@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Projects.Data;
 using Projects.Data.Models;
 using Projects.Features.DeleteAllAssessmentCriteriaOfProject;
-using ProjectVersions.Contracts.Features.InternalDeleteAllProjectVersions;
+using Projects.Features.DeleteAllProjectVersions;
 using Serilog;
 using Shared;
 using Shared.Extensions;
@@ -125,7 +125,7 @@ public class DeleteProjectHandler : IRequestHandler<DeleteProjectRequest, Result
 
     private async ValueTask<bool> DeleteProjectVersions(Guid projectId, CancellationToken cancellationToken)
     {
-        var deleteAllProjectVersionsRequest = new InternalDeleteAllProjectVersionsRequest { ProjectId = projectId };
+        var deleteAllProjectVersionsRequest = new DeleteAllProjectVersionRequest { ProjectId = projectId };
         var deleteAllProjectVersionsResult = await _mediator.Send(deleteAllProjectVersionsRequest, cancellationToken);
         if (deleteAllProjectVersionsResult.IsSuccess || deleteAllProjectVersionsResult.ErrorCode == ErrorCode.NoChanges)
         {

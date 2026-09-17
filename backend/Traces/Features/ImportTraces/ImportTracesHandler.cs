@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Trace.V1;
 using Projects.Contracts.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Serilog;
 using Shared;
 using Traces.Data;
@@ -51,7 +51,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         //
         // Validate correct project version
         //
-        var getProjectVersionsQuery = new InternalGetProjectVersionsQuery { ProjectId = request.ProjectId };
+        var getProjectVersionsQuery = new GetAllProjectVersionsQuery { ProjectId = request.ProjectId };
         var getProjectVersionsResult = await _mediator.Send(getProjectVersionsQuery, cancellationToken);
 
         if (!getProjectVersionsResult.IsSuccess)

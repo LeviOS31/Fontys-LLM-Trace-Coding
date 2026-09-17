@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Projects.Features.DeleteALLProjectVersions
+namespace Projects.Features.DeleteAllProjectVersions
 {
     public record DeleteAllProjectVersionRepsonse
     {

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Projects.Data;
 using Projects.Data.Models;
 using Projects.Contracts.Features.GetAllAssessmentCriteriaOfProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Contracts.Features.GetProject;
 using Serilog;
 using Shared;
@@ -54,7 +54,7 @@ public class GetProjectHandler : IRequestHandler<GetProjectQuery, Result<GetProj
             return ErrorCode.NoPermission;
         }
 
-        var getProjectVersionsQuery = new InternalGetProjectVersionsQuery { ProjectId = query.ProjectId };
+        var getProjectVersionsQuery = new GetAllProjectVersionsQuery { ProjectId = query.ProjectId };
         var versions = await _mediator.Send(getProjectVersionsQuery, cancellationToken);
 
         if (versions.IsError)

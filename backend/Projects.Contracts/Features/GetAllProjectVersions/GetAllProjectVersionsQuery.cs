@@ -1,11 +1,9 @@
 ﻿using Mediator;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Shared;
 
 namespace Projects.Contracts.Features.GetAllProjectVersions
 {
-    public record GetALLProjectVersionsQuery: IRequest<GetAllProjectVersionsResponse>
+    public record GetAllProjectVersionsQuery: IRequest<Result<GetAllProjectVersionsResponse>>
     {
         public required Guid ProjectId { get; init; }
     }

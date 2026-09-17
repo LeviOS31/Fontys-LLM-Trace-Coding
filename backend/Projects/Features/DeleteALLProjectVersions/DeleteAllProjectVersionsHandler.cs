@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 
-namespace Projects.Features.DeleteALLProjectVersions
+namespace Projects.Features.DeleteAllProjectVersions
 {
     public class DeleteAllProjectVersionsHandler
         :IRequestHandler<DeleteAllProjectVersionRequest, 

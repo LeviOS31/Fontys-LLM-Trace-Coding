@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Box, Flex, Spinner, Text } from '@radix-ui/themes';
 import type { TraceGroupSummaryItem } from '../../../../shared/types/trace.ts';
 import TraceGroupListItem from './TraceGroupListItem.tsx';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 
 interface Props {
   readonly groups: readonly TraceGroupSummaryItem[];
@@ -29,6 +29,14 @@ export default function TraceGroupMasterPanel({
   const fetchStateRef = useRef({ hasNextPage, isFetchingNextPage });
   const { id, versionId } = useParams<{ id: string; versionId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const openTraceGroup = (traceGroupId: string) => {
+    navigate({
+      pathname: `/projects/${id}/versions/${versionId}/open-code/${traceGroupId}`,
+      search: searchParams.toString(),
+    });
+  };
 
   // Keep the ref updated on every render
   useEffect(() => {
@@ -115,7 +123,7 @@ export default function TraceGroupMasterPanel({
               trace={group}
               isFocused={i === focusedIndex}
               onClick={() => {
-                navigate(`/projects/${id}/versions/${versionId}/open-code/${group.traceGroupId}`);
+                openTraceGroup(group.traceGroupId);
               }}
             />
           </Box>

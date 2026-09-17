@@ -46,7 +46,6 @@ export default function TraceFilterBar({
           onChange={(e) => {
             setSearch(e.target.value);
           }}
-          disabled={true}
         >
           <TextField.Slot>
             <Search size={12} />
@@ -119,7 +118,6 @@ export default function TraceFilterBar({
               setHasNoOpenCode(value === true);
               setSearchParams('hasNoOpenCode', value);
             }}
-            disabled={true}
           />
         </Box>
       </Box>

@@ -98,9 +98,10 @@ export default function TraceGroupMasterOverviewCard({
       if (e.key === 'Enter') {
         if (focusedIndex >= 0 && groups[focusedIndex]) {
           e.preventDefault();
-          navigate(
-            `/projects/${id}/versions/${versionId}/open-code/${groups[focusedIndex].traceGroupId}`
-          );
+          navigate({
+            pathname: `/projects/${id}/versions/${versionId}/open-code/${groups[focusedIndex].traceGroupId}`,
+            search: searchParams.toString(),
+          });
         }
         return;
       }

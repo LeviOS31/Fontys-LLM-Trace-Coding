@@ -7,6 +7,7 @@ using Serilog;
 using Shared;
 using Traces.Data;
 using Traces.Data.Models;
+using Traces.Extensions;
 using Traces.Features.GetTraceSummaries.Records;
 
 namespace Traces.Features.GetTraceSummaries;
@@ -57,10 +58,12 @@ public class GetTraceGroupSummaryHandler
                 t.Traces.Any((trace) => trace.TraceCollection.ProjectVersionId == query.ProjectVersionId)
             );
 
-            // if (query.Filters != null)
-            // {
-            //     dbQuery = dbQuery.ApplyFilters(query.Filters);
-            // }
+            if (query.Filters is { Count: > 0 })
+            {
+                dbQuery = dbQuery.Where(group =>
+                    group.Traces.AsQueryable().ApplyFilters(query.Filters).Any()
+                );
+            }
 
             var totalCount = await dbQuery.CountAsync(cancellationToken);
 

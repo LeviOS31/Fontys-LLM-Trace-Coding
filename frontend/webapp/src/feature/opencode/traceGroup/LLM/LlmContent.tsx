@@ -1,6 +1,11 @@
 import { Badge, Box, Flex, Heading, Text, ScrollArea } from '@radix-ui/themes';
 import type { LlmMessage } from '../TraceGroupPage';
 import { useEffect, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 type Props = {
   llmMessages: LlmMessage[];
@@ -8,6 +13,15 @@ type Props = {
   setSelectedTrace: (traceId: string) => void;
   onScrollChange: (traceId: string | null) => void;
 };
+
+// Strip leading whitespace per line so markdown never mistakes
+// indented user text for a fenced code block.
+function normalizeContent(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => line.trimStart())
+    .join('\n');
+}
 
 export function LlmContent({
   llmMessages,
@@ -131,11 +145,89 @@ export function LlmContent({
                 )}
 
               {/* Message content */}
-              <Flex direction="column" gap="1" align={msg.role === 'user' ? 'end' : 'start'} pb="4">
+              <Flex
+                direction="column"
+                gap="1"
+                align={msg.role === 'user' ? 'end' : 'start'}
+                pb="4"
+                style={{ maxWidth: '100%', width: '100%', minWidth: 0 }}
+              >
                 <Text size="3" color="gray" weight="bold">
                   {msg.role.toUpperCase()}
                 </Text>
-                <Text size="2">{msg.content}</Text>
+                <Box
+                  style={{
+                    maxWidth: '100%',
+                    width: '100%',
+                    minWidth: 0,
+                    fontFamily: 'inherit',
+                    fontSize: 'var(--font-size-2)',
+                    lineHeight: 'var(--line-height-2)',
+                    overflowWrap: 'break-word',
+                    wordBreak: 'break-word',
+                    textAlign: msg.role === 'user' ? 'right' : 'left',
+                  }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={{
+                      p: ({ children }) => (
+                        <p
+                          style={{
+                            margin: '0 0 0.5em',
+                            minWidth: 0,
+                            fontFamily: 'inherit',
+                            textAlign: msg.role === 'user' ? 'right' : 'left',
+                          }}
+                        >
+                          {children}
+                        </p>
+                      ),
+                      li: ({ children }) => <li style={{ fontFamily: 'inherit' }}>{children}</li>,
+                      pre: ({ children }) => (
+                        <pre
+                          style={{
+                            maxWidth: '100%',
+                            margin: '0.5em 0',
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'break-word',
+                            wordBreak: 'break-word',
+                            textAlign: 'left', // code should stay left-aligned even in user messages
+                          }}
+                        >
+                          {children}
+                        </pre>
+                      ),
+                      code({ className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return match ? (
+                          <SyntaxHighlighter
+                            language={match[1]}
+                            style={oneDark}
+                            PreTag="div"
+                            customStyle={{ maxWidth: '100%', overflowX: 'auto', textAlign: 'left' }}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code
+                            className={className}
+                            style={{
+                              fontFamily: 'inherit',
+                              wordBreak: 'break-word',
+                              whiteSpace: 'pre-wrap',
+                            }}
+                            {...props}
+                          >
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {normalizeContent(msg.content)}
+                  </ReactMarkdown>
+                </Box>
               </Flex>
             </Box>
           </>

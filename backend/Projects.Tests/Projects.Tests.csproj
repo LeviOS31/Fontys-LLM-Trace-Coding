@@ -18,7 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AssessmentCriteria.Contracts\AssessmentCriteria.Contracts.csproj" />
     <ProjectReference Include="..\Projects\Projects.csproj" />
     <ProjectReference Include="..\Shared.Tests\Shared.Tests.csproj" />
   </ItemGroup>

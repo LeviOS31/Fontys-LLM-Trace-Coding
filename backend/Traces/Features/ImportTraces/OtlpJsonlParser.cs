@@ -25,8 +25,8 @@ public class OtlpJsonlParser
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
-            Logger.Error(exception, "An error occured while reading the JSONL file");
-            return ErrorCode.FileReadError;
+            Logger.Error(exception, "An error occurred while processing the uploaded trace file");
+            return ErrorCode.InvalidRequest;
         }
 
         // Convert to the TracesData object
@@ -35,15 +35,17 @@ public class OtlpJsonlParser
         {
             tracesData = await ConvertJsonToTracesData(jsonl, cancellationToken);
         }
-        catch (Exception exception) when (exception is InvalidJsonException or InvalidProtocolBufferException)
+        catch (Exception exception) when (
+            exception is InvalidJsonException or InvalidProtocolBufferException or JsonReaderException
+        )
         {
             Logger.Warning(exception, "Uploaded JSONL file containing invalid JSON");
             return ErrorCode.InvalidRequest;
         }
         catch (Exception exception)
         {
-            Logger.Error(exception, "An error occured while reading the JSONL file");
-            return ErrorCode.FileReadError;
+            Logger.Error(exception, "An error occurred while processing the uploaded trace file");
+            return ErrorCode.InvalidRequest;
         }
 
         return tracesData;
@@ -81,26 +83,73 @@ public class OtlpJsonlParser
 
         while (await reader.ReadAsync(cancellationToken))
         {
-            // 1. Decode to JObject
-            var jsonObject = serializer.Deserialize<JObject>(reader);
-            if (jsonObject == null)
+            var jsonValue = JToken.Load(reader);
+
+            if (jsonValue is JArray jsonArray)
             {
-                continue;
+                var arrayTraces = new List<TracesData>();
+                foreach (var item in jsonArray.OfType<JObject>())
+                {
+                    AddTrace(item, arrayTraces);
+                }
+
+                traces.AddRange(MergeArrayTraces(arrayTraces));
             }
-
-            // 2. Convert to JSON string
-            var jsonString = jsonObject.ToString();
-
-            // 3. Convert to proto object
-            var protoObject = TracesData.Parser.ParseJson(jsonString);
-            if (protoObject == null)
+            else if (jsonValue is JObject jsonObject)
             {
-                continue;
+                AddTrace(jsonObject, traces);
             }
-
-            traces.Add(protoObject);
         }
 
         return traces.ToArray();
+    }
+
+    private static void AddTrace(JObject jsonObject, ICollection<TracesData> traces)
+    {
+        var protoObject = TracesData.Parser.ParseJson(jsonObject.ToString());
+        if (protoObject != null)
+        {
+            traces.Add(protoObject);
+        }
+    }
+
+    private static IEnumerable<TracesData> MergeArrayTraces(IEnumerable<TracesData> input)
+    {
+        var tracesById = new Dictionary<string, TracesData>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var traceData in input)
+        {
+            foreach (var resourceSpans in traceData.ResourceSpans)
+            {
+                foreach (var scopeSpans in resourceSpans.ScopeSpans)
+                {
+                    foreach (var span in scopeSpans.Spans)
+                    {
+                        var traceId = Convert.ToHexString(span.TraceId.Span);
+                        if (!tracesById.TryGetValue(traceId, out var mergedTrace))
+                        {
+                            mergedTrace = new TracesData();
+                            var mergedResourceSpans = new ResourceSpans();
+                            if (resourceSpans.Resource != null)
+                            {
+                                mergedResourceSpans.Resource = resourceSpans.Resource.Clone();
+                            }
+
+                            mergedTrace.ResourceSpans.Add(mergedResourceSpans);
+                            tracesById.Add(traceId, mergedTrace);
+                        }
+
+                        var mergedScopeSpans = new ScopeSpans
+                        {
+                            Scope = scopeSpans.Scope?.Clone(),
+                        };
+                        mergedScopeSpans.Spans.Add(span.Clone());
+                        mergedTrace.ResourceSpans[0].ScopeSpans.Add(mergedScopeSpans);
+                    }
+                }
+            }
+        }
+
+        return tracesById.Values;
     }
 }

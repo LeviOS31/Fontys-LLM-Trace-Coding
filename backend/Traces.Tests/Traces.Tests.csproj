@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="Features\ImportTraces\Parsers\TestData\*.jsonl" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

@@ -96,7 +96,13 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
     <Flex
       direction="column"
       gap="3"
-      style={{ height: '100%', padding: '16px 12px', boxSizing: 'border-box' }}
+      style={{
+        height: '100%',
+        minWidth: 0,
+        overflow: 'hidden',
+        padding: '16px 12px',
+        boxSizing: 'border-box',
+      }}
     >
       {/* Header */}
       <Flex align="center" justify="between" style={{ flexShrink: 0 }}>
@@ -104,11 +110,17 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
           size="1"
           weight="bold"
           color="gray"
-          style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
+          style={{
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
         >
           Open Code
         </Text>
-        <Box>
+        <Box style={{ flexShrink: 0 }}>
           {isPending && (
             <Badge color="gray" size="1" variant="soft">
               Saving…
@@ -128,7 +140,14 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
       </Flex>
 
       {/* Textarea */}
-      <Box>
+      <Box
+        style={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
+      >
         <TextArea
           ref={textAreaRef}
           placeholder="Add open code for this trace…"
@@ -136,7 +155,7 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
           value={openCode}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          style={{ minHeight: '12em' }}
+          style={{ minHeight: '12em', height: '100%' }}
         />
       </Box>
     </Flex>

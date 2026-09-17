@@ -218,7 +218,7 @@ export default function TraceGroupPage() {
               <>
                 <CustomResizeHandle />
 
-                <ResizablePanel defaultSize={30} minSize={25}>
+                <ResizablePanel defaultSize={30} minSize={25} style={{ overflow: 'visible' }}>
                   <TraceContentOverview
                     trace={selectedTraceObject!}
                     setScrollSpanIndex={setScrollSpanIndex}
@@ -260,7 +260,7 @@ export default function TraceGroupPage() {
 
             <CustomResizeHandle />
 
-            <ResizablePanel defaultSize={25} minSize={25}>
+            <ResizablePanel defaultSize={25} minSize={25} style={{ overflow: 'visible' }}>
               <TraceContentOverview
                 trace={selectedTraceObject!}
                 setScrollSpanIndex={setScrollSpanIndex}

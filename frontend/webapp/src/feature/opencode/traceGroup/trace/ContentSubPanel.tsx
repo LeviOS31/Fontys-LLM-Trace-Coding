@@ -18,10 +18,17 @@ export default function ContentSubPanel({ trace, projectId, versionId }: Props) 
       style={{
         background: 'var(--gray-2)',
         borderTop: '1px solid var(--gray-a4)',
+        height: '100%',
+        minHeight: 0,
       }}
     >
-      <AssessmentCriteriaContainer projectId={projectId} />
-      <OpenCodePanel selectedTrace={trace} projectId={projectId} versionId={versionId} />
+      <div style={{ flexShrink: 0 }}>
+        <AssessmentCriteriaContainer projectId={projectId} />
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <OpenCodePanel selectedTrace={trace} projectId={projectId} versionId={versionId} />
+      </div>
     </Flex>
   );
 }

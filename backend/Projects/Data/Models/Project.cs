@@ -16,6 +16,7 @@ public class Project : IUserOwned
     public required string Name { get; set; }
     public required string Description { get; set; }
     public ICollection<AssessmentCriteria> AssessmentCriteria { get; set; }
+    public ICollection<ProjectVersion> versions { get; set; }
 }
 
 internal sealed class ProjectEntityConfiguration : IEntityTypeConfiguration<Project>
@@ -26,5 +27,6 @@ internal sealed class ProjectEntityConfiguration : IEntityTypeConfiguration<Proj
         builder.Property(x => x.Name).HasMaxLength(Project.MaxNameLength);
         builder.Property(x => x.Description).HasMaxLength(Project.MaxDescriptionLength);
         builder.HasMany(x => x.AssessmentCriteria).WithOne(x=>x.project).HasForeignKey(x => x.ProjectId).IsRequired();
+        builder.HasMany(x => x.versions).WithOne(x => x.project).HasForeignKey(x => x.ProjectId).IsRequired();
     }
 }

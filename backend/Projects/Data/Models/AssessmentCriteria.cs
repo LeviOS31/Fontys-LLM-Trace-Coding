@@ -1,8 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Projects.Data.Models
 {
@@ -22,7 +19,7 @@ namespace Projects.Data.Models
         public void Configure(EntityTypeBuilder<AssessmentCriteria> builder)
         {
             builder.HasKey(x => x.CriteriaId);
-            builder.Property(x => x.Criteria).HasMaxLength(AssessmentCriteria.MaxLength);
+            builder.Property(x => x.Criteria).HasMaxLength(AssessmentCriteria.MaxLength).IsRequired();
             builder.Property(x => x.ProjectId).IsRequired();
             builder.HasOne(x => x.project).WithMany(x => x.AssessmentCriteria).HasForeignKey(x => x.ProjectId).IsRequired();
         }

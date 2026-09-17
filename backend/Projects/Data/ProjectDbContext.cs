@@ -12,6 +12,7 @@ public class ProjectDbContext : DbContext
 
     public virtual DbSet<Project> Projects { get; set; }
     public virtual DbSet<AssessmentCriteriaModel> AssessmentCriterias { get; set; }
+    public virtual DbSet<ProjectVersion> Versions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

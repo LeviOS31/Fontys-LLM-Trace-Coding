@@ -35,5 +35,8 @@ export function useImportTraceCollection() {
         queryKey: QUERY_KEYS.traces.collections(variables.projectVersionId),
       });
     },
+    onError: (error) => {
+      console.error(error);
+    },
   });
 }

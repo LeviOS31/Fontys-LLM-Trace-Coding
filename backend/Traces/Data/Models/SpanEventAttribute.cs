@@ -20,7 +20,7 @@ internal sealed class SpanEventAttributeEntityConfiguration : IEntityTypeConfigu
         builder.Property(x => x.SpanEventId);
         builder.HasOne(x => x.SpanEvent).WithMany(x => x.SpanEventAttributes).HasForeignKey(x => x.SpanEventId);
         builder.Property(x => x.Key).HasMaxLength(256);
-        builder.Property(x => x.Value).HasMaxLength(2560);
+        builder.Property(x => x.Value).HasMaxLength(16384);
         builder.Property(x => x.TraceAttributeType);
 
         builder.HasKey(x => new { x.SpanEventId, x.Key });

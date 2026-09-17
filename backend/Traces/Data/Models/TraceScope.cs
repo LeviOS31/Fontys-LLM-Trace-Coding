@@ -21,7 +21,7 @@ internal sealed class TraceScopesEntityConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.TraceId);
         builder.HasOne(x => x.Trace).WithMany(x => x.TraceScopes).HasForeignKey(x => x.TraceId);
         builder.Property(x => x.Name).HasMaxLength(256);
-        builder.Property(x => x.Version).HasMaxLength(2560);
+        builder.Property(x => x.Version).HasMaxLength(16384);
         builder.HasMany(x => x.TraceScopeSpans).WithOne(x => x.TraceScope).HasForeignKey(x => x.TraceScopeId);
     }
 }

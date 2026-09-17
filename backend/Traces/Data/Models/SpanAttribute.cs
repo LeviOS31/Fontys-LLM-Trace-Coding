@@ -20,7 +20,7 @@ internal sealed class SpanAttributeEntityConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.SpanId);
         builder.HasOne(x => x.TraceScopeSpan).WithMany(x => x.SpanAttributes).HasForeignKey(x => x.SpanId);
         builder.Property(x => x.Key).HasMaxLength(256);
-        builder.Property(x => x.Value).HasMaxLength(2560);
+        builder.Property(x => x.Value).HasMaxLength(16384);
         builder.Property(x => x.TraceAttributeType);
 
         builder.HasKey(x => new { x.SpanId, x.Key });

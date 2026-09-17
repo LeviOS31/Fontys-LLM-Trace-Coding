@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Trace.V1;
 using Projects.Contracts.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Serilog;
 using Shared;
 using Traces.Data;
@@ -51,7 +51,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         //
         // Validate correct project version
         //
-        var getProjectVersionsQuery = new InternalGetProjectVersionsQuery { ProjectId = request.ProjectId };
+        var getProjectVersionsQuery = new GetAllProjectVersionsQuery { ProjectId = request.ProjectId };
         var getProjectVersionsResult = await _mediator.Send(getProjectVersionsQuery, cancellationToken);
 
         if (!getProjectVersionsResult.IsSuccess)
@@ -258,7 +258,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
                 {
                     SpanEventId = spanEventInDb.EventId,
                     Key = spanEventAttribute.Key,
-                    Value = TruncateString(GetAnyValueAsString(spanEventAttribute.Value), 2560),
+                    Value = TruncateString(GetAnyValueAsString(spanEventAttribute.Value), 16384),
                     TraceAttributeType = GetTraceAttributeType(spanEventAttribute.Value),
                 };
                 _tracesDbContext.SpanEventAttributes.Add(spanEventAtributeInDb);
@@ -274,7 +274,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
             {
                 SpanId = traceScopeSpan.TraceScopeSpanId,
                 Key = spanAttribute.Key,
-                Value = TruncateString(GetAnyValueAsString(spanAttribute.Value), 2560),
+                Value = TruncateString(GetAnyValueAsString(spanAttribute.Value), 16384),
                 TraceAttributeType = GetTraceAttributeType(spanAttribute.Value),
             };
             _tracesDbContext.SpanAttributes.Add(attribute);

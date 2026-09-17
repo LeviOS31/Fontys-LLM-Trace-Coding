@@ -17,31 +17,10 @@ namespace Projects.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Projects.Data.Models.AssessmentCriteria", b =>
-                {
-                    b.Property<Guid>("CriteriaId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Criteria")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("CriteriaId");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("AssessmentCriterias");
-                });
 
             modelBuilder.Entity("Projects.Data.Models.Project", b =>
                 {
@@ -65,61 +44,6 @@ namespace Projects.Migrations
                     b.HasKey("ProjectId");
 
                     b.ToTable("Projects");
-                });
-
-            modelBuilder.Entity("Projects.Data.Models.ProjectVersion", b =>
-                {
-                    b.Property<Guid>("VersionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("VersionId");
-
-                    b.HasIndex("ProjectId");
-
-                    b.ToTable("Versions");
-                });
-
-            modelBuilder.Entity("Projects.Data.Models.AssessmentCriteria", b =>
-                {
-                    b.HasOne("Projects.Data.Models.Project", "project")
-                        .WithMany("AssessmentCriteria")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("project");
-                });
-
-            modelBuilder.Entity("Projects.Data.Models.ProjectVersion", b =>
-                {
-                    b.HasOne("Projects.Data.Models.Project", "project")
-                        .WithMany("versions")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("project");
-                });
-
-            modelBuilder.Entity("Projects.Data.Models.Project", b =>
-                {
-                    b.Navigation("AssessmentCriteria");
-
-                    b.Navigation("versions");
                 });
 #pragma warning restore 612, 618
         }

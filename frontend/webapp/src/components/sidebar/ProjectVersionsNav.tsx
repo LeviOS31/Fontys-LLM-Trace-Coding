@@ -6,6 +6,7 @@ import { colors } from '../../shared/styling/colors.ts';
 import type { Version } from '../../shared/types/version.ts';
 
 interface ProjectVersionsNavProps {
+  collapsed?: boolean;
   projectId: string;
   projectName: string;
   versions: Version[];
@@ -14,6 +15,7 @@ interface ProjectVersionsNavProps {
 }
 
 export function ProjectVersionsNav({
+  collapsed = false,
   projectId,
   projectName,
   versions,
@@ -22,21 +24,29 @@ export function ProjectVersionsNav({
 }: Readonly<ProjectVersionsNavProps>) {
   return (
     <Box>
-      <ProjectNavItem projectId={projectId} title={projectName} shortcut="H" />
+      <ProjectNavItem
+        collapsed={collapsed}
+        projectId={projectId}
+        title={projectName}
+        shortcut="H"
+      />
 
-      <Flex align="center" justify="between" px="4" mt="3" mb="2">
-        <Text size="1" weight="bold" color={colors.theme.radix.gray}>
-          Versions
-        </Text>
-        <Flex gap="1" style={{ opacity: 0.5 }}>
-          <Kbd size="1">[</Kbd>
-          <Kbd size="1">]</Kbd>
+      {!collapsed && (
+        <Flex align="center" justify="between" px="4" mt="3" mb="2">
+          <Text size="1" weight="bold" color={colors.theme.radix.gray}>
+            Versions
+          </Text>
+          <Flex gap="1" style={{ opacity: 0.5 }}>
+            <Kbd size="1">[</Kbd>
+            <Kbd size="1">]</Kbd>
+          </Flex>
         </Flex>
-      </Flex>
+      )}
 
       {versions.map((version, i) => (
         <VersionRow
           key={version.versionId}
+          collapsed={collapsed}
           version={version}
           isSelected={currentVersionId === version.versionId}
           isKeyFocused={keyFocusedIndex === i}
@@ -44,7 +54,7 @@ export function ProjectVersionsNav({
         />
       ))}
 
-      <CreateVersionItem projectId={projectId} />
+      <CreateVersionItem collapsed={collapsed} projectId={projectId} />
     </Box>
   );
 }

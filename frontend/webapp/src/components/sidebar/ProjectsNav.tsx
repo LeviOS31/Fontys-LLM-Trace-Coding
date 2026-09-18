@@ -10,7 +10,11 @@ import { ProjectVersionsNav } from './ProjectVersionsNav.tsx';
 import { useGetProject } from '../../feature/projects/hooks/useGetProject.ts';
 import { Box, Text } from '@radix-ui/themes';
 
-export function ProjectsNav() {
+interface ProjectsNavProps {
+  collapsed?: boolean;
+}
+
+export function ProjectsNav({ collapsed = false }: ProjectsNavProps) {
   const { data, isLoading } = useGetAllProjects();
   const projects = data?.projects ?? [];
 
@@ -33,36 +37,46 @@ export function ProjectsNav() {
 
   const navigate = useNavigate();
 
+  // Keep the focused/highlighted version in sync with the actual selected
+  // version, however it changed (click, shortcut, direct URL nav, etc).
+  useEffect(() => {
+    const versions = projectData?.versions ?? [];
+    const idx = versions.findIndex((v) => v.versionId === currentVersionId);
+    setKeyFocusedIndex(idx);
+  }, [currentVersionId, projectData]);
+
   // ─── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (isTyping()) return;
       if (!currentProjectId) return;
 
-      // [ → move sidebar focus to previous version (wraps)
-      if (e.key === '[') {
-        e.preventDefault();
-        setKeyFocusedIndex((i) => (i <= 0 ? (projectData?.versions.length ?? 1) - 1 : i - 1));
-        return;
-      }
+      const versions = projectData?.versions ?? [];
 
-      // ] → move sidebar focus to next version (wraps)
-      if (e.key === ']') {
+      if (e.key === '[' || e.key === ']') {
         e.preventDefault();
-        setKeyFocusedIndex((i) =>
-          i < 0 || i >= (projectData?.versions.length ?? 1) - 1 ? 0 : i + 1
+        if (versions.length === 0) return;
+        const currentIndex = versions.findIndex((v) => v.versionId === currentVersionId);
+        const nextIndex =
+          e.key === '['
+            ? currentIndex <= 0
+              ? versions.length - 1
+              : currentIndex - 1
+            : currentIndex < 0 || currentIndex >= versions.length - 1
+              ? 0
+              : currentIndex + 1;
+        navigate(
+          `/projects/${currentProjectId}/versions/${versions[nextIndex].versionId}/overview`
         );
         return;
       }
 
-      // H → jump to project overview
       if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
         navigate(`/projects/${currentProjectId}`);
         return;
       }
 
-      // 1 / 2 / 3 → jump directly to a version page
       if (currentVersionId) {
         const pageById: Record<string, string> = {
           '1': 'overview',
@@ -81,6 +95,7 @@ export function ProjectsNav() {
   return (
     <>
       <ProjectSelector
+        collapsed={collapsed}
         isLoading={isLoading}
         projects={projects}
         currentProjectId={currentProjectId}
@@ -98,6 +113,7 @@ export function ProjectsNav() {
 
       {currentProjectId && currentProject && projectData && !isProjectLoading && (
         <ProjectVersionsNav
+          collapsed={collapsed}
           projectId={currentProjectId}
           projectName={currentProject.name}
           versions={projectData?.versions ?? []}

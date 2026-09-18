@@ -9,10 +9,13 @@
   padding-right: var(--space-3);
   margin: 1px var(--space-1);
   border-radius: var(--radius-2);
+  border: 1px solid transparent;
   text-decoration: none;
   color: var(--gray-11);
   box-sizing: border-box;
-  transition: background-color 0.1s ease;
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .sidebar-nav-item:hover {
@@ -21,8 +24,9 @@
 }
 
 .sidebar-nav-item--active {
-  background-color: var(--accent-3);
-  color: var(--accent-11);
+  background-color: var(--green-3);
+  color: var(--green-11);
+  border: 1px solid var(--green-7);
 }
 
 .sidebar-nav-item__shortcut {
@@ -35,6 +39,14 @@
   opacity: 0.65;
 }
 
+.sidebar-nav-item--collapsed {
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  margin: 6px auto;
+}
+
 /* ─── Project nav item ────────────────────────────────────────────────────── */
 
 .project-nav-item {
@@ -44,10 +56,13 @@
   padding: var(--space-2) var(--space-3);
   margin: 1px var(--space-1);
   border-radius: var(--radius-3);
+  border: 1px solid transparent;
   text-decoration: none;
   color: var(--gray-11);
   box-sizing: border-box;
-  transition: background-color 0.1s ease;
+  transition:
+    background-color 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .project-nav-item:hover {
@@ -56,8 +71,17 @@
 }
 
 .project-nav-item--active {
-  background-color: var(--accent-3);
-  color: var(--accent-11);
+  background-color: var(--green-3);
+  color: var(--green-11);
+  border: 1px solid var(--green-7);
+}
+
+.project-nav-item--collapsed {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  margin: 8px auto;
 }
 
 /* ─── Version row ─────────────────────────────────────────────────────────── */
@@ -68,6 +92,12 @@
 
 .version-row:hover {
   background-color: var(--gray-3);
+}
+
+.version-row--collapsed {
+  width: 40px;
+  height: 36px;
+  margin: 6px auto !important;
 }
 
 /* ─── Create version ghost item ──────────────────────────────────────────── */

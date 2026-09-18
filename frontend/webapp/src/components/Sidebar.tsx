@@ -5,6 +5,9 @@ import { ProjectsNav } from './sidebar/ProjectsNav.tsx';
 import './sidebar/sidebar.css';
 import { LlmStatusIndicator } from '../feature/settings/components/LlmStatusIndicator.tsx';
 
+const EXPANDED_WIDTH = 280;
+const COLLAPSED_WIDTH = 60;
+
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -19,23 +22,53 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const width = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+
   return (
-    <>
-      <Box
-        style={{
-          width: collapsed ? 0 : 280,
-          height: '100vh',
-          position: 'sticky',
-          top: 0,
-          flexShrink: 0,
-          borderRight: collapsed ? 'none' : `1px solid var(--gray-3)`,
-          backgroundColor: 'var(--accent-1)',
-          overflow: 'hidden',
-          transition: 'width 0.2s ease, border 0.2s ease',
-        }}
+    <Box
+      style={{
+        width,
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        flexShrink: 0,
+        borderRight: `1px solid var(--gray-3)`,
+        backgroundColor: 'var(--accent-1)',
+        overflow: 'hidden',
+        transition: 'width 0.2s ease',
+      }}
+    >
+      <Flex
+        direction="column"
+        align={collapsed ? 'center' : 'stretch'}
+        style={{ height: '100%', width }}
       >
-        <Flex direction="column" style={{ height: '100%', width: 280 }}>
-          {/* App title */}
+        {collapsed ? (
+          <Flex
+            direction="column"
+            align="center"
+            gap="2"
+            style={{
+              paddingTop: 20,
+              paddingBottom: 18,
+              borderBottom: `1px solid var(--gray-3)`,
+              marginBottom: 12,
+              flexShrink: 0,
+              width: '100%',
+            }}
+          >
+            <Activity size={22} strokeWidth={2} color="var(--accent-9)" />
+            <IconButton
+              variant="ghost"
+              color="gray"
+              size="1"
+              onClick={() => setCollapsed(false)}
+              aria-label="Open sidebar"
+            >
+              <PanelLeftOpen size={16} />
+            </IconButton>
+          </Flex>
+        ) : (
           <Flex
             align="center"
             gap="3"
@@ -67,45 +100,27 @@ export function Sidebar() {
               <PanelLeftClose size={16} />
             </IconButton>
           </Flex>
+        )}
 
-          {/* Navigation */}
-          <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto' }}>
-            <ProjectsNav />
-          </Box>
+        {/* Navigation */}
+        <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', width: '100%' }}>
+          <ProjectsNav collapsed={collapsed} />
+        </Box>
 
-          <Box
-            px="3"
-            py="2"
-            style={{
-              borderTop: `1px solid var(--gray-3)`,
-              flexShrink: 0,
-            }}
-          >
-            <LlmStatusIndicator />
-          </Box>
-        </Flex>
-      </Box>
-
-      {collapsed && (
         <Box
+          px={collapsed ? '0' : '3'}
+          py="2"
           style={{
-            position: 'fixed',
-            top: 16,
-            left: 16,
-            zIndex: 100,
+            borderTop: `1px solid var(--gray-3)`,
+            flexShrink: 0,
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
           }}
         >
-          <IconButton
-            variant="soft"
-            color="gray"
-            size="2"
-            onClick={() => setCollapsed(false)}
-            aria-label="Open sidebar"
-          >
-            <PanelLeftOpen size={16} />
-          </IconButton>
+          <LlmStatusIndicator collapsed={collapsed} />
         </Box>
-      )}
-    </>
+      </Flex>
+    </Box>
   );
 }

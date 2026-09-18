@@ -1,14 +1,15 @@
-﻿using AssessmentCriteria.Contracts.Features.InternalDeleteAllAssessmentCriteriaOfProject;
-using Mediator;
+﻿using Mediator;
 using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;
 using Npgsql;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Data;
 using Projects.Data.Models;
+using Projects.Features.DeleteAllAssessmentCriteriaOfProject;
+using Projects.Features.DeleteAllProjectVersions;
 using Projects.Features.DeleteProject;
-using ProjectVersions.Contracts.Features.InternalDeleteAllProjectVersions;
 using Shared;
 using Shouldly;
 
@@ -19,18 +20,18 @@ public class DeleteProjectHandlerTests
     private static IMediator CreateMediatorMock(ErrorCode? errorCode = null)
     {
         var mediator = Substitute.For<IMediator>();
-        Result<InternalDeleteAllProjectVersionsResponse> versionsResult = errorCode is null
-            ? new InternalDeleteAllProjectVersionsResponse()
+        Result<DeleteAllProjectVersionResponse> versionsResult = errorCode is null
+            ? new DeleteAllProjectVersionResponse()
             : errorCode.Value;
-        Result<InternalDeleteAllAssessmentCriteriaOfProjectResponse> assessmentCriteriaResult = errorCode is null
-            ? new InternalDeleteAllAssessmentCriteriaOfProjectResponse()
+        Result<DeleteAllAssessmentCriteriaOfProjectResponse> assessmentCriteriaResult = errorCode is null
+            ? new DeleteAllAssessmentCriteriaOfProjectResponse()
             : errorCode.Value;
 
         mediator
-            .Send(Arg.Any<InternalDeleteAllProjectVersionsRequest>(), Arg.Any<CancellationToken>())
+            .Send(Arg.Any<DeleteAllProjectVersionRequest>(), Arg.Any<CancellationToken>())
             .Returns(versionsResult);
         mediator
-            .Send(Arg.Any<InternalDeleteAllAssessmentCriteriaOfProjectRequest>(), Arg.Any<CancellationToken>())
+            .Send(Arg.Any<DeleteAllAssessmentCriteriaOfProjectRequest>(), Arg.Any<CancellationToken>())
             .Returns(assessmentCriteriaResult);
 
         return mediator;
@@ -102,7 +103,7 @@ public class DeleteProjectHandlerTests
         await mediator
             .Received(1)
             .Send(
-                Arg.Is<InternalDeleteAllProjectVersionsRequest>(r => r.ProjectId == projectId),
+                Arg.Is<DeleteAllProjectVersionRequest>(r => r.ProjectId == projectId),
                 Arg.Any<CancellationToken>()
             );
     }

@@ -1,14 +1,14 @@
-using AssessmentCriteria.Contracts.Features.InternalGetAllAssessmentCriteriaOfProject;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Projects.Contracts.Features.GetAllAssessmentCriteriaOfProject;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Contracts.Features.GetProject;
 using Projects.Data;
 using Projects.Data.Models;
 using Projects.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
 using Shared;
 using Shouldly;
 
@@ -51,11 +51,11 @@ public class GetProjectHandlerTest
         );
         await context.SaveChangesAsync();
 
-        var versionsResponse = new InternalGetProjectVersionsResponse
+        var versionsResponse = new GetAllProjectVersionsResponse
         {
             Versions =
             [
-                new InternalGetProjectVersionsResponse.ProjectVersionSummary
+                new GetAllProjectVersionsResponse.ProjectVersionSummary
                 {
                     VersionId = Guid.NewGuid(),
                     ProjectId = projectId,
@@ -64,14 +64,14 @@ public class GetProjectHandlerTest
                 },
             ],
         };
-        var assessmentCriteriaResponse = new InternalGetAllAssessmentCriteriaOfProjectResponse { CriteriaList = [] };
+        var assessmentCriteriaResponse = new GetAllAssessmentCriteriaOfProjectResponse { criteriaList = [] };
         var mediator = Substitute.For<IMediator>();
         mediator
-            .Send(Arg.Is<InternalGetProjectVersionsQuery>(q => q.ProjectId == projectId), Arg.Any<CancellationToken>())
+            .Send(Arg.Is<GetAllProjectVersionsQuery>(q => q.ProjectId == projectId), Arg.Any<CancellationToken>())
             .Returns(versionsResponse);
         mediator
             .Send(
-                Arg.Is<InternalGetAllAssessmentCriteriaOfProjectQuery>(q => q.ProjectId == projectId),
+                Arg.Is<GetAllAssessmentCriteriaOfProjectQuery>(q => q.ProjectId == projectId),
                 Arg.Any<CancellationToken>()
             )
             .Returns(assessmentCriteriaResponse);
@@ -165,7 +165,7 @@ public class GetProjectHandlerTest
 
         var mediator = Substitute.For<IMediator>();
         mediator
-            .Send(Arg.Is<InternalGetProjectVersionsQuery>(q => q.ProjectId == projectId), Arg.Any<CancellationToken>())
+            .Send(Arg.Is<GetAllProjectVersionsQuery>(q => q.ProjectId == projectId), Arg.Any<CancellationToken>())
             .Returns(ErrorCode.DatabaseError);
 
         var handler = new GetProjectHandler(context, mediator);

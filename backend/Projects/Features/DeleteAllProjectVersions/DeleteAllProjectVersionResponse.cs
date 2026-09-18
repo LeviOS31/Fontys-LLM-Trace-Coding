@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Projects.Features.DeleteAllProjectVersions
 {
-    public record DeleteAllProjectVersionRepsonse
+    public record DeleteAllProjectVersionResponse
     {
     }
 }

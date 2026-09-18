@@ -38,7 +38,7 @@ namespace Projects.Features.GetProjectVersions
 
                 return new GetAllProjectVersionsResponse
                 {
-                    Versions = versions.Select(v => new ProjectVersionSummary
+                    Versions = versions.Select(v => new GetAllProjectVersionsResponse.ProjectVersionSummary
                     {
                         VersionId = v.VersionId,
                         ProjectId = v.ProjectId,

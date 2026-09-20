@@ -150,11 +150,11 @@ export default function TraceGroupPage() {
     return selectedTraceGroup.traces.find((t) => t.traceId === effectiveSelectedTrace) ?? null;
   }, [effectiveSelectedTrace, selectedTraceGroup]);
 
-  // The nav bar stays mounted while the group details load, so its scroll
-  // position is preserved when navigating between groups.
+  // The sidebar lives in the layout route, so it stays mounted while the group
+  // details load and only this panel shows the loading state.
   if (isDetailLoading || isDetailError) {
     return (
-      <Flex direction="column" gap="2">
+      <Flex align="center" justify="center" style={{ height: '100%' }}>
         {isDetailError ? (
           <Text color="red">Error loading trace group details.</Text>
         ) : (
@@ -165,10 +165,10 @@ export default function TraceGroupPage() {
   }
 
   return (
-    <Flex direction="column" gap="2">
+    <Flex direction="column" gap="2" style={{ height: '100%', minHeight: 0 }}>
       <ResizableGroup
         orientation="horizontal"
-        style={{ width: '100%', height: '90vh', minHeight: 0 }}
+        style={{ width: '100%', height: '100%', minHeight: 0 }}
       >
         {isLlmGroup && (
           <>

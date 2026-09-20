@@ -1,29 +1,21 @@
 import { Flex, Text } from '@radix-ui/themes';
 import { LayoutDashboard } from 'lucide-react';
-import TraceGroupMasterOverviewCard from './components/TraceGroupMasterOverviewCard.tsx';
-import { Navigate, useParams } from 'react-router';
 
-type OverviewPageParams = {
-  id: string;
-  versionId: string;
-};
-
+/**
+ * Index route of the open coding flow. The trace list itself lives in the
+ * sidebar (see OpenCodeLayout), so this is only the placeholder shown until a
+ * trace group is picked.
+ */
 export default function OpenCodePage() {
-  const { id: projectId, versionId } = useParams<OverviewPageParams>();
-
-  if (!projectId || !versionId) return <Navigate to="/404" replace />;
-
   return (
-    <Flex direction="column" gap="2">
-      <Flex align="center" gap="2">
-        <LayoutDashboard size={20} />
-        <Text size="6" weight="bold">
-          Open coding
-        </Text>
-      </Flex>
-      <Text color="gray" size="2"></Text>
-
-      <TraceGroupMasterOverviewCard projectId={projectId} projectVersionId={versionId} />
+    <Flex direction="column" align="center" justify="center" gap="3" style={{ height: '100%' }}>
+      <LayoutDashboard size={28} color="var(--gray-9)" />
+      <Text size="4" weight="bold">
+        Open coding
+      </Text>
+      <Text color="gray" size="2" align="center">
+        Select a trace group in the sidebar to start coding.
+      </Text>
     </Flex>
   );
 }

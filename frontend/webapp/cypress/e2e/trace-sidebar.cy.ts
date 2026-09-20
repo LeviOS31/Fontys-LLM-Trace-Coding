@@ -4,6 +4,8 @@ describe('trace sidebar', () => {
 
   const alphaGroupId = '00000000-1111-2222-3333-000000000011';
   const alphaTraceId = '03300000-1111-2222-3333-000000000011';
+  // The alpha group holds two traces so switching trace within a group can be tested.
+  const alphaSecondTraceId = '03300000-1111-2222-3333-000000000013';
   const betaGroupId = '00000000-1111-2222-3333-000000000012';
   const betaTraceId = '03300000-1111-2222-3333-000000000012';
 
@@ -72,6 +74,15 @@ describe('trace sidebar', () => {
         '00000000-1111-2222-3333-000000000020',
         alphaTitle,
         '00000000-1111-2222-3333-000000000030'
+      ),
+      // Same scope name as the first alpha trace, so the group title stays the
+      // same whichever trace the API returns first.
+      buildTrace(
+        alphaSecondTraceId,
+        alphaGroupId,
+        '00000000-1111-2222-3333-000000000022',
+        alphaTitle,
+        '00000000-1111-2222-3333-000000000032'
       ),
       buildTrace(
         betaTraceId,
@@ -148,6 +159,56 @@ describe('trace sidebar', () => {
 
       cy.get('body').type('{leftarrow}');
       sidebarItems().eq(0).should('have.attr', 'aria-current', 'page');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Traces inside a group
+  // ---------------------------------------------------------------------------
+  context('switching between traces of a group', () => {
+    const traceRows = () => cy.get('[data-testid="trace-sidebar-trace"]');
+    const groupOf = (title: string) =>
+      cy.contains('[data-testid="trace-sidebar-group"]', title, { timeout: 10000 });
+
+    it('expands the open group and lists its traces', () => {
+      sidebar().contains(alphaTitle).click();
+      cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${alphaGroupId}`);
+
+      groupOf(alphaTitle).find('[data-testid="trace-sidebar-trace"]').should('have.length', 2);
+    });
+
+    it('names the selected trace in the URL', () => {
+      sidebar().contains(alphaTitle).click();
+      traceRows().should('have.length', 2);
+
+      traceRows().eq(1).click();
+
+      cy.location('search', { timeout: 10000 }).should('include', 'traceId=');
+      traceRows().eq(1).should('have.attr', 'aria-current', 'true');
+      traceRows().eq(0).should('not.have.attr', 'aria-current');
+    });
+
+    it('opens a trace of another group in one click', () => {
+      sidebar().contains(alphaTitle).click();
+      cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${alphaGroupId}`);
+
+      cy.get(`button[aria-label="Expand ${betaTitle}"]`).click();
+      groupOf(betaTitle).find('[data-testid="trace-sidebar-trace"]').first().click();
+
+      cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${betaGroupId}`);
+      cy.location('search').should('include', 'traceId=');
+    });
+
+    it('drops the previous trace when switching to another group', () => {
+      sidebar().contains(alphaTitle).click();
+      traceRows().should('have.length', 2);
+      traceRows().eq(1).click();
+      cy.location('search', { timeout: 10000 }).should('include', 'traceId=');
+
+      sidebar().contains(betaTitle).click();
+
+      cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${betaGroupId}`);
+      cy.location('search').should('not.include', 'traceId=');
     });
   });
 

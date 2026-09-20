@@ -3,15 +3,12 @@ import {
   ChevronDown,
   ChevronRight,
   UserPen,
-  GitBranch,
   ListCollapse,
   MessageCircle,
   Workflow,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 import type { TraceDetailView } from '../../../../shared/types/trace';
-import { useTraceGroupSummaryList } from '../../../traces/hooks/useTraceGroupSummaryList';
 import {
   buildMessageAwareSpanTree,
   type MessageSpanNode,
@@ -21,12 +18,8 @@ import {
 import { scrollSpanIntoView } from './spanScroll';
 
 type Props = {
-  projectId: string;
-  versionId: string;
-  activeTraceGroupId: string;
-  traces: TraceDetailView[];
-  selectedTraceId: string | null;
-  scrollTraceId: string | null;
+  /** The trace being coded. Switching traces happens in the sidebar. */
+  trace: TraceDetailView;
   selectedSpanId: string | null;
   setSelectedTrace: (traceId: string) => void;
   setSelectedSpan: (spanId: string | null) => void;
@@ -206,48 +199,15 @@ function SpanTree({
 }
 
 export function TraceTreeNav({
-  projectId,
-  versionId,
-  activeTraceGroupId,
-  traces,
-  selectedTraceId,
-  scrollTraceId,
+  trace,
   selectedSpanId,
-  setSelectedTrace,
   setSelectedSpan,
+  setSelectedTrace,
   requestChatScroll,
   messageAnchors,
   selectedNodeKey,
   setSelectedNodeKey,
 }: Readonly<Props>) {
-  const navigate = useNavigate();
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useTraceGroupSummaryList(
-    projectId,
-    versionId,
-    '',
-    false
-  );
-  const [expandedTraceIds, setExpandedTraceIds] = useState<Set<string>>(() => new Set());
-  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(
-    () => new Set([activeTraceGroupId])
-  );
-
-  const groups = data?.pages.flatMap((page) => page.items) ?? [];
-
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  useEffect(() => {
-    if (selectedTraceId) {
-      setExpandedTraceIds((previous) => new Set(previous).add(selectedTraceId));
-    }
-  }, [selectedTraceId]);
-
-  useEffect(() => {
-    setExpandedGroupIds((previous) => new Set(previous).add(activeTraceGroupId));
-  }, [activeTraceGroupId]);
-
   useEffect(() => {
     if (!selectedNodeKey) return;
 
@@ -279,138 +239,10 @@ export function TraceTreeNav({
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [selectedNodeKey]);
 
-  const traceNodes = traces.map((trace, index) => {
-    const isActive = trace.traceId === selectedTraceId;
-    const isScrolledTo = trace.traceId === scrollTraceId;
-    const isExpanded = expandedTraceIds.has(trace.traceId);
-    const spans = buildMessageAwareSpanTree(
-      trace.traceScopes.flatMap((scope) => scope.spans),
-      messageAnchors
-    );
-
-    return (
-      <Box key={trace.traceId} style={{ position: 'relative', paddingLeft: 12, minWidth: 0 }}>
-        {index < traces.length - 1 && (
-          <Box
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: 5,
-              top: 22,
-              bottom: -8,
-              borderLeft: '1px solid var(--gray-a6)',
-            }}
-          />
-        )}
-        <Box
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            left: 5,
-            top: 17,
-            width: 8,
-            borderTop: '1px solid var(--gray-a6)',
-          }}
-        />
-        <Flex align="stretch" style={{ width: '100%', minWidth: 0 }}>
-          <button
-            type="button"
-            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} Trace ${index + 1}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              setExpandedTraceIds((previous) => {
-                const next = new Set(previous);
-                if (next.has(trace.traceId)) next.delete(trace.traceId);
-                else next.add(trace.traceId);
-                return next;
-              });
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 26,
-              minWidth: 26,
-              flexShrink: 0,
-              border: 'none',
-              borderLeft: isScrolledTo ? '3px solid var(--accent-9)' : '3px solid transparent',
-              borderRadius: '4px 0 0 4px',
-              backgroundColor: isActive ? 'var(--accent-a3)' : 'transparent',
-              color: 'var(--gray-11)',
-              cursor: 'pointer',
-            }}
-          >
-            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedTrace(trace.traceId);
-              setExpandedTraceIds((previous) => new Set(previous).add(trace.traceId));
-            }}
-            style={{
-              position: 'relative',
-              display: 'block',
-              flex: 1,
-              minWidth: 0,
-              padding: '7px 8px',
-              border: 'none',
-              borderRadius: '0 4px 4px 0',
-              backgroundColor: isActive ? 'var(--accent-a3)' : 'transparent',
-              color: 'inherit',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            <Flex align="center" gap="2" mb="1" style={{ minWidth: 0 }}>
-              <ListCollapse size={14} color="var(--accent-9)" style={{ flexShrink: 0 }} />
-              <Text
-                size="2"
-                weight={isActive ? 'bold' : 'regular'}
-                style={{
-                  minWidth: 0,
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Trace {index + 1}
-              </Text>
-              <Badge size="1" color="gray" style={{ marginLeft: 'auto', flexShrink: 0 }}>
-                {getSpanCount(trace)} spans
-              </Badge>
-            </Flex>
-            <Text
-              size="1"
-              color="gray"
-              style={{
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {getModelName(trace)}
-            </Text>
-          </button>
-        </Flex>
-        {isExpanded && (
-          <SpanTree
-            spans={spans}
-            traceId={trace.traceId}
-            selectedSpanId={selectedSpanId}
-            setSelectedSpan={setSelectedSpan}
-            setSelectedTrace={setSelectedTrace}
-            requestChatScroll={requestChatScroll}
-            messageAnchors={messageAnchors}
-            selectedNodeKey={selectedNodeKey}
-            setSelectedNodeKey={setSelectedNodeKey}
-          />
-        )}
-      </Box>
-    );
-  });
+  const spans = buildMessageAwareSpanTree(
+    trace.traceScopes.flatMap((scope) => scope.spans),
+    messageAnchors
+  );
 
   return (
     <Box
@@ -425,123 +257,52 @@ export function TraceTreeNav({
     >
       <aside aria-label="Trace tree">
         <Flex direction="column" style={{ height: '100%', minHeight: 0, minWidth: 0 }}>
-          <Heading
-            as="h4"
-            size="3"
-            style={{
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              padding: '10px 12px 8px',
-            }}
-          >
-            Trace tree
-          </Heading>
-
-          <ScrollArea type="hover" scrollbars="vertical" style={{ flex: 1, minHeight: 0 }}>
-            <Flex direction="column" gap="1" p="2" style={{ minWidth: 0 }}>
+          <Box px="3" pt="3" pb="2" style={{ flexShrink: 0, minWidth: 0 }}>
+            <Heading
+              as="h4"
+              size="3"
+              style={{
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Trace tree
+            </Heading>
+            <Flex align="center" gap="2" mt="1" style={{ minWidth: 0 }}>
               <Text
                 size="1"
                 color="gray"
-                weight="bold"
                 style={{
-                  display: 'block',
-                  width: '100%',
+                  flex: 1,
                   minWidth: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
-                  padding: '4px 8px',
-                  boxSizing: 'border-box',
                 }}
               >
-                Trace groups
+                {getModelName(trace)}
               </Text>
-              {groups.map((group, index) => {
-                const isActiveGroup = group.traceGroupId === activeTraceGroupId;
-                const isExpanded = expandedGroupIds.has(group.traceGroupId);
+              <Badge size="1" color="gray" style={{ flexShrink: 0 }}>
+                {getSpanCount(trace)} spans
+              </Badge>
+            </Flex>
+          </Box>
 
-                return (
-                  <Box
-                    key={group.traceGroupId}
-                    style={{ position: 'relative', paddingLeft: 12, minWidth: 0 }}
-                  >
-                    {index < groups.length - 1 && (
-                      <Box
-                        aria-hidden="true"
-                        style={{
-                          position: 'absolute',
-                          left: 5,
-                          top: 22,
-                          bottom: -8,
-                          borderLeft: '1px solid var(--gray-a6)',
-                        }}
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        isActiveGroup
-                          ? setExpandedGroupIds((previous) => {
-                              const next = new Set(previous);
-                              if (next.has(group.traceGroupId)) next.delete(group.traceGroupId);
-                              else next.add(group.traceGroupId);
-                              return next;
-                            })
-                          : navigate(
-                              `/projects/${projectId}/versions/${versionId}/open-code/${group.traceGroupId}`
-                            )
-                      }
-                      aria-expanded={isExpanded}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        padding: '7px 8px',
-                        border: 'none',
-                        borderLeft: isActiveGroup
-                          ? '3px solid var(--accent-9)'
-                          : '3px solid transparent',
-                        borderRadius: 4,
-                        backgroundColor: isActiveGroup ? 'var(--accent-a3)' : 'transparent',
-                        color: 'inherit',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-                        {isExpanded ? (
-                          <ChevronDown size={14} style={{ flexShrink: 0 }} />
-                        ) : (
-                          <ChevronRight size={14} style={{ flexShrink: 0 }} />
-                        )}
-                        <GitBranch size={14} color="var(--accent-9)" style={{ flexShrink: 0 }} />
-                        <Text
-                          size="2"
-                          weight={isActiveGroup ? 'bold' : 'regular'}
-                          style={{
-                            minWidth: 0,
-                            flex: 1,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {group.groupTitle || `Trace ${index + 1}`}
-                        </Text>
-                        <Badge size="1" color="gray" style={{ marginLeft: 'auto', flexShrink: 0 }}>
-                          {group.traceCount}
-                        </Badge>
-                      </Flex>
-                    </button>
-                    {isActiveGroup && isExpanded && (
-                      <Box style={{ marginLeft: 12, paddingLeft: 8, minWidth: 0 }}>
-                        {traceNodes}
-                      </Box>
-                    )}
-                  </Box>
-                );
-              })}
+          <ScrollArea type="hover" scrollbars="vertical" style={{ flex: 1, minHeight: 0 }}>
+            <Flex direction="column" gap="1" p="2" style={{ minWidth: 0 }}>
+              <SpanTree
+                spans={spans}
+                traceId={trace.traceId}
+                selectedSpanId={selectedSpanId}
+                setSelectedSpan={setSelectedSpan}
+                setSelectedTrace={setSelectedTrace}
+                requestChatScroll={requestChatScroll}
+                messageAnchors={messageAnchors}
+                selectedNodeKey={selectedNodeKey}
+                setSelectedNodeKey={setSelectedNodeKey}
+              />
             </Flex>
           </ScrollArea>
         </Flex>

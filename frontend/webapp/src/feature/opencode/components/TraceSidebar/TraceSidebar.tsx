@@ -6,8 +6,10 @@ import type { TraceGroupSummaryItem } from '../../../../shared/types/trace.ts';
 import { isTyping } from '../../../../shared/util/shortcutHelpers.ts';
 import { useTraceGroupSummaryList } from '../../../traces/hooks/useTraceGroupSummaryList.ts';
 import ImportTraceCollectionModal from '../../../traces/components/ImportTraceCollectionModal.tsx';
+import { useUpdateSearchParam } from '../../hooks/useUpdateSearchParam.ts';
 import TraceSidebarFilters from './TraceSidebarFilters.tsx';
 import TraceSidebarItem from './TraceSidebarItem.tsx';
+import TraceSidebarTraceList from './TraceSidebarTraceList.tsx';
 
 interface Props {
   readonly projectId: string;
@@ -37,26 +39,7 @@ export default function TraceSidebar({ projectId, projectVersionId }: Readonly<P
   );
   const [hasNoOpenCode, setHasNoOpenCode] = useState(searchParams.get('hasNoOpenCode') === 'true');
 
-  // setSearchParams is deliberately not used here: it navigates relative to the
-  // route that owns this component (the open-code layout), which would drop the
-  // :traceGroupId segment of the selected group. The pathname is kept explicit.
-  const updateSearchParam = useCallback(
-    (key: string, value: string | boolean | null) => {
-      const params = new URLSearchParams(location.search);
-
-      if (value === null || value === '' || value === false) {
-        params.delete(key);
-      } else {
-        params.set(key, String(value));
-      }
-
-      const search = params.toString();
-      if (search === new URLSearchParams(location.search).toString()) return;
-
-      navigate({ pathname: location.pathname, search }, { replace: true });
-    },
-    [location.pathname, location.search, navigate]
-  );
+  const updateSearchParam = useUpdateSearchParam();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -82,14 +65,45 @@ export default function TraceSidebar({ projectId, projectVersionId }: Readonly<P
 
   const totalCount = data?.pages[0]?.totalCount ?? 0;
 
+  const activeTraceId = searchParams.get('traceId');
+
+  // Selecting a group without naming a trace clears the previous group's trace,
+  // which would otherwise linger in the URL pointing at a trace of another group.
   const openTraceGroup = useCallback(
-    (traceGroupId: string) => {
+    (traceGroupId: string, traceId?: string) => {
+      const params = new URLSearchParams(location.search);
+      if (traceId) {
+        params.set('traceId', traceId);
+      } else {
+        params.delete('traceId');
+      }
+
       navigate({
         pathname: `/projects/${projectId}/versions/${projectVersionId}/open-code/${traceGroupId}`,
-        search: location.search,
+        search: params.toString(),
       });
     },
     [navigate, projectId, projectVersionId, location.search]
+  );
+
+  // The active group is expanded by default; the map only holds the groups the
+  // user has explicitly toggled, so no effect is needed to keep it in sync.
+  const [expansionOverrides, setExpansionOverrides] = useState<Record<string, boolean>>({});
+
+  const isGroupExpanded = useCallback(
+    (traceGroupId: string) =>
+      expansionOverrides[traceGroupId] ?? traceGroupId === activeTraceGroupId,
+    [expansionOverrides, activeTraceGroupId]
+  );
+
+  const toggleGroup = useCallback(
+    (traceGroupId: string) => {
+      setExpansionOverrides((previous) => ({
+        ...previous,
+        [traceGroupId]: !(previous[traceGroupId] ?? traceGroupId === activeTraceGroupId),
+      }));
+    },
+    [activeTraceGroupId]
   );
 
   // ─── Infinite scroll ──────────────────────────────────────────────────────
@@ -306,8 +320,23 @@ export default function TraceSidebar({ projectId, projectVersionId }: Readonly<P
                         <TraceSidebarItem
                           group={group}
                           isActive={group.traceGroupId === activeTraceGroupId}
+                          isExpanded={isGroupExpanded(group.traceGroupId)}
                           onClick={() => openTraceGroup(group.traceGroupId)}
-                        />
+                          onToggleExpand={() => toggleGroup(group.traceGroupId)}
+                        >
+                          {isGroupExpanded(group.traceGroupId) && (
+                            <TraceSidebarTraceList
+                              projectId={projectId}
+                              projectVersionId={projectVersionId}
+                              traceGroupId={group.traceGroupId}
+                              activeTraceId={activeTraceId}
+                              isActiveGroup={group.traceGroupId === activeTraceGroupId}
+                              onSelectTrace={(traceId) =>
+                                openTraceGroup(group.traceGroupId, traceId)
+                              }
+                            />
+                          )}
+                        </TraceSidebarItem>
                       </Box>
                     ))}
 

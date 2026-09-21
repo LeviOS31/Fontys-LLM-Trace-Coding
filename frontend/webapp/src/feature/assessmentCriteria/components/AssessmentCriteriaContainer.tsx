@@ -17,22 +17,57 @@ export function AssessmentCriteriaContainer({
   }
 
   if (isLoading) return null;
+
   return (
-    <Box>
+    <Flex
+      direction="column"
+      gap="3"
+      style={{
+        height: '100%',
+        minWidth: 0,
+        overflow: 'hidden',
+        padding: '16px 12px',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* Header */}
       <Text
         size="1"
         weight="bold"
         color="gray"
-        style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
+        style={{
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
       >
         Project assessment criteria
       </Text>
-      <Flex direction="column" gap="1">
-        {data?.assessmentCriteria.map((criterion) => (
-          <AssessmentCriterion key={criterion.criterionId} criterion={criterion} />
-        ))}
-      </Flex>
-      <CreateAssessmentCriterion />
-    </Box>
+
+      {/* Criteria */}
+      <Box
+        style={{
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+      >
+        <Flex direction="column" gap="1">
+          {data?.assessmentCriteria.map((criterion) => (
+            <AssessmentCriterion key={criterion.criterionId} criterion={criterion} />
+          ))}
+        </Flex>
+      </Box>
+
+      {/* Create criterion */}
+      <Box style={{ flexShrink: 0 }}>
+        <CreateAssessmentCriterion />
+      </Box>
+    </Flex>
   );
 }

@@ -7,6 +7,7 @@ import EditProjectModal from '../../feature/projects/components/EditProjectModal
 import { isTyping } from '../../shared/util/shortcutHelpers.ts';
 import { ProjectSelector } from './ProjectSelector.tsx';
 import { ProjectVersionsNav } from './ProjectVersionsNav.tsx';
+import { ProjectNavItem } from './ProjectNavItem.tsx';
 import { useGetProject } from '../../feature/projects/hooks/useGetProject.ts';
 import { Box, Text } from '@radix-ui/themes';
 
@@ -14,7 +15,7 @@ interface ProjectsNavProps {
   collapsed?: boolean;
 }
 
-export function ProjectsNav({ collapsed = false }: ProjectsNavProps) {
+function useProjectsNavState() {
   const { data, isLoading } = useGetAllProjects();
   const projects = data?.projects ?? [];
 
@@ -32,20 +33,14 @@ export function ProjectsNav({ collapsed = false }: ProjectsNavProps) {
   } = useGetProject(currentProjectId);
 
   const [keyFocusedIndex, setKeyFocusedIndex] = useState(-1);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Omit<Project, 'versions'> | undefined>();
-
   const navigate = useNavigate();
 
-  // Keep the focused/highlighted version in sync with the actual selected
-  // version, however it changed (click, shortcut, direct URL nav, etc).
   useEffect(() => {
     const versions = projectData?.versions ?? [];
     const idx = versions.findIndex((v) => v.versionId === currentVersionId);
     setKeyFocusedIndex(idx);
   }, [currentVersionId, projectData]);
 
-  // ─── Keyboard shortcuts ───────────────────────────────────────────────────
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (isTyping()) return;
@@ -92,6 +87,36 @@ export function ProjectsNav({ collapsed = false }: ProjectsNavProps) {
     return () => globalThis.removeEventListener('keydown', handleKey);
   }, [currentProjectId, currentVersionId, navigate, projectData]);
 
+  return {
+    projects,
+    isLoading,
+    currentProjectId,
+    currentVersionId,
+    currentProject,
+    projectData,
+    isProjectLoading,
+    projectError,
+    keyFocusedIndex,
+    isOnProjectHome: !!projectExactMatch,
+  };
+}
+
+/** Pinned part: project selector + project home link. Does not scroll. */
+export function ProjectsNavHeader({ collapsed = false }: ProjectsNavProps) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Omit<Project, 'versions'> | undefined>();
+
+  const {
+    projects,
+    isLoading,
+    currentProjectId,
+    currentProject,
+    projectData,
+    isProjectLoading,
+    projectError,
+    isOnProjectHome,
+  } = useProjectsNavState();
+
   return (
     <>
       <ProjectSelector
@@ -112,13 +137,12 @@ export function ProjectsNav({ collapsed = false }: ProjectsNavProps) {
       )}
 
       {currentProjectId && currentProject && projectData && !isProjectLoading && (
-        <ProjectVersionsNav
+        <ProjectNavItem
           collapsed={collapsed}
           projectId={currentProjectId}
-          projectName={currentProject.name}
-          versions={projectData?.versions ?? []}
-          currentVersionId={currentVersionId}
-          keyFocusedIndex={keyFocusedIndex}
+          title={currentProject.name}
+          shortcut="H"
+          active={isOnProjectHome}
         />
       )}
 
@@ -131,5 +155,29 @@ export function ProjectsNav({ collapsed = false }: ProjectsNavProps) {
         }}
       />
     </>
+  );
+}
+
+/** Scrollable part: just the version list for the current project. */
+export function ProjectsNavVersions({ collapsed = false }: ProjectsNavProps) {
+  const {
+    currentProjectId,
+    currentProject,
+    currentVersionId,
+    projectData,
+    isProjectLoading,
+    keyFocusedIndex,
+  } = useProjectsNavState();
+
+  if (!currentProjectId || !currentProject || !projectData || isProjectLoading) return null;
+
+  return (
+    <ProjectVersionsNav
+      collapsed={collapsed}
+      projectId={currentProjectId}
+      versions={projectData?.versions ?? []}
+      currentVersionId={currentVersionId}
+      keyFocusedIndex={keyFocusedIndex}
+    />
   );
 }

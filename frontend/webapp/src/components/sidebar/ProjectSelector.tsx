@@ -58,20 +58,31 @@ export function ProjectSelector({
       <Box mb="4" style={{ display: 'flex', justifyContent: 'center' }}>
         {isLoading || hasProjects ? (
           <DropdownMenu.Root open={dropdownOpen} onOpenChange={setDropdownOpen}>
-            <DropdownMenu.Trigger>
-              <Tooltip
-                content={isLoading ? 'Loading…' : (currentProject?.name ?? 'Select a project')}
-              >
-                <IconButton data-testid="project-selector" variant="soft" color="gray" size="2">
-                  <Folder size={16} />
+            <Tooltip
+              content={isLoading ? 'Loading…' : (currentProject?.name ?? 'Select a project')}
+              side="right"
+              sideOffset={8}
+            >
+              <DropdownMenu.Trigger>
+                <IconButton
+                  data-testid="project-selector"
+                  variant="soft"
+                  color="gray"
+                  className="project-selector-collapsed-trigger"
+                >
+                  <Folder size={20} />
                 </IconButton>
-              </Tooltip>
-            </DropdownMenu.Trigger>
+              </DropdownMenu.Trigger>
+            </Tooltip>
             {menuContent}
           </DropdownMenu.Root>
         ) : (
           <Tooltip content="Add project" side="right" sideOffset={8}>
-            <IconButton variant="soft" size="2" onClick={onCreateProject}>
+            <IconButton
+              variant="soft"
+              className="project-selector-collapsed-trigger"
+              onClick={onCreateProject}
+            >
               <Plus size={16} />
             </IconButton>
           </Tooltip>

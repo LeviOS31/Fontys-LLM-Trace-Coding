@@ -1,15 +1,18 @@
 import { Box, Flex, IconButton, Text } from '@radix-ui/themes';
 import { Activity, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { ProjectsNav } from './sidebar/ProjectsNav.tsx';
+import { useEffect, useRef, useState } from 'react';
+import { ProjectsNavHeader, ProjectsNavVersions } from './sidebar/ProjectsNav.tsx';
 import './sidebar/sidebar.css';
 import { LlmStatusIndicator } from '../feature/settings/components/LlmStatusIndicator.tsx';
+import { SidebarScrollContext } from './sidebar/SidebarScrollContent.ts';
+import { ScrollbarThumb } from './sidebar/ScrollbarThumb.tsx';
 
 const EXPANDED_WIDTH = 280;
 const COLLAPSED_WIDTH = 60;
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -32,6 +35,7 @@ export function Sidebar() {
         position: 'sticky',
         top: 0,
         flexShrink: 0,
+        paddingBottom: 0,
         borderRight: `1px solid var(--gray-3)`,
         backgroundColor: 'var(--accent-1)',
         overflow: 'hidden',
@@ -102,9 +106,34 @@ export function Sidebar() {
           </Flex>
         )}
 
-        {/* Navigation */}
-        <Box style={{ flexGrow: 1, minHeight: 0, overflowY: 'auto', width: '100%' }}>
-          <ProjectsNav collapsed={collapsed} />
+        {/* Pinned: project selector + home link — does not scroll */}
+        <Box
+          style={{
+            flexShrink: 0,
+            width: '100%',
+            marginBottom: 3,
+            borderBottom: `1px solid var(--gray-3)`,
+          }}
+        >
+          <ProjectsNavHeader collapsed={collapsed} />
+        </Box>
+
+        {/* Scrollable: version list only */}
+        <Box style={{ flexGrow: 1, minHeight: 0, width: '100%', position: 'relative' }}>
+          <SidebarScrollContext.Provider value={scrollContainerRef}>
+            <Box
+              ref={scrollContainerRef}
+              className="sidebar-nav-scroll"
+              style={{
+                height: '100%',
+                width: '100%',
+              }}
+            >
+              <ProjectsNavVersions collapsed={collapsed} />
+              <Box style={{ height: '10vh' }} aria-hidden />
+            </Box>
+          </SidebarScrollContext.Provider>
+          <ScrollbarThumb containerRef={scrollContainerRef} />
         </Box>
 
         <Box

@@ -1,5 +1,4 @@
 import { Box, Flex, Kbd, Text } from '@radix-ui/themes';
-import { ProjectNavItem } from './ProjectNavItem.tsx';
 import { VersionRow } from './VersionRow.tsx';
 import { CreateVersionItem } from './CreateVersionItem.tsx';
 import { colors } from '../../shared/styling/colors.ts';
@@ -8,7 +7,6 @@ import type { Version } from '../../shared/types/version.ts';
 interface ProjectVersionsNavProps {
   collapsed?: boolean;
   projectId: string;
-  projectName: string;
   versions: Version[];
   currentVersionId: string | undefined;
   keyFocusedIndex: number;
@@ -17,20 +15,12 @@ interface ProjectVersionsNavProps {
 export function ProjectVersionsNav({
   collapsed = false,
   projectId,
-  projectName,
   versions,
   currentVersionId,
   keyFocusedIndex,
 }: Readonly<ProjectVersionsNavProps>) {
   return (
     <Box>
-      <ProjectNavItem
-        collapsed={collapsed}
-        projectId={projectId}
-        title={projectName}
-        shortcut="H"
-      />
-
       {!collapsed && (
         <Flex align="center" justify="between" px="4" mt="3" mb="2">
           <Text size="1" weight="bold" color={colors.theme.radix.gray}>

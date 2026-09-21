@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Projects.Features.DeleteAllProjectVersions
 {
-    public class DeleteAllProjectVersionRequest: IRequest<Result<DeleteAllProjectVersionRepsonse>>
+    public class DeleteAllProjectVersionRequest: IRequest<Result<DeleteAllProjectVersionResponse>>
     {
         public Guid ProjectId { get; init; }
     }

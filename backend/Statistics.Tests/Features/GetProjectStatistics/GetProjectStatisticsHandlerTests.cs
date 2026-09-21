@@ -1,8 +1,8 @@
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Contracts.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
 using Shared;
 using Shouldly;
 using Statistics.Features.GetProjectStatistics;
@@ -193,7 +193,7 @@ public class GetProjectStatisticsHandlerTests
             Name = "TestProject",
             Description = "TestDescription",
             Versions = versions
-                .Select(v => new InternalGetProjectVersionsResponse.ProjectVersionSummary
+                .Select(v => new GetAllProjectVersionsResponse.ProjectVersionSummary
                 {
                     VersionId = v.VersionId,
                     ProjectId = new Guid("B1B2C3D4-0000-0000-0000-000000000010"),

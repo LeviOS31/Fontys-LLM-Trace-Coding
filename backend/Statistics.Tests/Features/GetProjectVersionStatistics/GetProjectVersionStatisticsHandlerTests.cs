@@ -2,8 +2,8 @@ using AxialCodes.Contracts.Features.GetAxialCodes;
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Contracts.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
 using Shared;
 using Shouldly;
 using Statistics.Features.GetProjectVersionStatistics;
@@ -252,7 +252,7 @@ public class GetProjectVersionStatisticsHandlerTests
             Description = "TestDescription",
             Versions =
             [
-                new InternalGetProjectVersionsResponse.ProjectVersionSummary
+                new GetAllProjectVersionsResponse.ProjectVersionSummary
                 {
                     VersionId = versionId,
                     ProjectId = new Guid("B1B2C3D4-0000-0000-0000-000000000010"),

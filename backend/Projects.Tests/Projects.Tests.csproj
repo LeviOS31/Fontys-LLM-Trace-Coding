@@ -20,5 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Projects\Projects.csproj" />
     <ProjectReference Include="..\Shared.Tests\Shared.Tests.csproj" />
+    <ProjectReference Include="..\Traces.Contracts\Traces.Contracts.csproj" />
   </ItemGroup>
 </Project>

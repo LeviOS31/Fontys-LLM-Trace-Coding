@@ -12,7 +12,7 @@ namespace Projects.Features.DeleteAllProjectVersions
 {
     public class DeleteAllProjectVersionsHandler
         :IRequestHandler<DeleteAllProjectVersionRequest, 
-        Result<DeleteAllProjectVersionRepsonse>>
+        Result<DeleteAllProjectVersionResponse>>
     {
         private static readonly ILogger logger = Log.ForContext<DeleteAllProjectVersionsHandler>();
         private readonly IMediator _mediator;
@@ -24,7 +24,7 @@ namespace Projects.Features.DeleteAllProjectVersions
             _mediator = mediator;
         }
 
-        public async ValueTask<Result<DeleteAllProjectVersionRepsonse>> Handle(
+        public async ValueTask<Result<DeleteAllProjectVersionResponse>> Handle(
             DeleteAllProjectVersionRequest request,
             CancellationToken cancellationToken)
         {
@@ -36,7 +36,7 @@ namespace Projects.Features.DeleteAllProjectVersions
 
                 if (changes > 0)
                 {
-                    return new DeleteAllProjectVersionRepsonse();
+                    return new DeleteAllProjectVersionResponse();
                 }
 
                 return ErrorCode.NoChanges;

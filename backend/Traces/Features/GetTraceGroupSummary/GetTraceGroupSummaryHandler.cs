@@ -54,16 +54,16 @@ public class GetTraceGroupSummaryHandler
     {
         try
         {
-            var dbQuery = _tracesDbContext.TraceGroups.Where(t =>
-                t.Traces.Any((trace) => trace.TraceCollection.ProjectVersionId == query.ProjectVersionId)
-            );
+            IQueryable<Trace> filteredTraces = _tracesDbContext.Traces
+                .Where(trace => trace.TraceCollection.ProjectVersionId == query.ProjectVersionId);
 
             if (query.Filters is { Count: > 0 })
             {
-                dbQuery = dbQuery.Where(group =>
-                    group.Traces.AsQueryable().ApplyFilters(query.Filters).Any()
-                );
+                filteredTraces = FilterExtensions.ApplyFilters(filteredTraces, query.Filters);
             }
+
+            var dbQuery = _tracesDbContext.TraceGroups
+                .Where(group => filteredTraces.Any(trace => trace.TraceGroupId == group.TraceGroupId));
 
             var totalCount = await dbQuery.CountAsync(cancellationToken);
 

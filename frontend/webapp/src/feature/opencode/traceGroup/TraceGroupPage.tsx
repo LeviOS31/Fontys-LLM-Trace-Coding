@@ -1,10 +1,11 @@
 import { Flex, Text } from '@radix-ui/themes';
 import { useTraceGroup } from '../../traces/hooks/useTraceGroup';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { Group as ResizableGroup, Panel as ResizablePanel } from 'react-resizable-panels';
 import CustomResizeHandle from '../../../shared/components/CustomResizeHandle';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isTyping } from '../../../shared/util/shortcutHelpers';
+import { useUpdateSearchParam } from '../hooks/useUpdateSearchParam';
 import { LlmContent } from './LLM/LlmContent';
 import { TraceTreeNav } from './trace/TraceTreeNav';
 import { TraceContentOverview } from './trace/TraceContentOverview';
@@ -101,13 +102,21 @@ export default function TraceGroupPage() {
     [selectedTraceGroup]
   );
 
-  const [scrollTrace, setScrollTrace] = useState<string | null>(null);
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
   const [scrollMessageRole, setScrollMessageRole] = useState<'user' | 'assistant' | null>(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
-  const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
+  // The selected trace lives in the URL so the sidebar can drive it and a trace
+  // can be linked to directly.
+  const [searchParams] = useSearchParams();
+  const updateSearchParam = useUpdateSearchParam();
+  const selectedTrace = searchParams.get('traceId');
+
+  const setSelectedTrace = useCallback(
+    (traceId: string) => updateSearchParam('traceId', traceId),
+    [updateSearchParam]
+  );
 
   // Defaults to the first trace of the group until the user selects another one.
   const effectiveSelectedTrace = useMemo(() => {
@@ -138,7 +147,7 @@ export default function TraceGroupPage() {
 
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
-  }, [selectedTraceGroup, effectiveSelectedTrace]);
+  }, [selectedTraceGroup, effectiveSelectedTrace, setSelectedTrace]);
 
   const llmMessages = useMemo(() => {
     if (!isLlmGroup) return [];
@@ -150,11 +159,11 @@ export default function TraceGroupPage() {
     return selectedTraceGroup.traces.find((t) => t.traceId === effectiveSelectedTrace) ?? null;
   }, [effectiveSelectedTrace, selectedTraceGroup]);
 
-  // The nav bar stays mounted while the group details load, so its scroll
-  // position is preserved when navigating between groups.
+  // The sidebar lives in the layout route, so it stays mounted while the group
+  // details load and only this panel shows the loading state.
   if (isDetailLoading || isDetailError) {
     return (
-      <Flex direction="column" gap="2">
+      <Flex align="center" justify="center" style={{ height: '100%' }}>
         {isDetailError ? (
           <Text color="red">Error loading trace group details.</Text>
         ) : (
@@ -165,21 +174,16 @@ export default function TraceGroupPage() {
   }
 
   return (
-    <Flex direction="column" gap="2">
+    <Flex direction="column" gap="2" style={{ height: '100%', minHeight: 0 }}>
       <ResizableGroup
         orientation="horizontal"
-        style={{ width: '100%', height: '90vh', minHeight: 0 }}
+        style={{ width: '100%', height: '100%', minHeight: 0 }}
       >
-        {isLlmGroup && (
+        {isLlmGroup && selectedTraceObject && (
           <>
             <ResizablePanel defaultSize={22} minSize={18}>
               <TraceTreeNav
-                projectId={id!}
-                versionId={versionId!}
-                activeTraceGroupId={traceGroupId!}
-                traces={selectedTraceGroup!.traces}
-                selectedTraceId={effectiveSelectedTrace}
-                scrollTraceId={scrollTrace}
+                trace={selectedTraceObject}
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
@@ -207,8 +211,7 @@ export default function TraceGroupPage() {
                 scrollRequest={chatScrollRequest}
                 selectedSpanId={scrollSpanIndex}
                 selectedMessageRole={scrollMessageRole}
-                onScrollChange={(traceId, spanId, role) => {
-                  setScrollTrace(traceId);
+                onScrollChange={(_traceId, spanId, role) => {
                   setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
                 }}
               />
@@ -218,7 +221,7 @@ export default function TraceGroupPage() {
               <>
                 <CustomResizeHandle />
 
-                <ResizablePanel defaultSize={30} minSize={25}>
+                <ResizablePanel defaultSize={30} minSize={25} style={{ overflow: 'visible' }}>
                   <TraceContentOverview
                     trace={selectedTraceObject!}
                     setScrollSpanIndex={setScrollSpanIndex}
@@ -235,12 +238,7 @@ export default function TraceGroupPage() {
           <>
             <ResizablePanel defaultSize={30} minSize={20}>
               <TraceTreeNav
-                projectId={id!}
-                versionId={versionId!}
-                activeTraceGroupId={traceGroupId!}
-                traces={selectedTraceGroup!.traces}
-                selectedTraceId={effectiveSelectedTrace}
-                scrollTraceId={scrollTrace}
+                trace={selectedTraceObject!}
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
@@ -260,7 +258,7 @@ export default function TraceGroupPage() {
 
             <CustomResizeHandle />
 
-            <ResizablePanel defaultSize={25} minSize={25}>
+            <ResizablePanel defaultSize={25} minSize={25} style={{ overflow: 'visible' }}>
               <TraceContentOverview
                 trace={selectedTraceObject!}
                 setScrollSpanIndex={setScrollSpanIndex}

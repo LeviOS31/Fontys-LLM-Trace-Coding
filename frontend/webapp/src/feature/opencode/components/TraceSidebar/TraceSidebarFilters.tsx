@@ -1,19 +1,20 @@
-import { Box, Flex, Select, Text, TextField, Checkbox } from '@radix-ui/themes';
+import { Box, Checkbox, Flex, Select, Text, TextField } from '@radix-ui/themes';
 import { Search } from 'lucide-react';
-import { useGetTraceCollections } from '../../../opencode/hooks/useGetTraceCollections.ts';
+import { useGetTraceCollections } from '../../hooks/useGetTraceCollections.ts';
 
-interface TraceFilterBarProps {
-  projectId: string;
-  versionId: string;
-  search: string;
-  setSearch: (value: string) => void;
-  collectionFilter: string;
-  setCollectionFilter: (value: string) => void;
-  hasNoOpenCode: boolean;
-  setHasNoOpenCode: (value: boolean) => void;
-  setSearchParams: (key: string, value: string | boolean | null) => void;
+interface Props {
+  readonly projectId: string;
+  readonly versionId: string;
+  readonly search: string;
+  readonly setSearch: (value: string) => void;
+  readonly collectionFilter: string;
+  readonly setCollectionFilter: (value: string) => void;
+  readonly hasNoOpenCode: boolean;
+  readonly setHasNoOpenCode: (value: boolean) => void;
+  readonly setSearchParams: (key: string, value: string | boolean | null) => void;
 }
-export default function TraceFilterBar({
+
+export default function TraceSidebarFilters({
   projectId,
   versionId,
   search,
@@ -23,19 +24,13 @@ export default function TraceFilterBar({
   hasNoOpenCode,
   setHasNoOpenCode,
   setSearchParams,
-}: Readonly<TraceFilterBarProps>) {
+}: Readonly<Props>) {
   const { data, isLoading, isError } = useGetTraceCollections(projectId, versionId);
   const traceCollectionList = data ?? [];
 
   return (
-    <Flex
-      direction={{ initial: 'column', md: 'row' }}
-      align={{ initial: 'start', md: 'stretch' }}
-      gap="3"
-      width="100%"
-      mb="3"
-    >
-      <Box style={{ minWidth: '100px', maxWidth: '200px' }}>
+    <Flex direction="column" gap="2" px="3" pb="3" style={{ flexShrink: 0 }}>
+      <Box>
         <Text size="1" color="gray" as="div" mb="1">
           Search
         </Text>
@@ -43,9 +38,7 @@ export default function TraceFilterBar({
           placeholder="Search traces..."
           size="2"
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-          }}
+          onChange={(e) => setSearch(e.target.value)}
         >
           <TextField.Slot>
             <Search size={12} />
@@ -63,10 +56,11 @@ export default function TraceFilterBar({
             setCollectionFilter(value);
             setSearchParams('traceCollection', value);
           }}
-          disabled={(isLoading || isError || traceCollectionList.length === 0) && true}
+          disabled={isLoading || isError || traceCollectionList.length === 0}
           size="2"
         >
           <Select.Trigger
+            style={{ width: '100%' }}
             placeholder={
               (isLoading && 'Loading...') ||
               (isError && 'Failed to load') ||
@@ -75,7 +69,7 @@ export default function TraceFilterBar({
           />
           {!isLoading && !isError && (
             <Select.Content>
-              <Select.Item value={'All'}>All</Select.Item>
+              <Select.Item value="All">All</Select.Item>
               {traceCollectionList.map((traceCollection) => (
                 <Select.Item
                   key={traceCollection.traceCollectionId}
@@ -88,39 +82,25 @@ export default function TraceFilterBar({
           )}
         </Select.Root>
         {isError && (
-          <Text color="red" size="2" mt="1">
+          <Text color="red" size="1" mt="1">
             Could not load trace collections.
           </Text>
         )}
       </Box>
-      <Box>
-        <Text size="1" color="gray" as="div" mb="1">
-          Axial Codes
-        </Text>
-        <Select.Root defaultValue="All" size="2" disabled={true}>
-          <Select.Trigger />
-          <Select.Content>
-            <Select.Item value="All">All</Select.Item>
-            <Select.Item value="Hallucination">Hallucination</Select.Item>
-            <Select.Item value="No Answer">No Answer</Select.Item>
-          </Select.Content>
-        </Select.Root>
-      </Box>
-      <Box style={{ display: 'flex', flexDirection: 'column' }}>
-        <Text size="1" color="gray" as="div" mb="1">
-          No Open code
-        </Text>
-        <Box style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+
+      <Text as="label" size="1" color="gray">
+        <Flex align="center" gap="2">
           <Checkbox
-            size={'3'}
+            size="2"
             checked={hasNoOpenCode}
             onCheckedChange={(value) => {
               setHasNoOpenCode(value === true);
               setSearchParams('hasNoOpenCode', value);
             }}
           />
-        </Box>
-      </Box>
+          No Open code
+        </Flex>
+      </Text>
     </Flex>
   );
 }

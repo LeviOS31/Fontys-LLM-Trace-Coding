@@ -60,13 +60,15 @@ public class GetAllJudgeTemplateHandler
             {
                 var axialCode = axialCodeMap[jt.AxialCodeId];
 
-                var template = _judgeTemplateText
-                    .Value.Replace("{{axial_code_name}}", axialCode.Label)
-                    .Replace("{{axial_code_description}}", axialCode.Description);
+                var template = jt.CustomJudgeTemplateContent
+                    ?? _judgeTemplateText.Value
+                        .Replace("{{axial_code_name}}", axialCode.Label)
+                        .Replace("{{axial_code_description}}", axialCode.Description);
 
                 return new GetAllJudgeTemplateResponse.JudgeTemplateViewModel
                 {
                     Id = jt.JudgeTemplateId,
+                    AxialCodeId = jt.AxialCodeId,
                     Name = jt.JudgeTemplateName,
                     Description = jt.JudgeTemplateDescription,
                     Template = template,

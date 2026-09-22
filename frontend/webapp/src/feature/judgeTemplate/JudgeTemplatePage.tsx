@@ -6,6 +6,7 @@ import type { JudgeTemplate } from '../../shared/types/judgeTemplate.ts';
 import { useGetJudgeTemplates } from './hooks/useGetJudgeTemplates.ts';
 import { useCreateJudgeTemplate } from './hooks/useCreateJudgeTemplate.ts';
 import { useDeleteJudgeTemplate } from './hooks/useDeleteJudgeTemplate.ts';
+import { useUpdateJudgeTemplate } from './hooks/useUpdateJudgeTemplate.ts';
 import { useGetCurrentAxialCodesOfVersion } from '../axialcode/hooks/useGetCurrentAxialCodesOfVersion.ts';
 import { isTyping } from '../../shared/util/shortcutHelpers.ts';
 import { CreateTemplatePanel } from './components/CreateTemplatePanel/CreateTemplatePanel.tsx';
@@ -34,12 +35,19 @@ export default function JudgeTemplatePage() {
     projectId ?? '',
     versionId ?? ''
   );
+  const { mutate: updateTemplate, isPending: isSaving } = useUpdateJudgeTemplate(
+    projectId ?? '',
+    versionId ?? ''
+  );
 
   const templates = judgeTemplatesData?.judgeTemplates ?? [];
   const axialCodes = axialCodesData?.axialCodes ?? [];
 
-  // The GET /judge-templates response does not include axialCodeId per template yet.
-  const axialCodeById: Record<string, string> = {};
+  const axialCodeById: Record<string, string> = Object.fromEntries(
+    templates
+      .map((t) => [t.id, axialCodes.find((a) => a.axialCodeId === t.axialCodeId)?.label ?? ''])
+      .filter(([, label]) => label)
+  );
 
   const filtered = templates.filter((t) => {
     if (!query) return true;
@@ -64,6 +72,13 @@ export default function JudgeTemplatePage() {
       name: `Judge template - ${axial.label}`,
       description: axial.description,
     });
+  };
+
+  const handleSave = (id: string, content: string) => {
+    updateTemplate(
+      { judgeTemplateId: id, content },
+      { onSuccess: () => setEditing(null) }
+    );
   };
 
   useEffect(() => {
@@ -105,7 +120,6 @@ export default function JudgeTemplatePage() {
         const select = axialSelectRef.current;
         if (select) {
           select.focus();
-          // showPicker() opens the dropdown — requires a user-gesture context (keypress qualifies)
           if ('showPicker' in select)
             (select as HTMLSelectElement & { showPicker(): void }).showPicker();
         }
@@ -171,6 +185,8 @@ export default function JudgeTemplatePage() {
           template={editing}
           onClose={() => setEditing(null)}
           onDelete={handleDelete}
+          onSave={handleSave}
+          isSaving={isSaving}
         />
       )}
 

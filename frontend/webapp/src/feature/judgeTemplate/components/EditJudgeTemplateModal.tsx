@@ -1,6 +1,6 @@
 import { Button, Dialog, Flex, Text, TextArea, TextField } from '@radix-ui/themes';
 import { useState } from 'react';
-import { Download, TriangleAlert, X } from 'lucide-react';
+import { Download, Save, TriangleAlert, X } from 'lucide-react';
 import type { JudgeTemplate } from '../../../shared/types/judgeTemplate.ts';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog.tsx';
 
@@ -8,20 +8,18 @@ interface Props {
   template: JudgeTemplate;
   onClose: () => void;
   onDelete: (id: string) => void;
+  onSave: (id: string, content: string) => void;
+  isSaving: boolean;
 }
 
-export function EditJudgeTemplateModal({ template, onClose, onDelete }: Props) {
+export function EditJudgeTemplateModal({ template, onClose, onDelete, onSave, isSaving }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [content, setContent] = useState(template.template);
+  const isDirty = content !== template.template;
 
   return (
-    <Dialog.Root
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
+    <Dialog.Root open onOpenChange={(open) => { if (!open) onClose(); }}>
       <Dialog.Content maxWidth="720px" style={{ padding: 0, overflow: 'hidden' }}>
-        {/* Header */}
         <Flex
           align="start"
           justify="between"
@@ -34,23 +32,16 @@ export function EditJudgeTemplateModal({ template, onClose, onDelete }: Props) {
           <Dialog.Close
             aria-label="Close"
             style={{
-              width: 32,
-              height: 32,
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              cursor: 'pointer',
-              color: 'var(--gray-9)',
-              flexShrink: 0,
+              width: 32, height: 32, padding: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              background: 'transparent', cursor: 'pointer',
+              color: 'var(--gray-9)', flexShrink: 0,
             }}
           >
             <X size={14} />
           </Dialog.Close>
         </Flex>
 
-        {/* Body */}
         <Flex
           direction="column"
           gap="4"
@@ -61,10 +52,8 @@ export function EditJudgeTemplateModal({ template, onClose, onDelete }: Props) {
               align="start"
               gap="2"
               style={{
-                padding: '10px 12px',
-                background: 'var(--amber-2)',
-                border: '1px solid var(--amber-6)',
-                borderRadius: 'var(--radius-3)',
+                padding: '10px 12px', background: 'var(--amber-2)',
+                border: '1px solid var(--amber-6)', borderRadius: 'var(--radius-3)',
                 color: 'var(--amber-11)',
               }}
             >
@@ -77,26 +66,20 @@ export function EditJudgeTemplateModal({ template, onClose, onDelete }: Props) {
           )}
 
           <Flex direction="column" gap="1">
-            <Text size="2" weight="bold">
-              Name
-            </Text>
+            <Text size="2" weight="bold">Name</Text>
             <TextField.Root value={template.name} readOnly />
           </Flex>
 
           <Flex direction="column" gap="1">
-            <Text size="2" weight="bold">
-              Description
-            </Text>
+            <Text size="2" weight="bold">Description</Text>
             <TextArea value={template.description} readOnly rows={2} style={{ resize: 'none' }} />
           </Flex>
 
           <Flex direction="column" gap="1">
-            <Text size="2" weight="bold">
-              Judge instructions
-            </Text>
+            <Text size="2" weight="bold">Judge instructions</Text>
             <TextArea
-              value={template.template}
-              readOnly
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
               rows={14}
               style={{
                 resize: 'vertical',
@@ -107,16 +90,11 @@ export function EditJudgeTemplateModal({ template, onClose, onDelete }: Props) {
           </Flex>
         </Flex>
 
-        {/* Footer */}
         <Flex
           align="center"
           justify="between"
           gap="2"
-          style={{
-            padding: '14px 22px',
-            borderTop: '1px solid var(--gray-4)',
-            background: 'var(--gray-2)',
-          }}
+          style={{ padding: '14px 22px', borderTop: '1px solid var(--gray-4)', background: 'var(--gray-2)' }}
         >
           <Button variant="outline" color="red" onClick={() => setConfirmOpen(true)}>
             Delete Template
@@ -145,6 +123,14 @@ export function EditJudgeTemplateModal({ template, onClose, onDelete }: Props) {
             >
               <Download size={14} />
               Download
+            </Button>
+            <Button
+              variant="solid"
+              disabled={!isDirty || isSaving}
+              onClick={() => onSave(template.id, content)}
+            >
+              <Save size={14} />
+              {isSaving ? 'Saving…' : 'Save'}
             </Button>
             <Button variant="soft" color="gray" onClick={onClose}>
               Close

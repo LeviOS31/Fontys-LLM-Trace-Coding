@@ -3,6 +3,7 @@ using Api.Extensions;
 using JudgeTemplates.Feature.CreateJudgeTemplate;
 using JudgeTemplates.Feature.DeleteJudgeTemplate;
 using JudgeTemplates.Feature.GetJudgeTemplates;
+using JudgeTemplates.Feature.UpdateJudgeTemplate;
 using Mediator;
 
 namespace Api.Endpoints.JudgeTemplates;
@@ -46,6 +47,31 @@ public static class JudgeTemplatesEndpoints
                         UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
                         ProjectId = projectId,
                         ProjectVersionId = projectVersionId,
+                    };
+                    var result = await mediator.Send(request);
+
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("JudgeTemplates");
+
+        app.MapPut(
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-templates/{judgeTemplateId:guid}",
+                async (
+                    Guid projectId,
+                    Guid projectVersionId,
+                    Guid judgeTemplateId,
+                    UpdateJudgeTemplateDto body,
+                    IMediator mediator
+                ) =>
+                {
+                    var request = new UpdateJudgeTemplateRequest
+                    {
+                        UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
+                        ProjectId = projectId,
+                        ProjectVersionId = projectVersionId,
+                        JudgeTemplateId = judgeTemplateId,
+                        Content = body.Content,
                     };
                     var result = await mediator.Send(request);
 

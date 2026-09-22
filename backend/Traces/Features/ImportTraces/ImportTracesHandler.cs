@@ -165,12 +165,35 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
 
             AddTraceResourceSpans(trace, traceData.ResourceSpans);
 
+            // Shared across every ScopeSpans group belonging to this trace. A span and its
+            // parent are not guaranteed to live in the same ScopeSpans group — the parser
+            // may split a trace's spans across several ScopeSpans entries (e.g. when
+            // reassembling a trace whose spans arrived in separate OTLP batches). Keeping
+            // the map (and the parent-link resolution pass) scoped to the whole trace,
+            // rather than to a single AddTraceScope call, ensures parent/child links are
+            // still found in that case.
+            var spanIdMap = new Dictionary<string, Guid>();
+            var pendingParentLinks = new List<(string SpanId, string ParentSpanId)>();
+
             foreach (var resourceSpan in traceData.ResourceSpans)
             {
                 foreach (var scopeSpan in resourceSpan.ScopeSpans)
                 {
-                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans);
+                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap, pendingParentLinks);
                 }
+            }
+
+            // Now that every span in the trace has been registered in spanIdMap, resolve
+            // the parent/child links.
+            foreach (var (spanId, parentSpanId) in pendingParentLinks)
+            {
+                if (!spanIdMap.TryGetValue(parentSpanId, out var parentId))
+                    continue;
+
+                var traceSpan = _tracesDbContext.TraceScopeSpans.Local.First(s =>
+                    s.TraceScopeSpanId == spanIdMap[spanId]
+                );
+                traceSpan.ParentSpanId = parentId;
             }
         }
     }
@@ -191,7 +214,13 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         }
     }
 
-    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans)
+    private void AddTraceScope(
+        Trace trace,
+        InstrumentationScope scope,
+        IEnumerable<Span> spans,
+        Dictionary<string, Guid> spanIdMap,
+        List<(string SpanId, string ParentSpanId)> pendingParentLinks
+    )
     {
         var traceScope = new TraceScope
         {
@@ -202,10 +231,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         };
         _tracesDbContext.TraceScopes.Add(traceScope);
 
-        var spanIdMap = new Dictionary<string, Guid>();
-        var spanList = spans.ToList();
-
-        foreach (var span in spanList)
+        foreach (var span in spans)
         {
             var traceSpan = new TraceScopeSpan
             {
@@ -218,24 +244,16 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
             };
 
             var spanId = Convert.ToHexString(span.SpanId.Span);
-            spanIdMap.Add(spanId, traceSpan.TraceScopeSpanId);
+            spanIdMap[spanId] = traceSpan.TraceScopeSpanId;
             _tracesDbContext.TraceScopeSpans.Add(traceSpan);
 
             AddSpanEvents(traceSpan, span.Events);
             AddSpanAttributes(traceSpan, span.Attributes);
-        }
 
-        foreach (var span in spanList)
-        {
+            // Defer parent resolution: the parent span may belong to a different
+            // ScopeSpans group within this trace that hasn't been processed yet.
             var parentSpanId = Convert.ToHexString(span.ParentSpanId.Span);
-
-            if (!spanIdMap.TryGetValue(parentSpanId, out var parentId))
-                continue;
-
-            var spanId = Convert.ToHexString(span.SpanId.Span);
-            var traceSpan = _tracesDbContext.TraceScopeSpans.Local.First(s => s.TraceScopeSpanId == spanIdMap[spanId]);
-
-            traceSpan.ParentSpanId = parentId;
+            pendingParentLinks.Add((spanId, parentSpanId));
         }
     }
 

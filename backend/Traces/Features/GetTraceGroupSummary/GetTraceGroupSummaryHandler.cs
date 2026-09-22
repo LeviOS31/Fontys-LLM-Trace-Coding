@@ -57,10 +57,10 @@ public class GetTraceGroupSummaryHandler
             IQueryable<Trace> filteredTraces = _tracesDbContext.Traces
                 .Where(trace => trace.TraceCollection.ProjectVersionId == query.ProjectVersionId);
 
-            if (query.Filters is { Count: > 0 })
-            {
-                filteredTraces = FilterExtensions.ApplyFilters(filteredTraces, query.Filters);
-            }
+            // if (query.Filters is { Count: > 0 })
+            // {
+            //     filteredTraces = FilterExtensions.ApplyFilters(filteredTraces, query.Filters);
+            // }
 
             var dbQuery = _tracesDbContext.TraceGroups
                 .Where(group => filteredTraces.Any(trace => trace.TraceGroupId == group.TraceGroupId));

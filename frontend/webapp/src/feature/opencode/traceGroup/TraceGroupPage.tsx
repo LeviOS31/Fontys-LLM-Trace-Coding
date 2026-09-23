@@ -103,7 +103,9 @@ export default function TraceGroupPage() {
   );
 
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
-  const [scrollMessageRole, setScrollMessageRole] = useState<'user' | 'assistant' | null>(null);
+  const [scrollMessageRole, setScrollMessageRole] = useState<
+    'user' | 'assistant' | 'system' | null
+  >(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 

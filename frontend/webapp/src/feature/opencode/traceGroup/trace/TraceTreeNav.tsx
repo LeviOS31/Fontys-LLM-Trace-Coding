@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   UserPen,
+  ServerCog,
   ListCollapse,
   MessageCircle,
   Workflow,
@@ -23,7 +24,7 @@ type Props = {
   selectedSpanId: string | null;
   setSelectedTrace: (traceId: string) => void;
   setSelectedSpan: (spanId: string | null) => void;
-  requestChatScroll: (spanId: string, role: 'user' | 'assistant') => void;
+  requestChatScroll: (spanId: string, role: 'user' | 'assistant' | 'system') => void;
   messageAnchors: MessageTreeAnchor[];
   selectedNodeKey: string | null;
   setSelectedNodeKey: (nodeKey: string | null) => void;
@@ -45,6 +46,7 @@ function getSpanCount(trace: TraceDetailView): number {
 }
 
 function getTreeIcon(span: SpanNode, messageRole?: MessageSpanNode['messageRole']) {
+  if (messageRole === 'system') return ServerCog;
   if (messageRole === 'user') return UserPen;
   if (messageRole === 'assistant') return MessageCircle;
   const name = span.name.toLowerCase();
@@ -59,7 +61,7 @@ type SpanTreeProps = {
   selectedSpanId: string | null;
   setSelectedSpan: (spanId: string) => void;
   setSelectedTrace: (traceId: string) => void;
-  requestChatScroll: (spanId: string, role: 'user' | 'assistant') => void;
+  requestChatScroll: (spanId: string, role: 'user' | 'assistant' | 'system') => void;
   messageAnchors: MessageTreeAnchor[];
   depth?: number;
   selectedNodeKey?: string | null;

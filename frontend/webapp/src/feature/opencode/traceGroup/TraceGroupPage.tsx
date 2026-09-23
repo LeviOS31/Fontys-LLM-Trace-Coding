@@ -193,8 +193,10 @@ export default function TraceGroupPage() {
                   setScrollMessageRole(role);
                 }}
                 messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
-                    message.role === 'user' || message.role === 'assistant'
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+                    message.role === 'user' ||
+                    message.role === 'assistant' ||
+                    message.role === 'system'
                 )}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}
@@ -248,8 +250,10 @@ export default function TraceGroupPage() {
                   setScrollMessageRole(role);
                 }}
                 messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
-                    message.role === 'user' || message.role === 'assistant'
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+                    message.role === 'user' ||
+                    message.role === 'assistant' ||
+                    message.role === 'system'
                 )}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}

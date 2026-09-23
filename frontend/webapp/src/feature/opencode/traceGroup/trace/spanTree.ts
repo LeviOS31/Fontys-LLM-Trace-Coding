@@ -5,7 +5,7 @@ export type SpanNode = TraceScopeSpanView & { children: SpanNode[] };
 export type MessageTreeAnchor = {
   relatedTraceId: string;
   relatedSpanId: string;
-  role: 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 };
 
@@ -105,6 +105,27 @@ export function buildMessageAwareSpanTree(
 
   const messageNodes: MessageSpanNode[] = [];
   const chatSpanIds = [...new Set(messages.map((message) => message.relatedSpanId))];
+
+  // The system prompt is conversation-level context, not tied to a single turn, so it's
+  // rendered once, ahead of every per-turn user/assistant node, rather than nested under
+  // whichever chat span happens to carry it in the raw attribute data. `messages` covers
+  // the whole trace group (deduped by content), so prefer a system anchor that's actually
+  // attached to a span in *this* trace; fall back to any system anchor otherwise (e.g. if
+  // this trace's own copy got deduped away in favor of an earlier trace's).
+  const spanIds = new Set(spans.map((span) => span.traceScopeSpanId));
+  const systemMessage =
+    messages.find((message) => message.role === 'system' && spanIds.has(message.relatedSpanId)) ??
+    messages.find((message) => message.role === 'system');
+  if (systemMessage) {
+    messageNodes.push({
+      ...workflow,
+      children: [],
+      displayName: systemMessage.content,
+      messageRole: 'system',
+      nodeKey: `${systemMessage.relatedSpanId}-system`,
+    });
+  }
+
   for (const spanId of chatSpanIds) {
     const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId && isChat(span));
     if (!chatSpan) continue;

@@ -54,16 +54,16 @@ public class GetTraceGroupSummaryHandler
     {
         try
         {
-            var dbQuery = _tracesDbContext.TraceGroups.Where(t =>
-                t.Traces.Any((trace) => trace.TraceCollection.ProjectVersionId == query.ProjectVersionId)
-            );
+            IQueryable<Trace> filteredTraces = _tracesDbContext.Traces
+                .Where(trace => trace.TraceCollection.ProjectVersionId == query.ProjectVersionId);
 
             if (query.Filters is { Count: > 0 })
             {
-                dbQuery = dbQuery.Where(group =>
-                    group.Traces.AsQueryable().ApplyFilters(query.Filters).Any()
-                );
+                filteredTraces = FilterExtensions.ApplyFilters(filteredTraces, query.Filters);
             }
+
+            var dbQuery = _tracesDbContext.TraceGroups
+                .Where(group => filteredTraces.Any(trace => trace.TraceGroupId == group.TraceGroupId));
 
             var totalCount = await dbQuery.CountAsync(cancellationToken);
 
@@ -90,10 +90,29 @@ public class GetTraceGroupSummaryHandler
                         axialCreatedAt
                     );
 
+                    string grouptitle = "";
+
+                    foreach (TraceScope scope in group.Traces.FirstOrDefault()?.TraceScopes)
+                    {
+                        foreach (TraceScopeSpan span in scope.TraceScopeSpans)
+                        {
+                            if (span.ParentSpanId == null)
+                            {
+                                grouptitle = span.Name;
+                                break;
+                            }
+                        }
+
+                        if (grouptitle != "")
+                        {
+                            break;
+                        }
+                    }
+
                     return new TraceGroupSummaryItem
                     {
                         TraceGroupId = group.TraceGroupId,
-                        GroupTitle = group.Traces.FirstOrDefault()?.TraceScopes.FirstOrDefault().Name ?? string.Empty,
+                        GroupTitle = grouptitle ?? string.Empty,
                         CollectionName = group.Traces.FirstOrDefault()?.TraceCollection.Name ?? string.Empty,
                         CollectionCreatedAt =
                             group.Traces.FirstOrDefault()?.TraceCollection.CreatedAt ?? DateTime.MinValue,

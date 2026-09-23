@@ -134,8 +134,8 @@ export function LlmContent({
 
         {llmMessages.map((msg, index) => (
           <>
-            {(index === 1 || msg.relatedTraceId !== llmMessages[index - 1]?.relatedTraceId) &&
-              index !== 0 && <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
+            {index === 0 &&
+               <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
             <Box
               key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
               onClick={() => setSelectedTrace(msg.relatedTraceId)}
@@ -143,8 +143,7 @@ export function LlmContent({
                 cursor: index === 0 ? 'auto' : 'pointer',
                 backgroundColor:
                   (relatedTraceHover === msg.relatedTraceId ||
-                    selectedTraceId === msg.relatedTraceId) &&
-                  index !== 0
+                    selectedTraceId === msg.relatedTraceId)
                     ? 'var(--accent-a3)'
                     : 'transparent',
               }}
@@ -161,8 +160,8 @@ export function LlmContent({
               data-message-role={msg.role}
             >
               {/* Title and divider */}
-              {(index === 1 || msg.relatedTraceId !== llmMessages[index - 1]?.relatedTraceId) &&
-                index !== 0 && (
+              {index === 0  &&
+                 (
                   <Flex direction="row" gap="2" align="center" pt="4">
                     <Badge color="green" radius="full" size="3">
                       <Text as="span" weight="bold">

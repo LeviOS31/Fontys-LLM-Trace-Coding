@@ -7,10 +7,15 @@ import EditProjectModal from '../../feature/projects/components/EditProjectModal
 import { isTyping } from '../../shared/util/shortcutHelpers.ts';
 import { ProjectSelector } from './ProjectSelector.tsx';
 import { ProjectVersionsNav } from './ProjectVersionsNav.tsx';
+import { ProjectNavItem } from './ProjectNavItem.tsx';
 import { useGetProject } from '../../feature/projects/hooks/useGetProject.ts';
 import { Box, Text } from '@radix-ui/themes';
 
-export function ProjectsNav() {
+interface ProjectsNavProps {
+  collapsed?: boolean;
+}
+
+function useProjectsNavState() {
   const { data, isLoading } = useGetAllProjects();
   const projects = data?.projects ?? [];
 
@@ -28,41 +33,45 @@ export function ProjectsNav() {
   } = useGetProject(currentProjectId);
 
   const [keyFocusedIndex, setKeyFocusedIndex] = useState(-1);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Omit<Project, 'versions'> | undefined>();
-
   const navigate = useNavigate();
 
-  // ─── Keyboard shortcuts ───────────────────────────────────────────────────
+  useEffect(() => {
+    const versions = projectData?.versions ?? [];
+    const idx = versions.findIndex((v) => v.versionId === currentVersionId);
+    setKeyFocusedIndex(idx);
+  }, [currentVersionId, projectData]);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (isTyping()) return;
       if (!currentProjectId) return;
 
-      // [ → move sidebar focus to previous version (wraps)
-      if (e.key === '[') {
-        e.preventDefault();
-        setKeyFocusedIndex((i) => (i <= 0 ? (projectData?.versions.length ?? 1) - 1 : i - 1));
-        return;
-      }
+      const versions = projectData?.versions ?? [];
 
-      // ] → move sidebar focus to next version (wraps)
-      if (e.key === ']') {
+      if (e.key === '[' || e.key === ']') {
         e.preventDefault();
-        setKeyFocusedIndex((i) =>
-          i < 0 || i >= (projectData?.versions.length ?? 1) - 1 ? 0 : i + 1
+        if (versions.length === 0) return;
+        const currentIndex = versions.findIndex((v) => v.versionId === currentVersionId);
+        const nextIndex =
+          e.key === '['
+            ? currentIndex <= 0
+              ? versions.length - 1
+              : currentIndex - 1
+            : currentIndex < 0 || currentIndex >= versions.length - 1
+              ? 0
+              : currentIndex + 1;
+        navigate(
+          `/projects/${currentProjectId}/versions/${versions[nextIndex].versionId}/overview`
         );
         return;
       }
 
-      // H → jump to project overview
       if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
         navigate(`/projects/${currentProjectId}`);
         return;
       }
 
-      // 1 / 2 / 3 → jump directly to a version page
       if (currentVersionId) {
         const pageById: Record<string, string> = {
           '1': 'overview',
@@ -78,9 +87,40 @@ export function ProjectsNav() {
     return () => globalThis.removeEventListener('keydown', handleKey);
   }, [currentProjectId, currentVersionId, navigate, projectData]);
 
+  return {
+    projects,
+    isLoading,
+    currentProjectId,
+    currentVersionId,
+    currentProject,
+    projectData,
+    isProjectLoading,
+    projectError,
+    keyFocusedIndex,
+    isOnProjectHome: !!projectExactMatch,
+  };
+}
+
+/** Pinned part: project selector + project home link. Does not scroll. */
+export function ProjectsNavHeader({ collapsed = false }: ProjectsNavProps) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Omit<Project, 'versions'> | undefined>();
+
+  const {
+    projects,
+    isLoading,
+    currentProjectId,
+    currentProject,
+    projectData,
+    isProjectLoading,
+    projectError,
+    isOnProjectHome,
+  } = useProjectsNavState();
+
   return (
     <>
       <ProjectSelector
+        collapsed={collapsed}
         isLoading={isLoading}
         projects={projects}
         currentProjectId={currentProjectId}
@@ -97,12 +137,12 @@ export function ProjectsNav() {
       )}
 
       {currentProjectId && currentProject && projectData && !isProjectLoading && (
-        <ProjectVersionsNav
+        <ProjectNavItem
+          collapsed={collapsed}
           projectId={currentProjectId}
-          projectName={currentProject.name}
-          versions={projectData?.versions ?? []}
-          currentVersionId={currentVersionId}
-          keyFocusedIndex={keyFocusedIndex}
+          title={currentProject.name}
+          shortcut="H"
+          active={isOnProjectHome}
         />
       )}
 
@@ -115,5 +155,29 @@ export function ProjectsNav() {
         }}
       />
     </>
+  );
+}
+
+/** Scrollable part: just the version list for the current project. */
+export function ProjectsNavVersions({ collapsed = false }: ProjectsNavProps) {
+  const {
+    currentProjectId,
+    currentProject,
+    currentVersionId,
+    projectData,
+    isProjectLoading,
+    keyFocusedIndex,
+  } = useProjectsNavState();
+
+  if (!currentProjectId || !currentProject || !projectData || isProjectLoading) return null;
+
+  return (
+    <ProjectVersionsNav
+      collapsed={collapsed}
+      projectId={currentProjectId}
+      versions={projectData?.versions ?? []}
+      currentVersionId={currentVersionId}
+      keyFocusedIndex={keyFocusedIndex}
+    />
   );
 }

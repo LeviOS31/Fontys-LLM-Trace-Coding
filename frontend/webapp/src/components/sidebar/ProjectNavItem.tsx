@@ -1,26 +1,54 @@
 import { NavLink } from 'react-router';
 import { Home } from 'lucide-react';
-import { Kbd, Text } from '@radix-ui/themes';
+import { Kbd, Text, Tooltip, Box } from '@radix-ui/themes';
 
 interface ProjectNavItemProps {
+  collapsed?: boolean;
   projectId: string;
   title: string;
   shortcut?: string;
+  active: boolean;
 }
 
-/**
- * Links to the project overview page.
- * Active only when exactly on /projects/:id (not on any child version/page route).
- */
-export function ProjectNavItem({ projectId, title, shortcut }: Readonly<ProjectNavItemProps>) {
+export function ProjectNavItem({
+  collapsed = false,
+  projectId,
+  title,
+  shortcut,
+  active,
+}: Readonly<ProjectNavItemProps>) {
+  const style = {
+    outline: active ? '2px solid var(--green-7)' : 'none',
+    outlineOffset: -2,
+    backgroundColor: active ? 'var(--green-3)' : undefined,
+  };
+
+  if (collapsed) {
+    return (
+      <Tooltip content={title} side="right" sideOffset={8}>
+        <NavLink
+          to={`/projects/${projectId}`}
+          className="project-nav-item project-nav-item--collapsed"
+          style={style}
+        >
+          <Box style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <Home size={20} color="var(--green-9)" style={{ flexShrink: 0 }} />
+          </Box>
+        </NavLink>
+      </Tooltip>
+    );
+  }
+
   return (
-    <NavLink
-      to={`/projects/${projectId}`}
-      end
-      className={({ isActive }) => `project-nav-item${isActive ? ' project-nav-item--active' : ''}`}
-    >
-      <Home size={15} style={{ flexShrink: 0 }} />
-      <Text as="span" size="2" weight="medium" truncate style={{ flex: 1, color: 'inherit' }}>
+    <NavLink to={`/projects/${projectId}`} className="project-nav-item" style={style}>
+      <Home size={15} color="var(--green-9)" style={{ flexShrink: 0 }} />
+      <Text
+        as="span"
+        size="2"
+        weight="medium"
+        truncate
+        style={{ flex: 1, color: 'var(--green-11)' }}
+      >
         {title}
       </Text>
       {shortcut && (

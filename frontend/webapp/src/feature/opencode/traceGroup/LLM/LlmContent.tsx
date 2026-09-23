@@ -134,35 +134,12 @@ export function LlmContent({
 
         {llmMessages.map((msg, index) => (
           <>
-            {index === 0 &&
-               <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
-            <Box
-              key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
-              onClick={() => setSelectedTrace(msg.relatedTraceId)}
-              style={{
-                cursor: index === 0 ? 'auto' : 'pointer',
-                backgroundColor:
-                  (relatedTraceHover === msg.relatedTraceId ||
-                    selectedTraceId === msg.relatedTraceId)
-                    ? 'var(--accent-a3)'
-                    : 'transparent',
-              }}
-              onMouseEnter={() => {
-                if (index !== 0) setRelatedTraceHover(msg.relatedTraceId);
-              }}
-              onMouseLeave={() => {
-                setRelatedTraceHover(null);
-              }}
-              px="4"
-              py="1"
-              data-trace-id={msg.relatedTraceId}
-              data-span-id={msg.relatedSpanId}
-              data-message-role={msg.role}
-            >
+              {index === 0 &&
+                 <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
               {/* Title and divider */}
               {index === 0  &&
-                 (
-                  <Flex direction="row" gap="2" align="center" pt="4">
+                  (
+                  <Flex direction="row" gap="2" align="center" px="4" py="2"  style={{ borderRadius: 'var(--radius-2)', backgroundColor: 'var(--accent-a3)' }}>
                     <Badge color="green" radius="full" size="3">
                       <Text as="span" weight="bold">
                         {uniqueTraces.indexOf(msg.relatedTraceId) + 1}
@@ -183,13 +160,37 @@ export function LlmContent({
                     )}
                   </Flex>
                 )}
+            <Box
+              key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
+              onClick={() => setSelectedTrace(msg.relatedTraceId)}
+              style={{
+                cursor: index === 0 ? 'auto' : 'pointer',
+                backgroundColor:
+                  (relatedTraceHover === msg.relatedTraceId ||
+                    selectedTraceId === msg.relatedTraceId)
+                    ? msg.role === 'system' ? 'var(--blue-a4)' : 'var(--accent-a3)'
+                    : 'transparent',
+                borderBottom: index === llmMessages.length - 1 ? 'none' : '4px solid var(--gray-5)',
+              }}
+              onMouseEnter={() => {
+                if (index !== 0) setRelatedTraceHover(msg.relatedTraceId);
+              }}
+              onMouseLeave={() => {
+                setRelatedTraceHover(null);
+              }}
+              px="4"
+              py="1"
+              data-trace-id={msg.relatedTraceId}
+              data-span-id={msg.relatedSpanId}
+              data-message-role={msg.role}
+            >
 
               {/* Message content */}
               <Flex
                 direction="column"
                 gap="1"
-                align={msg.role === 'user' ? 'end' : 'start'}
-                pb="4"
+                align={msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center'}
+                pb="2"
                 style={{ maxWidth: '100%', width: '100%', minWidth: 0 }}
               >
                 <Text size="3" color="gray" weight="bold">
@@ -205,7 +206,7 @@ export function LlmContent({
                     lineHeight: 'var(--line-height-2)',
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
-                    textAlign: msg.role === 'user' ? 'right' : 'left',
+                    textAlign: msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center',
                   }}
                 >
                   <ReactMarkdown
@@ -217,7 +218,7 @@ export function LlmContent({
                             margin: '0 0 0.5em',
                             minWidth: 0,
                             fontFamily: 'inherit',
-                            textAlign: msg.role === 'user' ? 'right' : 'left',
+                            textAlign: msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center',
                           }}
                         >
                           {children}

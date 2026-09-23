@@ -167,9 +167,14 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
 
             foreach (var resourceSpan in traceData.ResourceSpans)
             {
+                var spanIdMap = new Dictionary<string, Guid>();
                 foreach (var scopeSpan in resourceSpan.ScopeSpans)
                 {
-                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans);
+                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap);
+                }
+                foreach (var scopeSpan in resourceSpan.ScopeSpans)
+                {
+                    AddParentChildRelation(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap);
                 }
             }
         }
@@ -191,7 +196,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         }
     }
 
-    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans)
+    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string,Guid> spanIdMap)
     {
         var traceScope = new TraceScope
         {
@@ -202,7 +207,6 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         };
         _tracesDbContext.TraceScopes.Add(traceScope);
 
-        var spanIdMap = new Dictionary<string, Guid>();
         var spanList = spans.ToList();
 
         foreach (var span in spanList)
@@ -224,7 +228,11 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
             AddSpanEvents(traceSpan, span.Events);
             AddSpanAttributes(traceSpan, span.Attributes);
         }
+    }
 
+    private void AddParentChildRelation(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string,Guid> spanIdMap)
+    {
+        var spanList = spans.ToList();
         foreach (var span in spanList)
         {
             var parentSpanId = Convert.ToHexString(span.ParentSpanId.Span);

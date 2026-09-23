@@ -90,10 +90,29 @@ public class GetTraceGroupSummaryHandler
                         axialCreatedAt
                     );
 
+                    string grouptitle = "";
+
+                    foreach (TraceScope scope in group.Traces.FirstOrDefault()?.TraceScopes)
+                    {
+                        foreach (TraceScopeSpan span in scope.TraceScopeSpans)
+                        {
+                            if (span.ParentSpanId == null)
+                            {
+                                grouptitle = span.Name;
+                                break;
+                            }
+                        }
+
+                        if (grouptitle != "")
+                        {
+                            break;
+                        }
+                    }
+
                     return new TraceGroupSummaryItem
                     {
                         TraceGroupId = group.TraceGroupId,
-                        GroupTitle = group.Traces.FirstOrDefault()?.TraceScopes.FirstOrDefault().Name ?? string.Empty,
+                        GroupTitle = grouptitle ?? string.Empty,
                         CollectionName = group.Traces.FirstOrDefault()?.TraceCollection.Name ?? string.Empty,
                         CollectionCreatedAt =
                             group.Traces.FirstOrDefault()?.TraceCollection.CreatedAt ?? DateTime.MinValue,

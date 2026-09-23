@@ -177,9 +177,14 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
 
             foreach (var resourceSpan in traceData.ResourceSpans)
             {
+                var spanIdMap = new Dictionary<string, Guid>();
                 foreach (var scopeSpan in resourceSpan.ScopeSpans)
                 {
-                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap, pendingParentLinks);
+                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap);
+                }
+                foreach (var scopeSpan in resourceSpan.ScopeSpans)
+                {
+                    AddParentChildRelation(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap);
                 }
             }
 
@@ -214,13 +219,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         }
     }
 
-    private void AddTraceScope(
-        Trace trace,
-        InstrumentationScope scope,
-        IEnumerable<Span> spans,
-        Dictionary<string, Guid> spanIdMap,
-        List<(string SpanId, string ParentSpanId)> pendingParentLinks
-    )
+    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string, Guid> spanIdMap)
     {
         var traceScope = new TraceScope
         {
@@ -231,7 +230,9 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         };
         _tracesDbContext.TraceScopes.Add(traceScope);
 
-        foreach (var span in spans)
+        var spanList = spans.ToList();
+
+        foreach (var span in spanList)
         {
             var traceSpan = new TraceScopeSpan
             {
@@ -249,9 +250,14 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
 
             AddSpanEvents(traceSpan, span.Events);
             AddSpanAttributes(traceSpan, span.Attributes);
+        }
+    }
 
-            // Defer parent resolution: the parent span may belong to a different
-            // ScopeSpans group within this trace that hasn't been processed yet.
+    private void AddParentChildRelation(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string, Guid> spanIdMap)
+    {
+        var spanList = spans.ToList();
+        foreach (var span in spanList)
+        {
             var parentSpanId = Convert.ToHexString(span.ParentSpanId.Span);
             pendingParentLinks.Add((spanId, parentSpanId));
         }

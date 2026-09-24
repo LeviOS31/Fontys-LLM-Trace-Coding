@@ -196,7 +196,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         }
     }
 
-    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string,Guid> spanIdMap)
+    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string, Guid> spanIdMap)
     {
         var traceScope = new TraceScope
         {
@@ -230,7 +230,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         }
     }
 
-    private void AddParentChildRelation(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string,Guid> spanIdMap)
+    private void AddParentChildRelation(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string, Guid> spanIdMap)
     {
         var spanList = spans.ToList();
         foreach (var span in spanList)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
-import { Box, Flex, TextArea, Text, Badge } from '@radix-ui/themes';
+import { Plus, SquarePen, Trash, X } from 'lucide-react';
+import { Box, Button, Flex, TextArea, Text, Badge } from '@radix-ui/themes';
 import type { TraceDetailView } from '../../../shared/types/trace.ts';
 import { isTyping } from '../../../shared/util/shortcutHelpers.ts';
 import { useAddOpencode } from '../hooks/useAddOpencode.ts';
@@ -20,37 +21,72 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
   const savedOpencode = selectedTrace?.openCode ?? '';
 
   const [openCode, setOpenCode] = useState(savedOpencode);
-  // Track whether the current value has been successfully saved locally,
-  // so we don't show a stale "Saved" badge when switching traces.
-  const [localSaved, setLocalSaved] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Reset local state whenever the selected trace changes.
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Reset the editor whenever the selected trace changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenCode(savedOpencode);
-    setLocalSaved(false);
+    setIsEditing(false);
   }, [traceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isDirty = openCode !== savedOpencode;
+  const handleStartEditing = () => {
+    setOpenCode(savedOpencode);
+    setIsEditing(true);
 
-  // Debounced auto-save — keyed on openCode, not isDirty.
-  useEffect(() => {
-    if (!isDirty || !traceId) return;
+    requestAnimationFrame(() => {
+      const textArea = textAreaRef.current;
 
-    const timeout = setTimeout(() => {
-      mutate({ traceId, openCode }, { onSuccess: () => setLocalSaved(true) });
-    }, 500);
+      if (!textArea) return;
 
-    return () => clearTimeout(timeout);
-  }, [openCode, traceId, isDirty, mutate]);
-
-  // Clear the localSaved flag as soon as the user starts typing again.
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLocalSaved(false);
-    setOpenCode(e.target.value);
+      textArea.focus();
+      textArea.setSelectionRange(textArea.value.length, textArea.value.length);
+    });
   };
 
-  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const handleCancel = () => {
+    setOpenCode(savedOpencode);
+    setIsEditing(false);
+  };
+
+  const handleSave = () => {
+    if (!traceId) return;
+
+    mutate(
+      {
+        traceId,
+        openCode,
+      },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+      }
+    );
+  };
+
+  const handleDelete = () => {
+    if (!traceId) return;
+
+    mutate(
+      {
+        traceId,
+        openCode: '',
+      },
+      {
+        onSuccess: () => {
+          setOpenCode('');
+          setIsEditing(false);
+        },
+      }
+    );
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setOpenCode(e.target.value);
+  };
 
   // Arrow keys leave the textarea so the global navigation shortcuts take
   // over. Blurring here happens before the global keydown listeners run, so
@@ -59,28 +95,42 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
       e.currentTarget.blur();
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
+      return;
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+
+      if (!openCode.trim() || isPending) return;
+
+      handleSave();
     }
   };
 
-  // ─── Keyboard shortcuts ───────────────────────────────────────────────────
-  // O → Focus the open code textarea
+  // O → Focus the open code textarea while editing.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (isTyping()) return;
       if (e.key.toLowerCase() !== 'o') return;
+      if (!isEditing) return;
 
       const textArea = textAreaRef.current;
       if (!textArea) return;
 
       e.preventDefault();
       textArea.focus();
-      // Place the caret at the end of the existing open code.
       textArea.setSelectionRange(textArea.value.length, textArea.value.length);
     };
 
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [isEditing]);
 
   if (!selectedTrace) {
     return (
@@ -91,6 +141,8 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
       </Flex>
     );
   }
+
+  const hasOpenCode = savedOpencode.trim().length > 0;
 
   return (
     <Flex
@@ -105,7 +157,7 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
       }}
     >
       {/* Header */}
-      <Flex align="center" justify="between" style={{ flexShrink: 0 }}>
+      <Flex align="center" justify="between" style={{ flexShrink: 0, minWidth: 0 }}>
         <Text
           size="1"
           weight="bold"
@@ -116,48 +168,177 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            minWidth: 0,
           }}
         >
           Open Code
         </Text>
-        <Box style={{ flexShrink: 0 }}>
-          {isPending && (
-            <Badge color="gray" size="1" variant="soft">
-              Saving…
-            </Badge>
-          )}
-          {!isPending && isDirty && !localSaved && (
-            <Badge color="red" size="1" variant="soft">
-              Unsaved changes
-            </Badge>
-          )}
-          {!isPending && !isDirty && localSaved && (
-            <Badge color="green" size="1" variant="soft">
-              Saved
-            </Badge>
-          )}
-        </Box>
+
+        {isEditing && (
+          <Badge color="orange" size="1" variant="soft">
+            Editing
+          </Badge>
+        )}
       </Flex>
 
-      {/* Textarea */}
-      <Box
-        style={{
-          flex: 1,
-          minHeight: 0,
-          minWidth: 0,
-          overflow: 'hidden',
-        }}
-      >
-        <TextArea
-          ref={textAreaRef}
-          placeholder="Add open code for this trace…"
-          size="2"
-          value={openCode}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          style={{ minHeight: '12em', height: '100%' }}
-        />
-      </Box>
+      {/* Existing open code */}
+      {hasOpenCode && !isEditing && (
+        <>
+          <Box
+            style={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              overflow: 'auto',
+              padding: '8px 10px',
+              border: '1px solid var(--gray-a6)',
+              borderRadius: '6px',
+              backgroundColor: 'var(--gray-a2)',
+              whiteSpace: 'pre-wrap',
+              overflowWrap: 'break-word',
+            }}
+          >
+            <Text size="2">{savedOpencode}</Text>
+          </Box>
+
+          <Flex justify="end" gap="2" style={{ flexShrink: 0, width: '100%' }}>
+            <Button
+              variant="soft"
+              color="red"
+              onClick={handleDelete}
+              disabled={isPending}
+              style={{ flex: 1 }}
+            >
+              Delete <Trash size={15} color="var(--red-9)" style={{ flexShrink: 0 }} />
+            </Button>
+
+            <Button
+              variant="soft"
+              onClick={handleStartEditing}
+              disabled={isPending}
+              style={{ flex: 1 }}
+            >
+              Edit <SquarePen size={15} color="var(--green-9)" style={{ flexShrink: 0 }} />
+            </Button>
+          </Flex>
+        </>
+      )}
+
+      {/* Add open code */}
+      {!hasOpenCode && !isEditing && (
+        <>
+          <Box
+            style={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <TextArea
+              ref={textAreaRef}
+              placeholder="Add open code for this trace…"
+              size="2"
+              value={openCode}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              style={{
+                minHeight: '12em',
+                height: '100%',
+              }}
+            />
+          </Box>
+
+          <Flex justify="end" gap="2" style={{ flexShrink: 0, width: '100%' }}>
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={handleCancel}
+              disabled={isPending}
+              style={{ flex: 1 }}
+            >
+              Cancel <X size={15} color="var(--red-9)" style={{ flexShrink: 0 }} />
+            </Button>
+
+            <Button
+              onClick={handleSave}
+              disabled={isPending || !openCode.trim()}
+              style={{ flex: 1 }}
+            >
+              {isPending ? (
+                'Adding…'
+              ) : (
+                <Flex align="center" justify="center" gap="1">
+                  Add
+                  <Plus
+                    size={15}
+                    color={openCode.trim() ? 'white' : 'var(--green-9)'}
+                    style={{ flexShrink: 0 }}
+                  />
+                </Flex>
+              )}
+            </Button>
+          </Flex>
+        </>
+      )}
+
+      {/* Edit existing open code */}
+      {hasOpenCode && isEditing && (
+        <>
+          <Box
+            style={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <TextArea
+              ref={textAreaRef}
+              placeholder="Add open code for this trace…"
+              size="2"
+              value={openCode}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              style={{
+                minHeight: '12em',
+                height: '100%',
+              }}
+            />
+          </Box>
+
+          <Flex justify="end" gap="2" style={{ flexShrink: 0, width: '100%' }}>
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={handleCancel}
+              disabled={isPending}
+              style={{ flex: 1 }}
+            >
+              Cancel <X size={15} color="var(--red-9)" style={{ flexShrink: 0 }} />
+            </Button>
+
+            <Button
+              onClick={handleSave}
+              disabled={isPending || !openCode.trim()}
+              style={{ flex: 1 }}
+            >
+              {isPending ? (
+                'Saving...'
+              ) : (
+                <Flex align="center" justify="center" gap="1">
+                  Save
+                  <Plus
+                    size={15}
+                    color={openCode.trim() ? 'white' : 'var(--green-9)'}
+                    style={{ flexShrink: 0 }}
+                  />
+                </Flex>
+              )}
+            </Button>
+          </Flex>
+        </>
+      )}
     </Flex>
   );
 }

@@ -170,7 +170,7 @@ export function LlmContent({
                     selectedTraceId === msg.relatedTraceId)
                     ? msg.role === 'system' ? 'var(--blue-a4)' : 'var(--accent-a3)'
                     : 'transparent',
-                borderBottom: index === llmMessages.length - 1 ? 'none' : '4px solid var(--gray-5)',
+                borderBottom: index === llmMessages.length - 1 ? 'none' : '2px solid var(--gray-5)',
               }}
               onMouseEnter={() => {
                 if (index !== 0) setRelatedTraceHover(msg.relatedTraceId);
@@ -241,15 +241,31 @@ export function LlmContent({
                       ),
                       code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '');
+                        let codeblock = String(children).replace(/\n$/, '');
+
+                        if ( match && match[1] === 'json') {
+                          try {
+                            const parsed = JSON.parse(codeblock);
+                            codeblock = JSON.stringify(parsed, null, 2);
+                          } catch (error) {
+                            console.error('Error parsing JSON:', error);
+                          }
+                        }
+
                         return match ? (
-                          <SyntaxHighlighter
-                            language={match[1]}
-                            style={oneDark}
-                            PreTag="div"
-                            customStyle={{ maxWidth: '100%', overflowX: 'auto', textAlign: 'left' }}
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
+                          <div style={{ backgroundColor: 'rgb(40, 44, 52)', borderRadius: 'var(--radius-6)' }}>
+                            <p style={{ minWidth: 0, fontFamily: 'inherit', textAlign: 'left', color: 'lightgray', fontWeight: 'bold', fontSize: '1.25em', paddingLeft: '0.825em', paddingTop: '0.5em', marginBottom: '0.5em' }}>
+                              {match[1]}
+                            </p>
+                            <SyntaxHighlighter
+                              language={match[1]}
+                              style={oneDark}
+                              PreTag="div"
+                              customStyle={{ maxWidth: '100%', overflowX: 'auto', textAlign: 'left', paddingTop: '0px' }}
+                            >
+                              {codeblock}
+                            </SyntaxHighlighter>
+                          </div>
                         ) : (
                           <code
                             className={className}

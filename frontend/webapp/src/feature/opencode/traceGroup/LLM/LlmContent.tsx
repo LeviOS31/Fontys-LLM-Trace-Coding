@@ -11,7 +11,7 @@ type Props = {
   llmMessages: LlmMessage[];
   selectedTraceId: string | null;
   selectedSpanId: string | null;
-  selectedMessageRole: 'user' | 'assistant' | null;
+  selectedMessageRole: 'user' | 'assistant' | 'system' | null;
   setSelectedTrace: (traceId: string) => void;
   scrollRequest: number;
   onScrollChange: (

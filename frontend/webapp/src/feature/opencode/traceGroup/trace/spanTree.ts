@@ -5,7 +5,7 @@ export type SpanNode = TraceScopeSpanView & { children: SpanNode[] };
 export type MessageTreeAnchor = {
   relatedTraceId: string;
   relatedSpanId: string;
-  role: 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 };
 
@@ -104,10 +104,58 @@ export function buildMessageAwareSpanTree(
   if (!workflow) return buildDisplaySpanTree(spans) as MessageSpanNode[];
 
   const messageNodes: MessageSpanNode[] = [];
-  const chatSpanIds = [...new Set(messages.map((message) => message.relatedSpanId))];
+  const chatSpanIds = [...new Set(messages.map((message) => message.relatedSpanId))].filter(
+    (spanId) => spans.some((span) => span.traceScopeSpanId === spanId && isChat(span))
+  );
+
+  // Read the system prompt straight off each chat span's own attributes rather than
+  // through `messages`: getLlmMessages() dedupes anchors by content across the whole
+  // trace group, so a span whose system prompt happens to match an earlier trace/span's
+  // would have no surviving anchor of its own — that would make an identical prompt
+  // look "missing" on this span even though it genuinely has one. Reading attributes
+  // directly gives per-span ground truth regardless of that dedup.
+  const systemPromptBySpanId = new Map<string, string>();
+  for (const spanId of chatSpanIds) {
+    const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId);
+    if (!chatSpan) continue;
+    const role = chatSpan.attributes.find((a) => a.key === 'gen_ai.prompt.0.role')?.value;
+    if (role !== 'system') continue;
+    const content = chatSpan.attributes.find((a) => a.key === 'gen_ai.prompt.0.content')?.value;
+    if (content !== undefined) systemPromptBySpanId.set(spanId, content);
+  }
+
+  // If every chat span in this trace carries the exact same system prompt, it's really
+  // one piece of conversation-level context — show it once, above everything. Otherwise
+  // (some spans have none, or they differ), each span's own prompt is shown above that
+  // specific span instead of guessing which one "wins".
+  const allSpansHaveSystemPrompt =
+    chatSpanIds.length > 0 && chatSpanIds.every((spanId) => systemPromptBySpanId.has(spanId));
+  const distinctContents = new Set(systemPromptBySpanId.values());
+  const hoistToTop = allSpansHaveSystemPrompt && distinctContents.size === 1;
+
+  if (hoistToTop) {
+    messageNodes.push({
+      ...workflow,
+      children: [],
+      displayName: [...distinctContents][0],
+      messageRole: 'system',
+      nodeKey: `${workflow.traceScopeSpanId}-system`,
+    });
+  }
+
   for (const spanId of chatSpanIds) {
     const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId && isChat(span));
     if (!chatSpan) continue;
+
+    if (!hoistToTop && systemPromptBySpanId.has(spanId)) {
+      messageNodes.push({
+        ...chatSpan,
+        children: [],
+        displayName: systemPromptBySpanId.get(spanId)!,
+        messageRole: 'system',
+        nodeKey: `${chatSpan.traceScopeSpanId}-system`,
+      });
+    }
 
     const chatMessages = messages.filter(
       (message) => message.relatedSpanId === chatSpan.traceScopeSpanId

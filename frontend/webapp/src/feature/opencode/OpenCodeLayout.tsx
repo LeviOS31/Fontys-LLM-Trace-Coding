@@ -1,5 +1,7 @@
 import { Box, Flex } from '@radix-ui/themes';
 import { Navigate, Outlet, useParams } from 'react-router';
+import { Group as ResizableGroup, Panel as ResizablePanel } from 'react-resizable-panels';
+import CustomResizeHandle from '../../shared/components/CustomResizeHandle';
 import TraceSidebar from './components/TraceSidebar/TraceSidebar.tsx';
 
 type OpenCodeLayoutParams = {
@@ -19,11 +21,22 @@ export default function OpenCodeLayout() {
 
   return (
     <Flex style={{ height: '100vh', minHeight: 0 }}>
-      <TraceSidebar projectId={projectId} projectVersionId={versionId} />
+      <ResizableGroup
+        orientation="horizontal"
+        style={{ width: '100%', height: '100%', minHeight: 0 }}
+      >
+        <ResizablePanel defaultSize={150} minSize={15} maxSize={300}>
+          <TraceSidebar projectId={projectId} projectVersionId={versionId} />
+        </ResizablePanel>
 
-      <Box style={{ flex: 1, minWidth: 0, height: '100%', overflow: 'hidden' }}>
-        <Outlet />
-      </Box>
+        <CustomResizeHandle />
+
+        <ResizablePanel defaultSize={75} minSize={40}>
+          <Box style={{ width: '100%', height: '100%', minWidth: 0, overflow: 'hidden' }}>
+            <Outlet />
+          </Box>
+        </ResizablePanel>
+      </ResizableGroup>
     </Flex>
   );
 }

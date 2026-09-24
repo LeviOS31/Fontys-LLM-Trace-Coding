@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Button, Flex, IconButton, Kbd, ScrollArea, Spinner, Text } from '@radix-ui/themes';
-import { PanelLeftClose, PanelLeftOpen, Upload } from 'lucide-react';
+import { Box, Button, Flex, Kbd, ScrollArea, Spinner, Text } from '@radix-ui/themes';
+import { Upload } from 'lucide-react';
 import { useLocation, useMatch, useNavigate, useSearchParams } from 'react-router';
 import type { TraceGroupSummaryItem } from '../../../../shared/types/trace.ts';
 import { isTyping } from '../../../../shared/util/shortcutHelpers.ts';
@@ -16,12 +16,8 @@ interface Props {
   readonly projectVersionId: string;
 }
 
-const EXPANDED_WIDTH = 320;
-const COLLAPSED_WIDTH = 44;
-
 export default function TraceSidebar({ projectId, projectVersionId }: Readonly<Props>) {
   const navigate = useNavigate();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // The active group comes from the child route, so it is read from the match
@@ -144,15 +140,15 @@ export default function TraceSidebar({ projectId, projectVersionId }: Readonly<P
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [onSentinel, isCollapsed]);
+  }, [onSentinel]);
 
   // Keep the active group in view when it changes (e.g. arrow key navigation).
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
-    if (!activeTraceGroupId || isCollapsed) return;
+    if (!activeTraceGroupId) return;
     itemRefs.current[activeTraceGroupId]?.scrollIntoView({ block: 'nearest' });
-  }, [activeTraceGroupId, isCollapsed, groups.length]);
+  }, [activeTraceGroupId, groups.length]);
 
   const activeIndex = useMemo(
     () => groups.findIndex((group) => group.traceGroupId === activeTraceGroupId),
@@ -187,12 +183,6 @@ export default function TraceSidebar({ projectId, projectVersionId }: Readonly<P
         return;
       }
 
-      if (e.key.toLowerCase() === 't') {
-        e.preventDefault();
-        setIsCollapsed((collapsed) => !collapsed);
-        return;
-      }
-
       // ← / → move between trace groups
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       if (groups.length === 0) return;
@@ -207,151 +197,168 @@ export default function TraceSidebar({ projectId, projectVersionId }: Readonly<P
     return () => globalThis.removeEventListener('keydown', handleKey);
   }, [activeIndex, groups, openTraceGroup]);
 
-  const width = isCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
-
   return (
     <>
       <Box
         asChild
         style={{
-          width,
-          flexShrink: 0,
           height: '100%',
+          width: '100%',
           borderRight: '1px solid var(--gray-a5)',
           backgroundColor: 'var(--gray-a2)',
           overflow: 'hidden',
-          transition: 'width 0.2s ease',
         }}
       >
         <aside aria-label="Traces">
-          <Flex direction="column" style={{ height: '100%', minHeight: 0, width }}>
-            {isCollapsed ? (
-              <Flex justify="center" pt="3">
-                <IconButton
-                  variant="ghost"
-                  color="gray"
-                  size="1"
-                  onClick={() => setIsCollapsed(false)}
-                  aria-label="Expand trace list"
-                >
-                  <PanelLeftOpen size={16} />
-                </IconButton>
-              </Flex>
-            ) : (
-              <>
-                <Flex direction="column" gap="2" p="3" style={{ flexShrink: 0 }}>
-                  <Flex align="center" justify="between" gap="2">
-                    <Flex align="baseline" gap="2" style={{ minWidth: 0 }}>
-                      <Text size="3" weight="bold">
-                        Traces
-                      </Text>
-                      {!isLoading && !isError && (
-                        <Text size="1" color="gray">
-                          {totalCount} group{totalCount === 1 ? '' : 's'}
-                        </Text>
-                      )}
-                    </Flex>
-                    <IconButton
-                      variant="ghost"
-                      color="gray"
-                      size="1"
-                      onClick={() => setIsCollapsed(true)}
-                      aria-label="Collapse trace list"
-                    >
-                      <PanelLeftClose size={16} />
-                    </IconButton>
-                  </Flex>
-
-                  <Button
-                    variant="soft"
-                    onClick={() => setIsImportModalOpen(true)}
-                    disabled={isLoading}
+          <Flex direction="column" style={{ height: '100%', minHeight: 0 }}>
+            <>
+              <Flex direction="column" gap="2" p="3" style={{ flexShrink: 0, minWidth: 0 }}>
+                <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+                  <Text
+                    size="3"
+                    weight="bold"
+                    style={{
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
                   >
-                    <Upload size={16} /> Import trace collection{' '}
-                    <Kbd size="1" style={{ opacity: 0.6 }}>
-                      I
-                    </Kbd>
-                  </Button>
+                    Traces
+                  </Text>
+
+                  {!isLoading && !isError && (
+                    <Text
+                      size="1"
+                      color="gray"
+                      style={{
+                        flexShrink: 1,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {totalCount} group{totalCount === 1 ? '' : 's'}
+                    </Text>
+                  )}
                 </Flex>
 
-                <TraceSidebarFilters
-                  projectId={projectId}
-                  versionId={projectVersionId}
-                  search={search}
-                  setSearch={setSearch}
-                  collectionFilter={collectionFilter}
-                  setCollectionFilter={setCollectionFilter}
-                  hasNoOpenCode={hasNoOpenCode}
-                  setHasNoOpenCode={setHasNoOpenCode}
-                  setSearchParams={updateSearchParam}
-                />
+                <Button
+                  variant="soft"
+                  onClick={() => setIsImportModalOpen(true)}
+                  disabled={isLoading}
+                  style={{
+                    width: '100%',
+                    minWidth: 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Upload
+                    size={16}
+                    style={{
+                      flexShrink: 0,
+                    }}
+                  />
 
-                <Box ref={listContainerRef} style={{ flex: 1, minHeight: 0 }}>
-                  <ScrollArea type="hover" scrollbars="vertical" style={{ height: '100%' }}>
-                    {isLoading && (
-                      <Flex align="center" justify="center" p="6">
-                        <Spinner size="2" />
-                      </Flex>
-                    )}
+                  <Text
+                    style={{
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Import trace collection
+                  </Text>
 
-                    {isError && (
-                      <Flex align="center" justify="center" p="6">
-                        <Text size="2" color="red">
-                          Failed to load traces.
-                        </Text>
-                      </Flex>
-                    )}
+                  <Kbd
+                    size="1"
+                    style={{
+                      opacity: 0.6,
+                      flexShrink: 0,
+                    }}
+                  >
+                    I
+                  </Kbd>
+                </Button>
+              </Flex>
 
-                    {!isLoading && !isError && groups.length === 0 && (
-                      <Flex align="center" justify="center" p="6">
-                        <Text size="2" color="gray" align="center">
-                          No trace groups found.
-                        </Text>
-                      </Flex>
-                    )}
+              <TraceSidebarFilters
+                projectId={projectId}
+                versionId={projectVersionId}
+                search={search}
+                setSearch={setSearch}
+                collectionFilter={collectionFilter}
+                setCollectionFilter={setCollectionFilter}
+                hasNoOpenCode={hasNoOpenCode}
+                setHasNoOpenCode={setHasNoOpenCode}
+                setSearchParams={updateSearchParam}
+              />
 
-                    {groups.map((group) => (
-                      <Box
-                        key={group.traceGroupId}
-                        ref={(el) => {
-                          itemRefs.current[group.traceGroupId] = el;
-                        }}
+              <Box ref={listContainerRef} style={{ flex: 1, minHeight: 0 }}>
+                <ScrollArea type="hover" scrollbars="vertical" style={{ height: '100%' }}>
+                  {isLoading && (
+                    <Flex align="center" justify="center" p="6">
+                      <Spinner size="2" />
+                    </Flex>
+                  )}
+
+                  {isError && (
+                    <Flex align="center" justify="center" p="6">
+                      <Text size="2" color="red">
+                        Failed to load traces.
+                      </Text>
+                    </Flex>
+                  )}
+
+                  {!isLoading && !isError && groups.length === 0 && (
+                    <Flex align="center" justify="center" p="6">
+                      <Text size="2" color="gray" align="center">
+                        No trace groups found.
+                      </Text>
+                    </Flex>
+                  )}
+
+                  {groups.map((group) => (
+                    <Box
+                      key={group.traceGroupId}
+                      ref={(el) => {
+                        itemRefs.current[group.traceGroupId] = el;
+                      }}
+                    >
+                      <TraceSidebarItem
+                        group={group}
+                        isActive={group.traceGroupId === activeTraceGroupId}
+                        isExpanded={isGroupExpanded(group.traceGroupId)}
+                        onClick={() => openTraceGroup(group.traceGroupId)}
+                        onToggleExpand={() => toggleGroup(group.traceGroupId)}
                       >
-                        <TraceSidebarItem
-                          group={group}
-                          isActive={group.traceGroupId === activeTraceGroupId}
-                          isExpanded={isGroupExpanded(group.traceGroupId)}
-                          onClick={() => openTraceGroup(group.traceGroupId)}
-                          onToggleExpand={() => toggleGroup(group.traceGroupId)}
-                        >
-                          {isGroupExpanded(group.traceGroupId) && (
-                            <TraceSidebarTraceList
-                              projectId={projectId}
-                              projectVersionId={projectVersionId}
-                              traceGroupId={group.traceGroupId}
-                              activeTraceId={activeTraceId}
-                              isActiveGroup={group.traceGroupId === activeTraceGroupId}
-                              onSelectTrace={(traceId) =>
-                                openTraceGroup(group.traceGroupId, traceId)
-                              }
-                            />
-                          )}
-                        </TraceSidebarItem>
-                      </Box>
-                    ))}
+                        {isGroupExpanded(group.traceGroupId) && (
+                          <TraceSidebarTraceList
+                            projectId={projectId}
+                            projectVersionId={projectVersionId}
+                            traceGroupId={group.traceGroupId}
+                            activeTraceId={activeTraceId}
+                            isActiveGroup={group.traceGroupId === activeTraceGroupId}
+                            onSelectTrace={(traceId) => openTraceGroup(group.traceGroupId, traceId)}
+                          />
+                        )}
+                      </TraceSidebarItem>
+                    </Box>
+                  ))}
 
-                    {/* Infinite scroll sentinel */}
-                    <Box ref={sentinelRef} style={{ height: 5 }} />
+                  {/* Infinite scroll sentinel */}
+                  <Box ref={sentinelRef} style={{ height: 5 }} />
 
-                    {isFetchingNextPage && (
-                      <Flex align="center" justify="center" p="3">
-                        <Spinner size="1" />
-                      </Flex>
-                    )}
-                  </ScrollArea>
-                </Box>
-              </>
-            )}
+                  {isFetchingNextPage && (
+                    <Flex align="center" justify="center" p="3">
+                      <Spinner size="1" />
+                    </Flex>
+                  )}
+                </ScrollArea>
+              </Box>
+            </>
           </Flex>
         </aside>
       </Box>

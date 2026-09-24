@@ -103,7 +103,9 @@ export default function TraceGroupPage() {
   );
 
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
-  const [scrollMessageRole, setScrollMessageRole] = useState<'user' | 'assistant' | null>(null);
+  const [scrollMessageRole, setScrollMessageRole] = useState<
+    'user' | 'assistant' | 'system' | null
+  >(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
@@ -193,8 +195,10 @@ export default function TraceGroupPage() {
                   setScrollMessageRole(role);
                 }}
                 messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
-                    message.role === 'user' || message.role === 'assistant'
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+                    message.role === 'user' ||
+                    message.role === 'assistant' ||
+                    message.role === 'system'
                 )}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}
@@ -248,8 +252,10 @@ export default function TraceGroupPage() {
                   setScrollMessageRole(role);
                 }}
                 messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' } =>
-                    message.role === 'user' || message.role === 'assistant'
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+                    message.role === 'user' ||
+                    message.role === 'assistant' ||
+                    message.role === 'system'
                 )}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}

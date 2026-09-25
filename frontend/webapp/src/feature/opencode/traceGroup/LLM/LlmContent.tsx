@@ -85,11 +85,10 @@ export function LlmContent({
   selectedTraceId,
   selectedSpanId,
   selectedMessageRole,
-  setSelectedTrace,
   scrollRequest,
   onScrollChange,
 }: Readonly<Props>) {
-  const [relatedTraceHover, setRelatedTraceHover] = useState<string | null>(null);
+  const [relatedTraceHover] = useState<string | null>(null);
 
   const uniqueTraces = useMemo(
     () => Array.from(new Set(llmMessages.map((msg) => msg.relatedTraceId))),

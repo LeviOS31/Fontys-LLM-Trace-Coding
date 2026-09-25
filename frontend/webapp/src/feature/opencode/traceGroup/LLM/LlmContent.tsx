@@ -7,6 +7,12 @@ import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
+import prettier from 'prettier/standalone';
+import babelPlugin from 'prettier/plugins/babel';
+import estreePlugin from 'prettier/plugins/estree';
+import htmlPlugin from 'prettier/plugins/html';
+import postcssPlugin from 'prettier/plugins/postcss';
+
 type Props = {
   llmMessages: LlmMessage[];
   selectedTraceId: string | null;
@@ -20,6 +26,50 @@ type Props = {
     role: 'user' | 'assistant' | null
   ) => void;
 };
+
+async function FormatCode(language: string, codeString: string): Promise<string> {
+  const lang = (language || '').toLowerCase();
+
+  // 1. Handle JSON natively
+  if (lang === 'json') {
+    try {
+      return JSON.stringify(JSON.parse(codeString), null, 2);
+    } catch {
+      return codeString;
+    }
+  }
+
+  // 2. Prettier Parser Mapping
+  let parser: string | null = null;
+  let plugins: any[] = [];
+
+  if (['js', 'jsx', 'javascript', 'ts', 'typescript'].includes(lang)) {
+    parser = 'babel';
+    plugins = [babelPlugin, estreePlugin];
+  } else if (['html', 'xml', 'svg'].includes(lang)) {
+    parser = 'html';
+    plugins = [htmlPlugin];
+  } else if (['css', 'scss', 'less'].includes(lang)) {
+    parser = 'css';
+    plugins = [postcssPlugin];
+  }
+
+  if (parser) {
+    try {
+      return await prettier.format(codeString, {
+        parser,
+        plugins,
+        tabWidth: 2,
+        useTabs: false,
+      });
+    } catch (e) {
+      console.warn(`Prettier formatting failed for language "${lang}":`, e);
+      return codeString;
+    }
+  }
+
+  return codeString;
+}
 
 // Strip leading whitespace per line so markdown never mistakes
 // indented user text for a fenced code block.
@@ -162,21 +212,13 @@ export function LlmContent({
                 )}
             <Box
               key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
-              onClick={() => setSelectedTrace(msg.relatedTraceId)}
               style={{
-                cursor: index === 0 ? 'auto' : 'pointer',
                 backgroundColor:
                   (relatedTraceHover === msg.relatedTraceId ||
                     selectedTraceId === msg.relatedTraceId)
                     ? msg.role === 'system' ? 'var(--blue-a4)' : 'var(--accent-a3)'
                     : 'transparent',
                 borderBottom: index === llmMessages.length - 1 ? 'none' : '2px solid var(--gray-5)',
-              }}
-              onMouseEnter={() => {
-                if (index !== 0) setRelatedTraceHover(msg.relatedTraceId);
-              }}
-              onMouseLeave={() => {
-                setRelatedTraceHover(null);
               }}
               px="4"
               py="1"
@@ -239,16 +281,15 @@ export function LlmContent({
                           {children}
                         </pre>
                       ),
-                      code({ className, children, ...props }) {
+                      async code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '');
                         let codeblock = String(children).replace(/\n$/, '');
 
-                        if ( match && match[1] === 'json') {
+                        if ( match) {
                           try {
-                            const parsed = JSON.parse(codeblock);
-                            codeblock = JSON.stringify(parsed, null, 2);
+                            codeblock = await FormatCode(match[1], codeblock);
                           } catch (error) {
-                            console.error('Error parsing JSON:', error);
+                            console.error('Error parsing', error);
                           }
                         }
 

@@ -1,4 +1,4 @@
-import { Badge, Box, Flex, Heading, ScrollArea, Text } from '@radix-ui/themes';
+import { Badge, Box, Flex, Heading, ScrollArea, Text, Tooltip } from '@radix-ui/themes';
 import {
   ChevronDown,
   ChevronRight,
@@ -85,6 +85,7 @@ function SpanTree({
   setSelectedNodeKey,
 }: Readonly<SpanTreeProps>) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   return (
     <Flex direction="column" style={{ minWidth: 0 }}>
@@ -97,8 +98,10 @@ function SpanTree({
         const messageSpan = span as MessageSpanNode;
         const nodeKey = messageSpan.nodeKey ?? span.traceScopeSpanId;
         const isSelected = selectedNodeKey === nodeKey;
+        const isHovered = hoveredKey === nodeKey;
         const Icon = getTreeIcon(span, messageSpan.messageRole);
         const indent = Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PX;
+        const label = messageSpan.displayName ?? span.name;
 
         const handleSelect = () => {
           setSelectedNodeKey?.(nodeKey);
@@ -120,14 +123,24 @@ function SpanTree({
               align="center"
               gap="1"
               onClick={handleSelect}
+              onMouseEnter={() => setHoveredKey(nodeKey)}
+              onMouseLeave={() =>
+                setHoveredKey((current) => (current === nodeKey ? null : current))
+              }
               data-node-key={nodeKey}
               style={{
                 minHeight: 24,
                 padding: '2px 6px',
                 borderLeft: isSelected ? '2px solid var(--accent-9)' : '2px solid transparent',
-                backgroundColor: isSelected ? 'var(--accent-a3)' : 'transparent',
+                borderRadius: 4,
+                backgroundColor: isSelected
+                  ? 'var(--accent-a3)'
+                  : isHovered
+                    ? 'var(--gray-a3)'
+                    : 'transparent',
                 cursor: 'pointer',
                 minWidth: 0,
+                transition: 'background-color 100ms ease',
               }}
             >
               {hasChildren ? (
@@ -163,20 +176,22 @@ function SpanTree({
                 <Box style={{ width: 16, minWidth: 16, height: 16, flexShrink: 0 }} />
               )}
               <Icon size={13} style={{ flexShrink: 0 }} />
-              <Text
-                size="1"
-                color={isSelected ? undefined : 'gray'}
-                weight={isSelected ? 'bold' : 'regular'}
-                style={{
-                  minWidth: 0,
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {messageSpan.displayName ?? span.name}
-              </Text>
+              <Tooltip content={label} side="right" sideOffset={6}>
+                <Text
+                  size="1"
+                  color={isSelected ? undefined : 'gray'}
+                  weight={isSelected ? 'bold' : 'regular'}
+                  style={{
+                    minWidth: 0,
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {label}
+                </Text>
+              </Tooltip>
             </Flex>
 
             {hasChildren && !isCollapsed && (

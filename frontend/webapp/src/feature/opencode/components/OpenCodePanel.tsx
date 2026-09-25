@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { Plus, SquarePen, Trash, X } from 'lucide-react';
-import { Box, Button, Flex, TextArea, Text, Badge } from '@radix-ui/themes';
+import { AlertDialog, Box, Button, Flex, TextArea, Text, Badge } from '@radix-ui/themes';
 import type { TraceDetailView } from '../../../shared/types/trace.ts';
 import { isTyping } from '../../../shared/util/shortcutHelpers.ts';
 import { useAddOpencode } from '../hooks/useAddOpencode.ts';
@@ -22,6 +22,7 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
 
   const [openCode, setOpenCode] = useState(savedOpencode);
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -30,6 +31,7 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenCode(savedOpencode);
     setIsEditing(false);
+    setIsDeleteOpen(false);
   }, [traceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStartEditing = () => {
@@ -79,6 +81,7 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
         onSuccess: () => {
           setOpenCode('');
           setIsEditing(false);
+          setIsDeleteOpen(false);
         },
       }
     );
@@ -202,15 +205,38 @@ export default function OpenCodePanel({ selectedTrace, projectId, versionId }: P
           </Box>
 
           <Flex justify="end" gap="2" style={{ flexShrink: 0, width: '100%' }}>
-            <Button
-              variant="soft"
-              color="red"
-              onClick={handleDelete}
-              disabled={isPending}
-              style={{ flex: 1 }}
-            >
-              Delete <Trash size={15} color="var(--red-9)" style={{ flexShrink: 0 }} />
-            </Button>
+            <AlertDialog.Root open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+              <AlertDialog.Trigger>
+                <Button variant="soft" color="red" disabled={isPending} style={{ flex: 1 }}>
+                  Delete <Trash size={15} color="var(--red-9)" style={{ flexShrink: 0 }} />
+                </Button>
+              </AlertDialog.Trigger>
+              <AlertDialog.Content maxWidth="420px">
+                <AlertDialog.Title>Delete Open Code</AlertDialog.Title>
+                <AlertDialog.Description size="2">
+                  This will permanently remove the open code for this trace. This action cannot be
+                  undone.
+                </AlertDialog.Description>
+
+                <Flex gap="3" mt="4" justify="end">
+                  <AlertDialog.Cancel>
+                    <Button variant="soft" color="gray" disabled={isPending}>
+                      Cancel
+                    </Button>
+                  </AlertDialog.Cancel>
+
+                  <Button
+                    variant="solid"
+                    color="red"
+                    onClick={handleDelete}
+                    disabled={isPending}
+                    style={{ minWidth: isPending ? '100px' : undefined }}
+                  >
+                    {isPending ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </Flex>
+              </AlertDialog.Content>
+            </AlertDialog.Root>
 
             <Button
               variant="soft"

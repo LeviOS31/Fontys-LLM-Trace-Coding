@@ -11,15 +11,23 @@ public static class FilterExtensions
     )
     {
         ["search"] = (query, value) =>
-            query.Where(t =>
+        {
+            var pattern = $"%{EscapeLikePattern(value ?? string.Empty)}%";
+
+            return query.Where(t =>
                 t.TraceScopes.Any(tc =>
                     tc.TraceScopeSpans.Any(tss =>
+                        // 1. Match against Span Name
+                        EF.Functions.ILike(tss.Name, pattern, "\\") ||
+
+                        // 2. OR match against any Span Attribute Value
                         tss.SpanAttributes.Any(sa =>
-                            EF.Functions.ILike(sa.Value, $"%{EscapeLikePattern(value ?? string.Empty)}%", "\\")
+                            EF.Functions.ILike(sa.Value, pattern, "\\")
                         )
                     )
                 )
-            ),
+            );
+        },
 
         ["traceCollection"] = (query, value) =>
             Guid.TryParse(value, out var traceCollectionId)

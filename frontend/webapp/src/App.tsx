@@ -7,6 +7,7 @@ const HomePage = React.lazy(() => import('./feature/home/HomePage.tsx'));
 const TracesPage = React.lazy(() => import('./feature/traces/TracesPage.tsx'));
 const ProjectPage = React.lazy(() => import('./feature/projects/ProjectPage.tsx'));
 const OverviewPage = React.lazy(() => import('./feature/overview/OverviewPage.tsx'));
+const OpenCodeLayout = React.lazy(() => import('./feature/opencode/OpenCodeLayout.tsx'));
 const OpenCodePage = React.lazy(() => import('./feature/opencode/OpenCodePage.tsx'));
 const AxialCodePage = React.lazy(() => import('./feature/axialcode/AxialCodePage.tsx'));
 const JudgeTemplatePage = React.lazy(() => import('./feature/judgeTemplate/JudgeTemplatePage.tsx'));
@@ -53,18 +54,27 @@ function App() {
           path="/projects/:id/versions/:versionId/open-code"
           element={
             <Suspense fallback={null}>
-              <OpenCodePage />
+              <OpenCodeLayout />
             </Suspense>
           }
-        />
-        <Route
-          path="/projects/:id/versions/:versionId/open-code/:traceGroupId"
-          element={
-            <Suspense fallback={null}>
-              <TraceGroupPage />
-            </Suspense>
-          }
-        />
+        >
+          <Route
+            index
+            element={
+              <Suspense fallback={null}>
+                <OpenCodePage />
+              </Suspense>
+            }
+          />
+          <Route
+            path=":traceGroupId"
+            element={
+              <Suspense fallback={null}>
+                <TraceGroupPage />
+              </Suspense>
+            }
+          />
+        </Route>
         <Route
           path="/projects/:id/versions/:versionId/axial-code"
           element={

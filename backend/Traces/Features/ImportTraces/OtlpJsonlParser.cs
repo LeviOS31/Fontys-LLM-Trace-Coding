@@ -64,12 +64,17 @@ public class OtlpJsonlParser
     }
 
     /// <summary>
-    /// Parses a JSONL string into an array of <see cref="TracesData"/> proto objects.
-    /// Each line is expected to be a valid JSON object representing a single trace.
+    /// Parses a string into an array of <see cref="TracesData"/> proto objects.
+    /// Accepts either JSONL (one JSON object per line, or several concatenated JSON
+    /// values), a single JSON array of trace objects, or a mix of both across the file.
+    /// Spans that share a <c>traceId</c> are always merged into a single
+    /// <see cref="TracesData"/>, regardless of whether they originated from the same
+    /// top-level JSON value or different ones (e.g. batched OTLP exports where a trace's
+    /// spans are split across multiple lines/objects).
     /// </summary>
-    /// <param name="jsonl">The JSONL string to parse.</param>
+    /// <param name="jsonl">The JSON/JSONL string to parse.</param>
     /// <param name="cancellationToken">Token to cancel the async operation.</param>
-    /// <returns>An array of deserialized <see cref="TracesData"/> instances.</returns>
+    /// <returns>An array of deserialized, traceId-merged <see cref="TracesData"/> instances.</returns>
     private static async ValueTask<TracesData[]> ConvertJsonToTracesData(
         string jsonl,
         CancellationToken cancellationToken
@@ -78,7 +83,9 @@ public class OtlpJsonlParser
         await using var reader = new JsonTextReader(new StringReader(jsonl));
         reader.SupportMultipleContent = true;
 
-        var serializer = JsonSerializer.Create();
+        // Collect every parsed trace object first, from every top-level JSON value in
+        // the file (whether that value was a bare object or an array of objects).
+        // Merging happens once, globally, at the end — see MergeTracesById below.
         var traces = new List<TracesData>();
 
         while (await reader.ReadAsync(cancellationToken))
@@ -87,13 +94,10 @@ public class OtlpJsonlParser
 
             if (jsonValue is JArray jsonArray)
             {
-                var arrayTraces = new List<TracesData>();
                 foreach (var item in jsonArray.OfType<JObject>())
                 {
-                    AddTrace(item, arrayTraces);
+                    AddTrace(item, traces);
                 }
-
-                traces.AddRange(MergeArrayTraces(arrayTraces));
             }
             else if (jsonValue is JObject jsonObject)
             {
@@ -101,7 +105,7 @@ public class OtlpJsonlParser
             }
         }
 
-        return traces.ToArray();
+        return MergeTracesById(traces).ToArray();
     }
 
     private static void AddTrace(JObject jsonObject, ICollection<TracesData> traces)
@@ -113,7 +117,13 @@ public class OtlpJsonlParser
         }
     }
 
-    private static IEnumerable<TracesData> MergeArrayTraces(IEnumerable<TracesData> input)
+    /// <summary>
+    /// Merges spans from every parsed <see cref="TracesData"/> that share the same
+    /// <c>traceId</c> into a single <see cref="TracesData"/>, so a trace whose spans were
+    /// split across multiple top-level JSON documents (lines, batches, or array entries)
+    /// is reassembled into one complete span tree.
+    /// </summary>
+    private static IEnumerable<TracesData> MergeTracesById(IEnumerable<TracesData> input)
     {
         var tracesById = new Dictionary<string, TracesData>(StringComparer.OrdinalIgnoreCase);
 

@@ -5,6 +5,7 @@ export interface JudgeTemplate {
   description: string;
   template: string;
   isDeprecated: boolean;
+  currentVersionNumber?: number;
 }
 
 export interface GetJudgeTemplatesResponse {
@@ -23,3 +24,14 @@ export interface CreateJudgeTemplateResponse {
 export interface UpdateJudgeTemplatePayload {
   content: string;
 }
+
+export interface JudgeTemplateVersion {
+  versionNumber: number;
+  content: string;
+  createdAt: string;
+}
+
+export interface GetJudgeTemplateVersionsResponse {
+  versions: JudgeTemplateVersion[];
+}
+

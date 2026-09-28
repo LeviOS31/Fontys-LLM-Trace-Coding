@@ -20,6 +20,8 @@ public class JudgeTemplate
     public Guid ProjectVersionId { get; set; }
     public bool IsDeprecated { get; set; }
 
+    public int? CurrentVersionNumber { get; set; }
+
     // Null = still using the auto-generated template from the axial code.
     // Set once a user saves an edit; unbounded, since prompt text with
     // examples/notes can run long.

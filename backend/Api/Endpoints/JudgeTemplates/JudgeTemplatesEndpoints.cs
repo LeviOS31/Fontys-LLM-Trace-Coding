@@ -4,6 +4,9 @@ using JudgeTemplates.Feature.CreateJudgeTemplate;
 using JudgeTemplates.Feature.DeleteJudgeTemplate;
 using JudgeTemplates.Feature.GetJudgeTemplates;
 using JudgeTemplates.Feature.UpdateJudgeTemplate;
+using JudgeTemplates.Feature.GetJudgeTemplateVersions;
+using JudgeTemplates.Feature.DeleteJudgeTemplateVersion;
+using JudgeTemplates.Feature.RestoreJudgeTemplateVersion;
 using Mediator;
 
 namespace Api.Endpoints.JudgeTemplates;
@@ -37,6 +40,47 @@ public static class JudgeTemplatesEndpoints
                 }
             )
             .WithTags("JudgeTemplates");
+
+        app.MapPost(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-templates/{judgeTemplateId:guid}/versions/{versionNumber:int}/restore",
+            async (
+                Guid projectId,
+                Guid projectVersionId,
+                Guid judgeTemplateId,
+                int versionNumber,
+                IMediator mediator
+            ) =>
+            {
+                var request = new RestoreJudgeTemplateVersionRequest
+                {
+                    UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
+                    ProjectId = projectId,
+                    ProjectVersionId = projectVersionId,
+                    JudgeTemplateId = judgeTemplateId,
+                    VersionNumber = versionNumber,
+                };
+                var result = await mediator.Send(request);
+                return result.ToHttpResult();
+            }
+        )
+        .WithTags("JudgeTemplates");
+
+        app.MapGet(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-templates/{judgeTemplateId:guid}/versions",
+            async (Guid projectId, Guid projectVersionId, Guid judgeTemplateId, IMediator mediator) =>
+            {
+                var request = new GetJudgeTemplateVersionsRequest
+                {
+                    UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
+                    ProjectId = projectId,
+                    ProjectVersionId = projectVersionId,
+                    JudgeTemplateId = judgeTemplateId,
+                };
+                var result = await mediator.Send(request);
+                return result.ToHttpResult();
+            }
+        )
+        .WithTags("JudgeTemplates");
 
         app.MapGet(
                 "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-templates",
@@ -93,6 +137,31 @@ public static class JudgeTemplatesEndpoints
                     };
                     var result = await mediator.Send(request);
 
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("JudgeTemplates");
+
+
+            app.MapDelete(
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-templates/{judgeTemplateId:guid}/versions/{versionNumber:int}",
+                async (
+                    Guid projectId,
+                    Guid projectVersionId,
+                    Guid judgeTemplateId,
+                    int versionNumber,
+                    IMediator mediator
+                ) =>
+                {
+                    var request = new DeleteJudgeTemplateVersionRequest
+                    {
+                        UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
+                        ProjectId = projectId,
+                        ProjectVersionId = projectVersionId,
+                        JudgeTemplateId = judgeTemplateId,
+                        VersionNumber = versionNumber,
+                    };
+                    var result = await mediator.Send(request);
                     return result.ToHttpResult();
                 }
             )

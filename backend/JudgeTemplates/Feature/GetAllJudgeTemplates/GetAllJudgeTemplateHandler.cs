@@ -73,6 +73,7 @@ public class GetAllJudgeTemplateHandler
                     Description = jt.JudgeTemplateDescription,
                     Template = template,
                     IsDeprecated = jt.IsDeprecated,
+                    CurrentVersionNumber = jt.CurrentVersionNumber,
                 };
             }),
         };

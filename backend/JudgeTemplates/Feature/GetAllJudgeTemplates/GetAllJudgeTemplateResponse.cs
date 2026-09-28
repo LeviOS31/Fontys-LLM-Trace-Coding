@@ -12,5 +12,6 @@ public record GetAllJudgeTemplateResponse
         public required string Description { get; init; }
         public required string Template { get; init; }
         public required bool IsDeprecated { get; init; }
+        public int? CurrentVersionNumber { get; init; }
     }
 }

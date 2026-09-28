@@ -15,4 +15,5 @@ public enum ErrorCode
     LlmError,
     NoOpenCodes,
     LlmConfigError,
+    InvalidOperation,
 }

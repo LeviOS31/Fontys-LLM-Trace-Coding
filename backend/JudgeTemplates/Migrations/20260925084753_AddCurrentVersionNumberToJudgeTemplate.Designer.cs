@@ -3,6 +3,7 @@ using System;
 using JudgeTemplates.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace JudgeTemplates.Migrations
 {
     [DbContext(typeof(JudgeTemplatesDbContext))]
-    partial class JudgeTemplatesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925084753_AddCurrentVersionNumberToJudgeTemplate")]
+    partial class AddCurrentVersionNumberToJudgeTemplate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

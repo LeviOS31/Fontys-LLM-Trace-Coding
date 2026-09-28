@@ -3,6 +3,7 @@ using System;
 using JudgeTemplates.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace JudgeTemplates.Migrations
 {
     [DbContext(typeof(JudgeTemplatesDbContext))]
-    partial class JudgeTemplatesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260922212636_AddJudgeTemplateVersions")]
+    partial class AddJudgeTemplateVersions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,9 +33,6 @@ namespace JudgeTemplates.Migrations
 
                     b.Property<Guid>("AxialCodeId")
                         .HasColumnType("uuid");
-
-                    b.Property<int?>("CurrentVersionNumber")
-                        .HasColumnType("integer");
 
                     b.Property<string>("CustomJudgeTemplateContent")
                         .HasMaxLength(2147483647)

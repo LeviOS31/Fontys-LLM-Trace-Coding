@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { Box, Flex, Kbd, Text, TextField } from '@radix-ui/themes';
 import { Scale, Search } from 'lucide-react';
-import type { JudgeTemplate } from '../../shared/types/judgeTemplate.ts';
 import { useGetJudgeTemplates } from './hooks/useGetJudgeTemplates.ts';
 import { useCreateJudgeTemplate } from './hooks/useCreateJudgeTemplate.ts';
 import { useDeleteJudgeTemplate } from './hooks/useDeleteJudgeTemplate.ts';

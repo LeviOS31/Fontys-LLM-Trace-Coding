@@ -68,7 +68,7 @@ namespace Traces.Migrations
                     TraceScopeId = table.Column<Guid>(type: "uuid", nullable: false),
                     TraceId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    Version = table.Column<string>(type: "character varying(2560)", maxLength: 2560, nullable: false)
+                    Version = table.Column<string>(type: "character varying(16384)", maxLength: 16384, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -109,7 +109,7 @@ namespace Traces.Migrations
                 {
                     SpanId = table.Column<Guid>(type: "uuid", nullable: false),
                     Key = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    Value = table.Column<string>(type: "character varying(2560)", maxLength: 2560, nullable: false),
+                    Value = table.Column<string>(type: "character varying(16384)", maxLength: 16384, nullable: false),
                     TraceAttributeType = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
@@ -149,7 +149,7 @@ namespace Traces.Migrations
                 {
                     SpanEventId = table.Column<Guid>(type: "uuid", nullable: false),
                     Key = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    Value = table.Column<string>(type: "character varying(2560)", maxLength: 2560, nullable: false),
+                    Value = table.Column<string>(type: "character varying(16384)", maxLength: 16384, nullable: false),
                     TraceAttributeType = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>

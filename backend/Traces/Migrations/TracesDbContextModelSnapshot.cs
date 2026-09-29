@@ -17,7 +17,7 @@ namespace Traces.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -36,8 +36,8 @@ namespace Traces.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(2560)
-                        .HasColumnType("character varying(2560)");
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
 
                     b.HasKey("SpanId", "Key");
 
@@ -82,8 +82,8 @@ namespace Traces.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(2560)
-                        .HasColumnType("character varying(2560)");
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
 
                     b.HasKey("SpanEventId", "Key");
 
@@ -106,9 +106,6 @@ namespace Traces.Migrations
                     b.Property<Guid?>("TraceGroupId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("TraceGroupId1")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -117,8 +114,6 @@ namespace Traces.Migrations
                     b.HasIndex("TraceCollectionId");
 
                     b.HasIndex("TraceGroupId");
-
-                    b.HasIndex("TraceGroupId1");
 
                     b.ToTable("Traces");
                 });
@@ -197,8 +192,8 @@ namespace Traces.Migrations
 
                     b.Property<string>("Version")
                         .IsRequired()
-                        .HasMaxLength(2560)
-                        .HasColumnType("character varying(2560)");
+                        .HasMaxLength(16384)
+                        .HasColumnType("character varying(16384)");
 
                     b.HasKey("TraceScopeId");
 
@@ -281,13 +276,9 @@ namespace Traces.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Traces.Data.Models.TraceGroup", null)
+                    b.HasOne("Traces.Data.Models.TraceGroup", "TraceGroup")
                         .WithMany("Traces")
                         .HasForeignKey("TraceGroupId");
-
-                    b.HasOne("Traces.Data.Models.TraceGroup", "TraceGroup")
-                        .WithMany()
-                        .HasForeignKey("TraceGroupId1");
 
                     b.Navigation("TraceCollection");
 

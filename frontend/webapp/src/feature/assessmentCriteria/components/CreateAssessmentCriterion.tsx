@@ -7,12 +7,16 @@ import {
 } from '../../../shared/types/assessmentCriterion.ts';
 import { useCreateAssessmentCriterion } from '../hooks/useCreateAssessmentCriterion.ts';
 
-export function CreateAssessmentCriterion() {
+interface CreateAssessmentCriterionProps {
+  projectId: string;
+}
+
+export function CreateAssessmentCriterion({projectId}: Readonly<CreateAssessmentCriterionProps>) {
   const [criterion, setCriterion] = useState('');
   const criterionIsValid =
     criterion.trim().length > ASSESSMENT_CRITERION_MIN_LENGTH &&
     criterion.trim().length < ASSESSMENT_CRITERION_MAX_LENGTH;
-  const { mutate: createCriterion, isPending } = useCreateAssessmentCriterion();
+  const { mutate: createCriterion, isPending } = useCreateAssessmentCriterion(projectId);
 
   function submit() {
     if (!criterionIsValid || isPending) return;

@@ -66,7 +66,7 @@ export function AssessmentCriteriaContainer({
 
       {/* Create criterion */}
       <Box style={{ flexShrink: 0 }}>
-        <CreateAssessmentCriterion />
+        <CreateAssessmentCriterion projectId={projectId}/>
       </Box>
     </Flex>
   );

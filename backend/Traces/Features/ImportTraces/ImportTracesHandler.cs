@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Proto.Common.V1;
 using OpenTelemetry.Proto.Trace.V1;
 using Projects.Contracts.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Serilog;
 using Shared;
 using Traces.Data;
@@ -51,7 +51,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         //
         // Validate correct project version
         //
-        var getProjectVersionsQuery = new InternalGetProjectVersionsQuery { ProjectId = request.ProjectId };
+        var getProjectVersionsQuery = new GetAllProjectVersionsQuery { ProjectId = request.ProjectId };
         var getProjectVersionsResult = await _mediator.Send(getProjectVersionsQuery, cancellationToken);
 
         if (!getProjectVersionsResult.IsSuccess)
@@ -167,9 +167,14 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
 
             foreach (var resourceSpan in traceData.ResourceSpans)
             {
+                var spanIdMap = new Dictionary<string, Guid>();
                 foreach (var scopeSpan in resourceSpan.ScopeSpans)
                 {
-                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans);
+                    AddTraceScope(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap);
+                }
+                foreach (var scopeSpan in resourceSpan.ScopeSpans)
+                {
+                    AddParentChildRelation(trace, scopeSpan.Scope, scopeSpan.Spans, spanIdMap);
                 }
             }
         }
@@ -191,7 +196,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         }
     }
 
-    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans)
+    private void AddTraceScope(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string, Guid> spanIdMap)
     {
         var traceScope = new TraceScope
         {
@@ -202,7 +207,6 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
         };
         _tracesDbContext.TraceScopes.Add(traceScope);
 
-        var spanIdMap = new Dictionary<string, Guid>();
         var spanList = spans.ToList();
 
         foreach (var span in spanList)
@@ -224,7 +228,11 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
             AddSpanEvents(traceSpan, span.Events);
             AddSpanAttributes(traceSpan, span.Attributes);
         }
+    }
 
+    private void AddParentChildRelation(Trace trace, InstrumentationScope scope, IEnumerable<Span> spans, Dictionary<string, Guid> spanIdMap)
+    {
+        var spanList = spans.ToList();
         foreach (var span in spanList)
         {
             var parentSpanId = Convert.ToHexString(span.ParentSpanId.Span);
@@ -258,7 +266,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
                 {
                     SpanEventId = spanEventInDb.EventId,
                     Key = spanEventAttribute.Key,
-                    Value = TruncateString(GetAnyValueAsString(spanEventAttribute.Value), 2560),
+                    Value = TruncateString(GetAnyValueAsString(spanEventAttribute.Value), 16384),
                     TraceAttributeType = GetTraceAttributeType(spanEventAttribute.Value),
                 };
                 _tracesDbContext.SpanEventAttributes.Add(spanEventAtributeInDb);
@@ -274,7 +282,7 @@ public class ImportTracesHandler : IRequestHandler<ImportTracesRequest, Result<I
             {
                 SpanId = traceScopeSpan.TraceScopeSpanId,
                 Key = spanAttribute.Key,
-                Value = TruncateString(GetAnyValueAsString(spanAttribute.Value), 2560),
+                Value = TruncateString(GetAnyValueAsString(spanAttribute.Value), 16384),
                 TraceAttributeType = GetTraceAttributeType(spanAttribute.Value),
             };
             _tracesDbContext.SpanAttributes.Add(attribute);

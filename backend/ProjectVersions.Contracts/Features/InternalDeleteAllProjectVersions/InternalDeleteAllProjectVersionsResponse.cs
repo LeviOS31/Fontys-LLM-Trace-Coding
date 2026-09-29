@@ -1,3 +1,0 @@
-namespace ProjectVersions.Contracts.Features.InternalDeleteAllProjectVersions;
-
-public record InternalDeleteAllProjectVersionsResponse { }

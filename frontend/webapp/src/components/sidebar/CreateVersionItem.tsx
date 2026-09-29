@@ -1,13 +1,44 @@
-import { Box, Button, Flex, Text } from '@radix-ui/themes';
+import { Box, Button, Flex, IconButton, Text, Tooltip } from '@radix-ui/themes';
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { CreateVersionModal } from '../../feature/versions/components/CreateVersionModal';
 
 interface CreateVersionItemProps {
+  readonly collapsed?: boolean;
   readonly projectId: string;
 }
 
-export function CreateVersionItem({ projectId }: Readonly<CreateVersionItemProps>) {
+export function CreateVersionItem({
+  collapsed = false,
+  projectId,
+}: Readonly<CreateVersionItemProps>) {
   const [isCreateVersionModalOpen, setIsCreateVersionModalOpen] = useState(false);
+
+  if (collapsed) {
+    return (
+      <>
+        <Flex justify="center" my="1">
+          <Tooltip content="New version" side="right" sideOffset={8}>
+            <IconButton
+              variant="ghost"
+              color="gray"
+              size="2"
+              onClick={() => setIsCreateVersionModalOpen(true)}
+              aria-label="New version"
+            >
+              <Plus size={16} />
+            </IconButton>
+          </Tooltip>
+        </Flex>
+
+        <CreateVersionModal
+          projectId={projectId}
+          isOpen={isCreateVersionModalOpen}
+          onOpenChange={(open) => setIsCreateVersionModalOpen(open)}
+        />
+      </>
+    );
+  }
 
   return (
     <>

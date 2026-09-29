@@ -1,15 +1,14 @@
 import { Flex, Text } from '@radix-ui/themes';
 import { useTraceGroup } from '../../traces/hooks/useTraceGroup';
-import { useParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { Group as ResizableGroup, Panel as ResizablePanel } from 'react-resizable-panels';
 import CustomResizeHandle from '../../../shared/components/CustomResizeHandle';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isTyping } from '../../../shared/util/shortcutHelpers';
-import { LlmNav } from './LLM/LlmNav';
+import { useUpdateSearchParam } from '../hooks/useUpdateSearchParam';
 import { LlmContent } from './LLM/LlmContent';
-import { TraceNav } from './trace/TraceNav';
+import { TraceTreeNav } from './trace/TraceTreeNav';
 import { TraceContentOverview } from './trace/TraceContentOverview';
-import { TraceGroupNavBar } from './TraceGroupNavBar';
 
 export type PageParams = {
   id: string;
@@ -23,6 +22,7 @@ export type LlmMessage = {
   content: string;
   index: number;
   relatedTraceId: string;
+  relatedSpanId: string;
   modelName?: string;
   amountOfSpans?: number;
 };
@@ -59,6 +59,7 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
             content: contentAttr.value,
             index: i,
             relatedTraceId: trace.traceId,
+            relatedSpanId: span.traceScopeSpanId,
             modelName: span.attributes.find((attr) => attr.key === 'gen_ai.request.model')?.value,
             amountOfSpans: trace.traceScopes.reduce((acc, s) => acc + s.spans.length, 0),
           });
@@ -77,6 +78,7 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
             content: completionContentAttr.value,
             index: i,
             relatedTraceId: trace.traceId,
+            relatedSpanId: span.traceScopeSpanId,
           });
         }
       }
@@ -100,10 +102,23 @@ export default function TraceGroupPage() {
     [selectedTraceGroup]
   );
 
-  const [scrollTrace, setScrollTrace] = useState<string | null>(null);
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
+  const [scrollMessageRole, setScrollMessageRole] = useState<
+    'user' | 'assistant' | 'system' | null
+  >(null);
+  const [chatScrollRequest, setChatScrollRequest] = useState(0);
+  const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
 
-  const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
+  // The selected trace lives in the URL so the sidebar can drive it and a trace
+  // can be linked to directly.
+  const [searchParams] = useSearchParams();
+  const updateSearchParam = useUpdateSearchParam();
+  const selectedTrace = searchParams.get('traceId');
+
+  const setSelectedTrace = useCallback(
+    (traceId: string) => updateSearchParam('traceId', traceId),
+    [updateSearchParam]
+  );
 
   // Defaults to the first trace of the group until the user selects another one.
   const effectiveSelectedTrace = useMemo(() => {
@@ -134,7 +149,7 @@ export default function TraceGroupPage() {
 
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
-  }, [selectedTraceGroup, effectiveSelectedTrace]);
+  }, [selectedTraceGroup, effectiveSelectedTrace, setSelectedTrace]);
 
   const llmMessages = useMemo(() => {
     if (!isLlmGroup) return [];
@@ -146,16 +161,11 @@ export default function TraceGroupPage() {
     return selectedTraceGroup.traces.find((t) => t.traceId === effectiveSelectedTrace) ?? null;
   }, [effectiveSelectedTrace, selectedTraceGroup]);
 
-  // The nav bar stays mounted while the group details load, so its scroll
-  // position is preserved when navigating between groups.
+  // The sidebar lives in the layout route, so it stays mounted while the group
+  // details load and only this panel shows the loading state.
   if (isDetailLoading || isDetailError) {
     return (
-      <Flex direction="column" gap="2">
-        <TraceGroupNavBar
-          projectId={id!}
-          versionId={versionId!}
-          activeTraceGroupId={traceGroupId!}
-        />
+      <Flex align="center" justify="center" style={{ height: '100%' }}>
         {isDetailError ? (
           <Text color="red">Error loading trace group details.</Text>
         ) : (
@@ -166,45 +176,95 @@ export default function TraceGroupPage() {
   }
 
   return (
-    <Flex direction="column" gap="2">
-      <TraceGroupNavBar projectId={id!} versionId={versionId!} activeTraceGroupId={traceGroupId!} />
-
-      <ResizableGroup>
-        {isLlmGroup && (
+    <Flex direction="column" gap="2" style={{ height: '100%', minHeight: 0 }}>
+      <ResizableGroup
+        orientation="horizontal"
+        style={{ width: '100%', height: '100%', minHeight: 0 }}
+      >
+        {isLlmGroup && selectedTraceObject && (
           <>
-            <ResizablePanel defaultSize={20} minSize={20}>
-              <LlmNav
-                llmMessages={llmMessages}
-                selectedTraceId={effectiveSelectedTrace}
+            <ResizablePanel defaultSize={22} minSize={18}>
+              <TraceTreeNav
+                trace={selectedTraceObject}
+                selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
-                scrollTraceId={scrollTrace}
+                setSelectedSpan={setScrollSpanIndex}
+                requestChatScroll={(spanId, role) => {
+                  setChatScrollRequest((request) => request + 1);
+                  setScrollSpanIndex(spanId);
+                  setScrollMessageRole(role);
+                }}
+                messageAnchors={llmMessages.filter(
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+                    message.role === 'user' ||
+                    message.role === 'assistant' ||
+                    message.role === 'system'
+                )}
+                selectedNodeKey={selectedNodeKey}
+                setSelectedNodeKey={setSelectedNodeKey}
               />
             </ResizablePanel>
 
             <CustomResizeHandle />
 
-            <ResizablePanel defaultSize={100} minSize={20}>
+            <ResizablePanel defaultSize={78} minSize={40}>
               <LlmContent
                 llmMessages={llmMessages}
                 selectedTraceId={effectiveSelectedTrace}
                 setSelectedTrace={setSelectedTrace}
-                onScrollChange={setScrollTrace}
+                scrollRequest={chatScrollRequest}
+                selectedSpanId={scrollSpanIndex}
+                selectedMessageRole={scrollMessageRole}
+                onScrollChange={(_traceId, spanId, role) => {
+                  setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
+                }}
               />
             </ResizablePanel>
 
-            {effectiveSelectedTrace && <CustomResizeHandle />}
+            {effectiveSelectedTrace && (
+              <>
+                <CustomResizeHandle />
+
+                <ResizablePanel defaultSize={30} minSize={25} style={{ overflow: 'visible' }}>
+                  <TraceContentOverview
+                    trace={selectedTraceObject!}
+                    setScrollSpanIndex={setScrollSpanIndex}
+                    projectId={id!}
+                    versionId={versionId!}
+                  />
+                </ResizablePanel>
+              </>
+            )}
           </>
         )}
 
-        {effectiveSelectedTrace && (
+        {!isLlmGroup && effectiveSelectedTrace && (
           <>
-            <ResizablePanel defaultSize={40} minSize={20}>
-              <TraceNav trace={selectedTraceObject!} scrollSpanIndex={scrollSpanIndex} />
+            <ResizablePanel defaultSize={30} minSize={20}>
+              <TraceTreeNav
+                trace={selectedTraceObject!}
+                selectedSpanId={scrollSpanIndex}
+                setSelectedTrace={setSelectedTrace}
+                setSelectedSpan={setScrollSpanIndex}
+                requestChatScroll={(spanId, role) => {
+                  setChatScrollRequest((request) => request + 1);
+                  setScrollSpanIndex(spanId);
+                  setScrollMessageRole(role);
+                }}
+                messageAnchors={llmMessages.filter(
+                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+                    message.role === 'user' ||
+                    message.role === 'assistant' ||
+                    message.role === 'system'
+                )}
+                selectedNodeKey={selectedNodeKey}
+                setSelectedNodeKey={setSelectedNodeKey}
+              />
             </ResizablePanel>
 
             <CustomResizeHandle />
 
-            <ResizablePanel defaultSize={100} minSize={20}>
+            <ResizablePanel defaultSize={25} minSize={25} style={{ overflow: 'visible' }}>
               <TraceContentOverview
                 trace={selectedTraceObject!}
                 setScrollSpanIndex={setScrollSpanIndex}

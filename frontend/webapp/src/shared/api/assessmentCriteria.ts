@@ -14,7 +14,7 @@ export async function createAssessmentCriterion(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      criterion: payload.criterion,
+      criteria: payload.criterion,
     }),
   });
 

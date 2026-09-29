@@ -1,0 +1,3 @@
+namespace JudgeTemplates.Feature.RestoreJudgeTemplateVersion;
+
+public record RestoreJudgeTemplateVersionResponse;

@@ -11,12 +11,14 @@ export function useTraceGroupSummaryList(
   hasNoOpenCode: boolean,
   traceCollectionId?: string
 ) {
+  const effectiveTraceCollectionId = traceCollectionId === 'All' ? undefined : traceCollectionId;
+
   return useInfiniteQuery({
     queryKey: QUERY_KEYS.traces.list({
       projectId,
       projectVersionId,
       search,
-      traceCollectionId,
+      traceCollectionId: effectiveTraceCollectionId,
       hasNoOpenCode,
     }),
     queryFn: ({ pageParam = 1 }) =>
@@ -26,7 +28,7 @@ export function useTraceGroupSummaryList(
         pageSize: PAGE_SIZE,
         filters: [
           ...(search === '' ? [] : [`search:${search}`]),
-          ...(traceCollectionId ? [`tracecollection:${traceCollectionId}`] : []),
+          ...(effectiveTraceCollectionId ? [`tracecollection:${effectiveTraceCollectionId}`] : []),
           ...(hasNoOpenCode ? [`hasNoOpenCode`] : []),
         ],
       }),

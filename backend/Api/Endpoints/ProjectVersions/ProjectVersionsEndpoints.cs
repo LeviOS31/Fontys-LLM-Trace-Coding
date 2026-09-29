@@ -1,9 +1,9 @@
 using Api.Endpoints.ProjectVersions.Dtos;
 using Api.Extensions;
 using Mediator;
-using ProjectVersions.Features.CreateProjectVersion;
-using ProjectVersions.Features.DeleteProjectVersion;
-using ProjectVersions.Features.EditProjectVersion;
+using Projects.Features.CreateProjectVersion;
+using Projects.Features.DeleteProjectVersion;
+using Projects.Features.EditProjectVersion;
 
 namespace Api.Endpoints.ProjectVersions;
 

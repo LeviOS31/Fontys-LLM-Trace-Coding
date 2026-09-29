@@ -31,6 +31,13 @@ namespace JudgeTemplates.Migrations
                     b.Property<Guid>("AxialCodeId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("CurrentVersionNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CustomJudgeTemplateContent")
+                        .HasMaxLength(2147483647)
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsDeprecated")
                         .HasColumnType("boolean");
 
@@ -53,6 +60,33 @@ namespace JudgeTemplates.Migrations
                     b.HasKey("JudgeTemplateId");
 
                     b.ToTable("JudgeTemplates");
+                });
+
+            modelBuilder.Entity("JudgeTemplates.Data.Models.JudgeTemplateVersion", b =>
+                {
+                    b.Property<Guid>("JudgeTemplateVersionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("JudgeTemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("JudgeTemplateVersionId");
+
+                    b.HasIndex("JudgeTemplateId", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("JudgeTemplateVersions");
                 });
 #pragma warning restore 612, 618
         }

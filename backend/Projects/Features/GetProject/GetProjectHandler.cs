@@ -1,11 +1,11 @@
 ﻿using System.Data.Common;
+using AssessmentCriteria.Contracts.Features.InternalGetAllAssessmentCriteriaOfProject;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Projects.Contracts.Features.GetProject;
 using Projects.Data;
 using Projects.Data.Models;
-using Projects.Contracts.Features.GetAllAssessmentCriteriaOfProject;
-using Projects.Contracts.Features.GetAllProjectVersions;
-using Projects.Contracts.Features.GetProject;
+using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
 using Serilog;
 using Shared;
 using Shared.Extensions;
@@ -54,7 +54,7 @@ public class GetProjectHandler : IRequestHandler<GetProjectQuery, Result<GetProj
             return ErrorCode.NoPermission;
         }
 
-        var getProjectVersionsQuery = new GetAllProjectVersionsQuery { ProjectId = query.ProjectId };
+        var getProjectVersionsQuery = new InternalGetProjectVersionsQuery { ProjectId = query.ProjectId };
         var versions = await _mediator.Send(getProjectVersionsQuery, cancellationToken);
 
         if (versions.IsError)
@@ -63,7 +63,7 @@ public class GetProjectHandler : IRequestHandler<GetProjectQuery, Result<GetProj
             return versions.ErrorCode;
         }
 
-        var getAssessmentCriteriaQuery = new GetAllAssessmentCriteriaOfProjectQuery
+        var getAssessmentCriteriaQuery = new InternalGetAllAssessmentCriteriaOfProjectQuery
         {
             ProjectId = query.ProjectId,
         };
@@ -80,8 +80,8 @@ public class GetProjectHandler : IRequestHandler<GetProjectQuery, Result<GetProj
             ProjectId = project.ProjectId,
             Name = project.Name,
             Description = project.Description,
-            Versions = versions.Value.Versions,     
-            AssessmentCriteria = assessmentCriteria.Value.criteriaList,
+            Versions = versions.Value.Versions,
+            AssessmentCriteria = assessmentCriteria.Value.CriteriaList,
         };
     }
 }

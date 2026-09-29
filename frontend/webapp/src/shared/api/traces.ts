@@ -28,8 +28,7 @@ export async function importTraceCollection(payload: ImportTraceCollectionDto): 
   });
 
   if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `Import failed with status ${response.status}`);
+    throw new Error('Failed to import trace collection');
   }
 }
 

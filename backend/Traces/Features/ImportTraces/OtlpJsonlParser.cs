@@ -25,8 +25,8 @@ public class OtlpJsonlParser
         }
         catch (Exception exception) when (exception is IOException or InvalidOperationException)
         {
-            Logger.Error(exception, "An error occurred while processing the uploaded trace file");
-            return ErrorCode.InvalidRequest;
+            Logger.Error(exception, "An error occured while reading the JSONL file");
+            return ErrorCode.FileReadError;
         }
 
         // Convert to the TracesData object
@@ -35,17 +35,15 @@ public class OtlpJsonlParser
         {
             tracesData = await ConvertJsonToTracesData(jsonl, cancellationToken);
         }
-        catch (Exception exception) when (
-            exception is InvalidJsonException or InvalidProtocolBufferException or JsonReaderException
-        )
+        catch (Exception exception) when (exception is InvalidJsonException or InvalidProtocolBufferException)
         {
             Logger.Warning(exception, "Uploaded JSONL file containing invalid JSON");
             return ErrorCode.InvalidRequest;
         }
         catch (Exception exception)
         {
-            Logger.Error(exception, "An error occurred while processing the uploaded trace file");
-            return ErrorCode.InvalidRequest;
+            Logger.Error(exception, "An error occured while reading the JSONL file");
+            return ErrorCode.FileReadError;
         }
 
         return tracesData;
@@ -90,9 +88,9 @@ public class OtlpJsonlParser
 
         while (await reader.ReadAsync(cancellationToken))
         {
-            var jsonValue = JToken.Load(reader);
-
-            if (jsonValue is JArray jsonArray)
+            // 1. Decode to JObject
+            var jsonObject = serializer.Deserialize<JObject>(reader);
+            if (jsonObject == null)
             {
                 foreach (var item in jsonArray.OfType<JObject>())
                 {
@@ -101,8 +99,10 @@ public class OtlpJsonlParser
             }
             else if (jsonValue is JObject jsonObject)
             {
-                AddTrace(jsonObject, traces);
+                continue;
             }
+
+            traces.Add(protoObject);
         }
 
         return MergeTracesById(traces).ToArray();

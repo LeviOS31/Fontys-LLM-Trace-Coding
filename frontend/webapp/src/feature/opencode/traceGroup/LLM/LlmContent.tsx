@@ -1,6 +1,11 @@
 import { Badge, Box, Flex, Heading, Text, ScrollArea } from '@radix-ui/themes';
 import type { LlmMessage } from '../TraceGroupPage';
 import { useEffect, useMemo, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 
 import prettier from 'prettier/standalone';
 import babelPlugin from 'prettier/plugins/babel';

@@ -89,12 +89,12 @@ jobs:
     needs: [backend, frontend]
     env:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      # docker-compose.yaml now reads this from the environment instead of
-      # a hardcoded value — this job needs to actually provide it, or
-      # Compose passes Postgres a blank password and it refuses to start.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
@@ -138,8 +138,6 @@ jobs:
 
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
-        # The install script sets up a systemd service, but doesn't always
-        # leave it running — start it explicitly rather than assuming.
 
       - name: Start Ollama service
         run: |
@@ -184,11 +182,6 @@ jobs:
                 migrator:
                   condition: service_completed_successfully
           EOF
-          # host.docker.internal doesn't resolve inside containers on Linux runners
-          # without this mapping, unlike Docker Desktop on Mac/Windows.
-          # depends_on/healthcheck ensure db is ready before migrator runs,
-          # and migrator finishes before backend starts — otherwise backend
-          # can race Postgres and crash-loop or hang on startup.
 
       - name: Start stack
         run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d --build
@@ -205,10 +198,6 @@ jobs:
           done
           echo "Backend did not become ready in time"
           exit 1
-          # Any HTTP response (even 404) means the server is listening and
-          # answering requests. Requiring a 2xx here would wrongly fail on
-          # a backend with no route at "/", which is what happened before.
-          # Swap the URL above for a real /health endpoint if the backend has one.
 
       - name: Wait for frontend to respond
         run: |
@@ -245,16 +234,9 @@ jobs:
 
       - name: Lowercase image name
         run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-        # GHCR (and Docker generally) requires lowercase repository names.
-        # github.repository preserves the repo's actual case, so we normalize
-        # it here — GitHub Actions expressions have no built-in lowercase().
 
       - name: Set build version
         run: echo "BUILD_VERSION=build-${{ github.run_number }}" >> "$GITHUB_ENV"
-        # github.run_number auto-increments on every run of this workflow —
-        # no manual tagging needed. Each deploy gets a stable, human-readable
-        # version (build-42, build-43, ...) you can pin to and roll back to,
-        # in addition to the immutable commit SHA already used below.
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -262,6 +244,9 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
@@ -272,6 +257,7 @@ jobs:
           context: ./backend
           file: ./backend/dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
           tags: |
@@ -285,6 +271,7 @@ jobs:
           context: ./frontend/webapp
           file: ./frontend/webapp/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           build-args: |
             VITE_API_URL=http://localhost:8080
           cache-from: type=gha,scope=frontend
@@ -300,6 +287,7 @@ jobs:
           context: ./backend
           file: ./backend/MigrationRunner/Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           cache-from: type=gha,scope=migrator
           cache-to: type=gha,mode=max,scope=migrator
           tags: |
@@ -356,21 +344,12 @@ jobs:
             default:
               name: traceeval_network
           EOF
-          # \${POSTGRES_PASSWORD} is left as a literal Compose variable, not
-          # resolved here — Compose reads it from a .env file (or the shell
-          # environment) at "docker compose up" time, on whoever's machine
-          # actually runs this. Nothing sensitive gets baked into the file
-          # or committed anywhere.
 
           cat > .env.example <<'EOF'
           # Copy this to .env and set a real value before running:
           #   cp .env.example .env
           POSTGRES_PASSWORD=changeme
           EOF
-        # Same shape as the real docker-compose.yaml, but every "build:" section
-        # is replaced with "image:" pointing at this exact build's pushed tag.
-        # Anyone running this file needs Docker only — no source code, no
-        # Dockerfiles, nothing gets built locally.
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -381,8 +360,3 @@ jobs:
             docker-compose.release.yml
             .env.example
           generate_release_notes: true
-        # Creates the git tag (e.g. build-42) automatically and attaches the
-        # compose file as a downloadable asset. To roll back: open an older
-        # Release, download its docker-compose.release.yml, and run
-        # `docker compose -f docker-compose.release.yml up -d` — that pulls
-        # the exact images from that build, nothing rebuilt.

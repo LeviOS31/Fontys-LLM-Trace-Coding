@@ -339,7 +339,7 @@ jobs:
               ports:
                 - "5432:5432"
               volumes:
-                - postgres_data:/var/lib/postgresql
+                - postgres_data_V2:/var/lib/postgresql
 
             migrator:
               image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/migrator:${{ env.BUILD_VERSION }}
@@ -350,7 +350,7 @@ jobs:
               restart: on-failure
 
           volumes:
-            postgres_data:
+            postgres_data_V2:
 
           networks:
             default:

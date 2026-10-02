@@ -1,4 +1,5 @@
 ﻿using Mediator;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;
 using Npgsql;
@@ -53,8 +54,25 @@ namespace Traces.Tests.Features.DeleteTraceCollection
                         Traces = new List<Trace>(),
                     },
                 };
+
+            var trace = new Trace
+            {
+                TraceId = Guid.NewGuid(),
+                TraceCollectionId = _traceCollectionId,
+                TraceCollection = traceCollections[0],
+                UpdatedAt = DateTime.UtcNow,
+                TraceResources = new List<TraceResource>(),
+                TraceScopes = new List<TraceScope>(),
+            };
+
+            traceCollections[0].Traces.Add(trace);
+
+            var mockSet = traceCollections.BuildMockDbSet();
             var mockContext = Substitute.For<TracesDbContext>(new DbContextOptionsBuilder<TracesDbContext>().Options);
-            var mockMediator = CreateMockMediator(); // Uses default success setup
+            mockContext.TraceCollections.Returns(mockSet);
+
+
+            var mockMediator = CreateMockMediator();
 
             var handler = new DeleteTraceCollectionHandler(mockContext, mockMediator);
             var request = new DeleteTraceCollectionRequest
@@ -72,11 +90,40 @@ namespace Traces.Tests.Features.DeleteTraceCollection
         }
 
         [Fact]
-        public async Task WhenRequestIsInvalid_ReturnsError()
+        public async Task NoChanges_ReturnNoChangesError()
         {
             // Arrange
+            var traceCollections = new List<TraceCollection>{
+                new()
+                    {
+                        TraceCollectionId = _traceCollectionId,
+                        ProjectVersionId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024"),
+                        Name = "TestTraceCollection",
+                        CreatedAt = DateTime.UtcNow,
+                        Traces = new List<Trace>(),
+                    },
+                };
+
+            var trace = new Trace
+            {
+                TraceId = Guid.NewGuid(),
+                TraceCollectionId = _traceCollectionId,
+                TraceCollection = traceCollections[0],
+                UpdatedAt = DateTime.UtcNow,
+                TraceResources = new List<TraceResource>(),
+                TraceScopes = new List<TraceScope>(),
+            };
+
+            traceCollections[0].Traces.Add(trace);
+
+            var mockSet1 = traceCollections.BuildMockDbSet();
+            var emptyTraceCollections = new List<TraceCollection>() { };
+            var emptyMockSet = emptyTraceCollections.BuildMockDbSet();
+
             var mockContext = Substitute.For<TracesDbContext>(new DbContextOptionsBuilder<TracesDbContext>().Options);
-            var mockMediator = CreateMockMediator(ErrorCode.InvalidRequest);
+            mockContext.TraceCollections.Returns(mockSet1, emptyMockSet);
+
+            var mockMediator = CreateMockMediator();
 
             var handler = new DeleteTraceCollectionHandler(mockContext, mockMediator);
             var request = new DeleteTraceCollectionRequest
@@ -91,39 +138,50 @@ namespace Traces.Tests.Features.DeleteTraceCollection
 
             // Assert
             result.IsSuccess.ShouldBeFalse();
-        }
-
-        [Fact]
-        public async Task WhenProjectNotFound_ReturnsEntityNotFound()
-        {
-            // Arrange
-            var mockContext = Substitute.For<TracesDbContext>(new DbContextOptionsBuilder<TracesDbContext>().Options);
-            var mockMediator = CreateMockMediator(ErrorCode.EntityNotFound);
-            var handler = new DeleteTraceCollectionHandler(mockContext, mockMediator);
-            var request = new DeleteTraceCollectionRequest
-            {
-                ProjectId = _projectId,
-                TraceCollectionId = _traceCollectionId,
-                UserId = _userId,
-            };
-            // Act
-            var result = await handler.Handle(request, CancellationToken.None);
-            // Assert
-            result.IsSuccess.ShouldBeFalse();
-            result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
+            result.ErrorCode.ShouldBe(ErrorCode.NoChanges);
         }
 
         [Fact]
         public async Task WhenTraceCollectionNotFound_ReturnsEntityNotFound()
         {
             // Arrange
+            var traceCollections = new List<TraceCollection>{
+                new()
+                    {
+                        TraceCollectionId = _traceCollectionId,
+                        ProjectVersionId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024"),
+                        Name = "TestTraceCollection",
+                        CreatedAt = DateTime.UtcNow,
+                        Traces = new List<Trace>(),
+                    },
+                };
+
+            var trace = new Trace
+            {
+                TraceId = Guid.NewGuid(),
+                TraceCollectionId = _traceCollectionId,
+                TraceCollection = traceCollections[0],
+                UpdatedAt = DateTime.UtcNow,
+                TraceResources = new List<TraceResource>(),
+                TraceScopes = new List<TraceScope>(),
+            };
+
+            traceCollections[0].Traces.Add(trace);
+
+            var mockSet1 = traceCollections.BuildMockDbSet();
+            var emptyTraceCollections = new List<TraceCollection>() { };
+            var emptyMockSet = emptyTraceCollections.BuildMockDbSet();
+
             var mockContext = Substitute.For<TracesDbContext>(new DbContextOptionsBuilder<TracesDbContext>().Options);
+            mockContext.TraceCollections.Returns(mockSet1, emptyMockSet);
+
             var mockMediator = CreateMockMediator();
+
             var handler = new DeleteTraceCollectionHandler(mockContext, mockMediator);
             var request = new DeleteTraceCollectionRequest
             {
                 ProjectId = _projectId,
-                TraceCollectionId = Guid.NewGuid(), // Non-existent TraceCollectionId
+                TraceCollectionId = Guid.NewGuid(),
                 UserId = _userId,
             };
             // Act

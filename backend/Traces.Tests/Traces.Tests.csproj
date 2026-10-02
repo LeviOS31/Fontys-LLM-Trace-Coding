@@ -32,13 +32,5 @@
 
   <ItemGroup>
     <Folder Include="Extensions\" />
-    <Folder Include="Features\DeleteTraceCollectionUnauthorized\" />
-    <Folder Include="Features\EditOpenCode\" />
-    <Folder Include="Features\EditTraceCollection\" />
-    <Folder Include="Features\GetTraceCollections\" />
-    <Folder Include="Features\GetTrace\" />
-    <Folder Include="Features\GetVersionOpencode\" />
-    <Folder Include="Features\InternalDeleteAllTracesOfVersion\" />
-    <Folder Include="Features\InternalGetTracesCount\" />
   </ItemGroup>
 </Project>

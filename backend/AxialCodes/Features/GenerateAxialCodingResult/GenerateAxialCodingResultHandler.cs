@@ -27,6 +27,9 @@ public class GenerateAxialCodingResultHandler
     private static readonly Lazy<string> _axialCodingWithFeedbackPrompt = new(() =>
         LoadPrompt("AxialCodes.Resources.Prompts.AxialCodingWithFeedbackPrompt.txt")
     );
+    private static readonly Lazy<string> _axialCodingVerificationPrompt = new(() =>
+        LoadPrompt("AxialCodes.Resources.Prompts.AxialCodingVerificationPrompt.txt")
+    );
 
     private readonly AxialCodeDbContext _dbContext;
     private readonly IMediator _mediator;
@@ -157,6 +160,48 @@ public class GenerateAxialCodingResultHandler
 
         [JsonPropertyName("openCodeIds")]
         public required ICollection<int> OpenCodeIds { get; init; }
+
+        [JsonPropertyName("evidence")]
+        public required ICollection<AxialCodeEvidenceLlmItem> Evidence { get; init; }
+    }
+
+    private sealed record PreviousAxialCodeLlmItem
+    {
+        [JsonPropertyName("label")]
+        public required string Label { get; init; }
+
+        [JsonPropertyName("description")]
+        public required string Description { get; init; }
+
+        [JsonPropertyName("openCodeIds")]
+        public required ICollection<int> OpenCodeIds { get; init; }
+    }
+
+    private sealed record AxialCodeEvidenceLlmItem
+    {
+        [JsonPropertyName("openCodeId")]
+        public required int OpenCodeId { get; init; }
+
+        [JsonPropertyName("quote")]
+        public required string Quote { get; init; }
+    }
+
+    private sealed record AxialCodeVerificationResponse
+    {
+        [JsonPropertyName("checks")]
+        public required ICollection<AxialCodeVerificationItem> Checks { get; init; }
+    }
+
+    private sealed record AxialCodeVerificationItem
+    {
+        [JsonPropertyName("index")]
+        public required int Index { get; init; }
+
+        [JsonPropertyName("supported")]
+        public required bool Supported { get; init; }
+
+        [JsonPropertyName("rationale")]
+        public required string Rationale { get; init; }
     }
 
     private async Task<Result<IEnumerable<AxialCode>>> GenerateAxialCodesAsync(
@@ -172,12 +217,7 @@ public class GenerateAxialCodingResultHandler
             new(ChatRole.System, _axialCodingPrompt.Value),
             new(ChatRole.User, openCodesJson),
         };
-        var llmResult = await DoLlmCall(userId, messages, cancellationToken);
-        if (llmResult.IsError)
-        {
-            return llmResult.ErrorCode;
-        }
-        return ParseAxialCodes(llmResult.Value, mapping);
+        return await GenerateAndValidateAxialCodesAsync(userId, messages, mapping, openCodesPayload, cancellationToken);
     }
 
     private async Task<Result<IEnumerable<AxialCode>>> GenerateAxialCodesAsync(
@@ -189,7 +229,7 @@ public class GenerateAxialCodingResultHandler
     )
     {
         var mapping = BuildOpenCodeMapping(opencodeViewModels, out var openCodesPayload);
-        var previousAxialCodesPayload = previousAxialCodes.Select(axial => new AxialCodeLlmItem
+        var previousAxialCodesPayload = previousAxialCodes.Select(axial => new PreviousAxialCodeLlmItem
         {
             Label = axial.Label,
             Description = axial.Description,
@@ -211,12 +251,68 @@ public class GenerateAxialCodingResultHandler
             new(ChatRole.System, _axialCodingWithFeedbackPrompt.Value),
             new(ChatRole.User, userPrompt),
         };
+        return await GenerateAndValidateAxialCodesAsync(userId, messages, mapping, openCodesPayload, cancellationToken);
+    }
+
+    private async Task<Result<IEnumerable<AxialCode>>> GenerateAndValidateAxialCodesAsync(
+        Guid userId,
+        List<ChatMessage> messages,
+        Dictionary<int, Guid> mapping,
+        List<OpenCodeLlmItem> openCodesPayload,
+        CancellationToken cancellationToken
+    )
+    {
         var llmResult = await DoLlmCall(userId, messages, cancellationToken);
         if (llmResult.IsError)
         {
             return llmResult.ErrorCode;
         }
-        return ParseAxialCodes(llmResult.Value, mapping);
+
+        var parsedResult = ParseAxialCodes(llmResult.Value);
+        if (parsedResult.IsError)
+        {
+            return parsedResult.ErrorCode;
+        }
+
+        var candidates = parsedResult.Value.ToList();
+        var validationResult = ValidateGroundedAxialCodes(candidates, mapping, openCodesPayload);
+        if (validationResult.IsError)
+        {
+            return validationResult.ErrorCode;
+        }
+
+        var verificationResult = await VerifyAxialCodesAsync(
+            userId,
+            candidates,
+            openCodesPayload,
+            cancellationToken
+        );
+        if (verificationResult.IsError)
+        {
+            return verificationResult.ErrorCode;
+        }
+
+        var acceptedAxialCodes = candidates
+            .Select((candidate, index) => (candidate, index))
+            .Where(item => verificationResult.Value.Contains(item.index))
+            .Select(item => new AxialCode
+            {
+                AxialCodeId = Guid.NewGuid(),
+                Label = item.candidate.Label.Trim(),
+                Description = item.candidate.Description.Trim(),
+                TraceIds = item.candidate.OpenCodeIds.Select(id => mapping[id]).Distinct().ToArray(),
+                AxialCodingResultId = Guid.Empty,
+                AxialCodingResult = null,
+            })
+            .ToArray();
+
+        if (acceptedAxialCodes.Length == 0)
+        {
+            Logger.Warning("Grounding verification rejected all generated axial codes");
+            return ErrorCode.LlmError;
+        }
+
+        return Result.Success<IEnumerable<AxialCode>>(acceptedAxialCodes);
     }
 
     private static Dictionary<int, Guid> BuildOpenCodeMapping(
@@ -236,7 +332,7 @@ public class GenerateAxialCodingResultHandler
         return mapping;
     }
 
-    private static Result<IEnumerable<AxialCode>> ParseAxialCodes(string llmResponse, Dictionary<int, Guid> mapping)
+    private static Result<IEnumerable<AxialCodeLlmItem>> ParseAxialCodes(string llmResponse)
     {
         try
         {
@@ -249,30 +345,12 @@ public class GenerateAxialCodingResultHandler
             {
                 throw new JsonException();
             }
-            var axialCodes = new List<AxialCode>();
-            foreach (var llmItem in deserializedResponse)
+            var axialCodeItems = deserializedResponse.ToArray();
+            if (axialCodeItems.Any(item => item == null))
             {
-                var mappedIds = llmItem
-                    .OpenCodeIds.Select(id => mapping.GetValueOrDefault(id))
-                    .Where(id => id != Guid.Empty)
-                    .ToArray();
-                if (mappedIds.Length == 0 && llmItem.OpenCodeIds.Count > 0)
-                {
-                    return ErrorCode.LlmError;
-                }
-                axialCodes.Add(
-                    new AxialCode
-                    {
-                        AxialCodeId = Guid.NewGuid(),
-                        Label = llmItem.Label,
-                        Description = llmItem.Description,
-                        TraceIds = mappedIds,
-                        AxialCodingResultId = Guid.Empty,
-                        AxialCodingResult = null,
-                    }
-                );
+                throw new JsonException("Axial-code response contains a null item");
             }
-            return Result.Success<IEnumerable<AxialCode>>(axialCodes);
+            return Result.Success<IEnumerable<AxialCodeLlmItem>>(axialCodeItems);
         }
         catch (JsonException ex)
         {
@@ -284,6 +362,150 @@ public class GenerateAxialCodingResultHandler
             return ErrorCode.LlmError;
         }
     }
+
+    private static Result<bool> ValidateGroundedAxialCodes(
+        IEnumerable<AxialCodeLlmItem> axialCodes,
+        Dictionary<int, Guid> mapping,
+        IEnumerable<OpenCodeLlmItem> openCodes
+    )
+    {
+        var openCodeText = openCodes.ToDictionary(code => code.OpenCodeId, code => NormalizeWhitespace(code.OpenCode));
+
+        foreach (var axialCode in axialCodes)
+        {
+            if (axialCode == null)
+            {
+                return ErrorCode.LlmError;
+            }
+
+            if (
+                string.IsNullOrWhiteSpace(axialCode.Label)
+                || string.IsNullOrWhiteSpace(axialCode.Description)
+                || axialCode.Label.Length > AxialCode.MaxLabelLength
+                || axialCode.Description.Length > AxialCode.MaxDescriptionLength
+                || axialCode.OpenCodeIds == null
+                || axialCode.Evidence == null
+                || axialCode.OpenCodeIds.Count == 0
+                || axialCode.Evidence.Count == 0
+            )
+            {
+                return ErrorCode.LlmError;
+            }
+
+            if (axialCode.OpenCodeIds.Any(id => !mapping.ContainsKey(id)))
+            {
+                Logger.Warning("Generated axial code referenced one or more unknown open-code IDs");
+                return ErrorCode.LlmError;
+            }
+
+            var evidenceById = new Dictionary<int, string>();
+            foreach (var evidence in axialCode.Evidence)
+            {
+                if (
+                    evidence == null
+                    || !axialCode.OpenCodeIds.Contains(evidence.OpenCodeId)
+                    || string.IsNullOrWhiteSpace(evidence.Quote)
+                    || !evidenceById.TryAdd(evidence.OpenCodeId, evidence.Quote)
+                )
+                {
+                    return ErrorCode.LlmError;
+                }
+
+                var normalizedQuote = NormalizeWhitespace(evidence.Quote);
+                var normalizedOpenCode = openCodeText.GetValueOrDefault(evidence.OpenCodeId);
+                if (
+                    string.IsNullOrWhiteSpace(normalizedOpenCode)
+                    || !normalizedOpenCode.Contains(normalizedQuote, StringComparison.Ordinal)
+                )
+                {
+                    Logger.Warning(
+                        "Generated axial code included evidence not found in its cited open code {OpenCodeId}",
+                        evidence.OpenCodeId
+                    );
+                    return ErrorCode.LlmError;
+                }
+            }
+
+            if (axialCode.OpenCodeIds.Distinct().Count() != axialCode.OpenCodeIds.Count)
+            {
+                return ErrorCode.LlmError;
+            }
+
+            if (axialCode.OpenCodeIds.Any(id => !evidenceById.ContainsKey(id)))
+            {
+                Logger.Warning("Generated axial code did not provide evidence for every cited open code");
+                return ErrorCode.LlmError;
+            }
+        }
+
+        return Result.Success(true);
+    }
+
+    private async Task<Result<HashSet<int>>> VerifyAxialCodesAsync(
+        Guid userId,
+        IEnumerable<AxialCodeLlmItem> axialCodes,
+        List<OpenCodeLlmItem> openCodes,
+        CancellationToken cancellationToken
+    )
+    {
+        var candidates = axialCodes
+            .Select((code, index) => new
+            {
+                index,
+                label = code.Label,
+                description = code.Description,
+                openCodeIds = code.OpenCodeIds,
+                evidence = code.Evidence,
+            })
+            .ToArray();
+        var input = JsonSerializer.Serialize(new { openCodes, axialCodes = candidates });
+        var messages = new List<ChatMessage>
+        {
+            new(ChatRole.System, _axialCodingVerificationPrompt.Value),
+            new(ChatRole.User, input),
+        };
+        var llmResult = await DoLlmCall(userId, messages, cancellationToken);
+        if (llmResult.IsError)
+        {
+            return llmResult.ErrorCode;
+        }
+
+        try
+        {
+            var response = JsonSerializer.Deserialize<AxialCodeVerificationResponse>(
+                NormalizeLlmResponse(llmResult.Value),
+                LlmJsonOptions
+            );
+            if (response?.Checks == null)
+            {
+                throw new JsonException("Verification response did not include checks");
+            }
+
+            var checks = response.Checks.ToArray();
+            if (
+                checks.Length != candidates.Length
+                || checks.Any(check => check == null)
+                || checks.Select(check => check.Index).Distinct().Count() != candidates.Length
+                || checks.Any(check => check.Index < 0 || check.Index >= candidates.Length)
+            )
+            {
+                throw new JsonException("Verification response did not contain exactly one check per axial code");
+            }
+
+            return Result.Success<HashSet<int>>(
+                checks.Where(check => check.Supported).Select(check => check.Index).ToHashSet()
+            );
+        }
+        catch (JsonException ex)
+        {
+            Logger.Error(ex, "Failed to parse axial-code grounding verification response");
+            return ErrorCode.LlmError;
+        }
+    }
+
+    private static string NormalizeWhitespace(string? text) =>
+        string.Join(' ', (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
 
     private static string NormalizeLlmResponse(string llmResponse)
     {

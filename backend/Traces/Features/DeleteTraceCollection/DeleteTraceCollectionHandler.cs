@@ -51,7 +51,7 @@ public class DeleteTraceCollectionHandler
         TraceCollection? traceCollection;
         try
         {
-            traceCollection = await _tracesDbContext.TraceCollections.FirstOrDefaultAsync(
+            traceCollection = await _tracesDbContext.TraceCollections.AsNoTracking().FirstOrDefaultAsync(
                 tc => tc.TraceCollectionId == request.TraceCollectionId,
                 cancellationToken
             );
@@ -67,20 +67,29 @@ public class DeleteTraceCollectionHandler
             return ErrorCode.DatabaseError;
         }
 
-        var result = await _mediator.Send(
-            new DeleteTraceCollectionUnauthorizedRequest() { TraceCollectionId = request.TraceCollectionId },
-            cancellationToken
-        );
+        int changes = 0;
 
-        if (result.IsError)
+        try
+        {
+            changes = await _tracesDbContext
+                .TraceCollections.Where(x => x.TraceCollectionId == request.TraceCollectionId)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is DbUpdateException or DbException or InvalidOperationException)
         {
             Logger.Error(
-                "Failed to delete Trace Collection {TraceCollectionId}. Error: {ErrorCode}",
-                request.TraceCollectionId,
-                result.ErrorCode
+                ex,
+                "Failed to Delete Traces with CollectionId {TraceCollectionId}",
+                request.TraceCollectionId
             );
-            return result.ErrorCode;
+            return ErrorCode.DatabaseError;
         }
-        return new DeleteTraceCollectionResponse();
+
+        if (changes > 0)
+        {
+            return new DeleteTraceCollectionResponse();
+        }
+
+        return ErrorCode.NoChanges;
     }
 }

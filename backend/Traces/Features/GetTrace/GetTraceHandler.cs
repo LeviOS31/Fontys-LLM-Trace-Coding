@@ -129,26 +129,6 @@ public class GetTraceHandler : IRequestHandler<GetTraceQuery, Result<GetTraceRes
                         .ToList(),
                 })
                 .ToList(),
-            // TraceAttributes = trace
-            //     .TraceAttributes.Select(a => new TraceAttributeView
-            //     {
-            //         TraceId = a.TraceId,
-            //         Key = a.Key,
-            //         Value = a.Value,
-            //         TraceAttributeType = a.TraceAttributeType.ToString(),
-            //     })
-            //     .ToList(),
-            // TraceMessages = trace
-            //     .TraceMessages.OrderBy(m => m.Index)
-            //     .Select(m => new TraceMessageView
-            //     {
-            //         TraceId = m.TraceId,
-            //         TraceMessageType = m.TraceMessageType.ToString(),
-            //         Index = m.Index,
-            //         Role = m.Role,
-            //         Content = m.Content,
-            //     })
-            //     .ToList(),
         };
     }
 }

@@ -188,7 +188,7 @@ export function LlmContent({
               {/* Title and divider */}
               {index === 0  &&
                   (
-                  <Flex direction="row" gap="2" align="center" px="4" py="2"  style={{ borderRadius: 'var(--radius-2)', backgroundColor: 'var(--accent-a3)' }}>
+                  <Flex direction="row" gap="2" align="center" px="4" py="2"  style={{ borderRadius: 'var(--radius-2)' }}>
                     <Badge color="green" radius="full" size="3">
                       <Text as="span" weight="bold">
                         {uniqueTraces.indexOf(msg.relatedTraceId) + 1}
@@ -211,14 +211,6 @@ export function LlmContent({
                 )}
             <Box
               key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
-              style={{
-                backgroundColor:
-                  (relatedTraceHover === msg.relatedTraceId ||
-                    selectedTraceId === msg.relatedTraceId)
-                    ? msg.role === 'system' ? 'var(--blue-a4)' : 'var(--accent-a3)'
-                    : 'transparent',
-                borderBottom: index === llmMessages.length - 1 ? 'none' : '2px solid var(--gray-5)',
-              }}
               px="4"
               py="1"
               data-trace-id={msg.relatedTraceId}
@@ -240,7 +232,12 @@ export function LlmContent({
                 <Box
                   style={{
                     maxWidth: '100%',
-                    width: '100%',
+                    padding: '1em 1.5em',
+                    paddingBottom: '0.5em',
+                    borderTopLeftRadius: msg.role === 'assistant' ? '2px' : '20px',
+                    borderTopRightRadius: msg.role === 'user' ? '2px' : '20px',
+                    borderBottomLeftRadius: '20px',
+                    borderBottomRightRadius: '20px',
                     minWidth: 0,
                     fontFamily: 'inherit',
                     fontSize: 'var(--font-size-2)',
@@ -248,6 +245,11 @@ export function LlmContent({
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
                     textAlign: msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center',
+                    backgroundColor:
+                    (relatedTraceHover === msg.relatedTraceId ||
+                      selectedTraceId === msg.relatedTraceId)
+                      ? msg.role === 'system' ? 'var(--blue-a5)' : msg.role === 'user' ? '#A7F3D0' : '#CBD5E1'
+                      : 'transparent',
                   }}
                 >
                   <ReactMarkdown
@@ -259,7 +261,7 @@ export function LlmContent({
                             margin: '0 0 0.5em',
                             minWidth: 0,
                             fontFamily: 'inherit',
-                            textAlign: msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center',
+                            textAlign: 'start',
                           }}
                         >
                           {children}

@@ -27,14 +27,16 @@ namespace Projects.Features.DeleteAllProjectVersions
             CancellationToken cancellationToken)
         {
 
-            var VersionIDList = await _projectDbContext.Versions
-                .Where(v => v.ProjectId == request.ProjectId)
-                .Select(v => v.VersionId)
-                .ToListAsync(cancellationToken);
+            var VersionIDList = new List<Guid>();
 
             var changes = 0;
             try
             {
+                VersionIDList = await _projectDbContext.Versions
+                .Where(v => v.ProjectId == request.ProjectId)
+                .Select(v => v.VersionId)
+                .ToListAsync(cancellationToken);
+
                 changes = await _projectDbContext.Versions
                     .Where(v => v.ProjectId == request.ProjectId)
                     .ExecuteDeleteAsync(cancellationToken);

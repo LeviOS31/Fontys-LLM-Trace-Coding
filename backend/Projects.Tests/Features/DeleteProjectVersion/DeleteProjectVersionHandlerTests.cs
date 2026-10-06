@@ -8,9 +8,6 @@ using Projects.Data.Models;
 using Projects.Features.DeleteProjectVersion;
 using Shared;
 using Shouldly;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using Traces.Contracts.Features.DeleteAllTracesOfVersion;
 
 namespace Projects.Tests.Features.DeleteProjectVersion
@@ -128,42 +125,6 @@ namespace Projects.Tests.Features.DeleteProjectVersion
         }
 
         [Fact]
-        public async Task WhenRequestIsValid_DeleteProjectVersion()
-        {
-            // Arrange
-            var request = CreateRequest();
-            var existingVersions = new List<ProjectVersion>
-        {
-            new()
-            {
-                VersionId = request.VersionId,
-                ProjectId = request.ProjectId,
-                Name = "release-v1",
-                Description = "Existing",
-            },
-        };
-
-            var mockSet = existingVersions.BuildMockDbSet();
-            var mockContext = Substitute.For<ProjectDbContext>(
-                new DbContextOptionsBuilder<ProjectDbContext>().Options
-            );
-            mockContext.Versions.Returns(mockSet);
-
-            var mockMediator = CreateMediator();
-            mockMediator
-                .Send(Arg.Any<GetProjectQuery>(), Arg.Any<CancellationToken>())
-                .Returns(CreateProjectResponse(request.ProjectId));
-
-            var handler = CreateHandler(mockContext, mockMediator);
-
-            // Act
-            var result = await handler.Handle(request, CancellationToken.None);
-
-            // Assert
-            result.IsSuccess.ShouldBeTrue();
-        }
-
-        [Fact]
         public async Task WhenMediatorLookupFails_ReturnDatabaseError()
         {
             // Arrange
@@ -182,6 +143,53 @@ namespace Projects.Tests.Features.DeleteProjectVersion
             // Assert
             result.IsSuccess.ShouldBeFalse();
             result.ErrorCode.ShouldBe(ErrorCode.DatabaseError);
+        }
+
+        [Fact]
+        public async Task Handle_ShouldDeleteVersionAndSendTraceDeletionCommand()
+        {
+            // Arrange
+            var request = CreateRequest();
+            var existingVersions = new List<ProjectVersion>
+            {
+                new()
+                {
+                    VersionId = request.VersionId,
+                    ProjectId = request.ProjectId,
+                    Name = "release-v1",
+                    Description = "Existing",
+                },
+            };
+
+            var mockSetVersions = existingVersions.BuildMockDbSet();
+
+            var mockContextProject = Substitute.For<ProjectDbContext>(
+                new DbContextOptionsBuilder<ProjectDbContext>().Options
+            );
+            mockContextProject.Versions.Returns(mockSetVersions);
+
+            var mockMediator = Substitute.For<IMediator>();
+
+            mockMediator
+                .Send(Arg.Any<GetProjectQuery>(), Arg.Any<CancellationToken>())
+                .Returns(CreateProjectResponse(request.ProjectId));
+
+            var handler = new DeleteProjectVersionHandler(mockMediator, mockContextProject);
+
+            // Act
+            var result = await handler.Handle(request, CancellationToken.None);
+
+            // Assert
+            result.IsSuccess.ShouldBeTrue();
+
+            await mockMediator
+                .Received(1)
+                .Send(
+                    Arg.Is<DeleteAllTracesOfVersionRequest>(cmd =>
+                        cmd.VersionId == request.VersionId
+                    ),
+                    Arg.Any<CancellationToken>()
+                );
         }
 
         private static DeleteProjectVersionRequest CreateRequest()

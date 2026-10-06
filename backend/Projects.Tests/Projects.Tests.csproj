@@ -21,5 +21,6 @@
     <ProjectReference Include="..\Projects\Projects.csproj" />
     <ProjectReference Include="..\Shared.Tests\Shared.Tests.csproj" />
     <ProjectReference Include="..\Traces.Contracts\Traces.Contracts.csproj" />
+    <ProjectReference Include="..\Traces\Traces.csproj" />
   </ItemGroup>
 </Project>

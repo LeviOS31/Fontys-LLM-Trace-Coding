@@ -4,7 +4,6 @@ using MockQueryable.NSubstitute;
 using Npgsql;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Data;
 using Projects.Data.Models;
 using Projects.Features.DeleteAllAssessmentCriteriaOfProject;

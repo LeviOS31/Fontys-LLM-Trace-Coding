@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Projects.Contracts.Features.GetProject;
 using Projects.Data;
 using Projects.Data.Models;
-using Projects.Features.DeleteAssessmentCriteria;
 using Serilog;
 using Shared;
 using System.Data.Common;

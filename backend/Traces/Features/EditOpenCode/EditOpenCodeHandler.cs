@@ -75,18 +75,14 @@ public class EditOpenCodeHandler : IRequestHandler<EditOpencodeRequest, Result<E
         trace.UpdatedAt = DateTime.UtcNow;
         try
         {
-            changes = await _tracesDbContext.SaveChangesAsync(cancellationToken);
+            await _tracesDbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is DbUpdateException or DbException or InvalidOperationException)
         {
-            Logger.Error(ex, "Error saving open code");
+            Logger.Error(ex, "Failed to update opencode of trace with ID {TraceId}", request.TraceId);
             return ErrorCode.DatabaseError;
         }
 
-        if (changes > 0)
-        {
-            return new EditOpencodeResponse();
-        }
-        return ErrorCode.NoChanges;
+        return new EditOpencodeResponse();
     }
 }

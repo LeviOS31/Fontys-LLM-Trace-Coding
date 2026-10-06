@@ -31,13 +31,15 @@ type Props = {
 };
 
 function getModelName(trace: TraceDetailView): string {
-  for (const scope of trace.traceScopes) {
-    const model = scope.spans
-      .flatMap((span) => span.attributes)
-      .find((attribute) => attribute.key === 'gen_ai.request.model')?.value;
+  const spans = trace.traceScopes.flatMap((scope) => scope.spans);
+  const hasOutput = (s: (typeof spans)[number]) =>
+    s.attributes.some((a) => a.key === 'gen_ai.output.messages');
+  // LLM spans first, so an embedding model is only a last resort
+  for (const span of [...spans].sort((a, b) => Number(hasOutput(b)) - Number(hasOutput(a)))) {
+    const attr = (key: string) => span.attributes.find((a) => a.key === key)?.value;
+    const model = attr('gen_ai.request.model') || attr('gen_ai.response.model');
     if (model) return model;
   }
-
   return 'Unknown model';
 }
 

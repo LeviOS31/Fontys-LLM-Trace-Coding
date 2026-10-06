@@ -58,6 +58,15 @@ namespace Projects.Tests.Features.DeleteAllPojectVersion
 
             // Assert
             result.IsSuccess.ShouldBeTrue();
+
+            // Also check if traces are attempted to be deleted for each version
+            foreach (var version in versions)
+            {
+                await mockMediator.Received(1).Send(
+                    Arg.Is<DeleteAllTracesOfVersionRequest>(r => r.VersionId == version.VersionId),
+                    Arg.Any<CancellationToken>()
+                );
+            }
         }
 
         [Fact]

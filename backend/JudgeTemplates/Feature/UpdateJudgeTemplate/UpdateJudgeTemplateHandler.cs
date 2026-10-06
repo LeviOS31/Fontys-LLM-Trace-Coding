@@ -101,7 +101,7 @@ public class UpdateJudgeTemplateHandler
                 );
 
                 judgeTemplate.CustomJudgeTemplateContent = request.Content;
-                judgeTemplate.CurrentVersionNumber = lastVersionNumber.Value + 1; // new line
+                judgeTemplate.CurrentVersionNumber = lastVersionNumber.Value + 1;
                 judgeTemplate.IsDeprecated = false;
             }
 

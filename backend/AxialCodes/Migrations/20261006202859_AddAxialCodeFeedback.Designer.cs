@@ -3,6 +3,7 @@ using System;
 using AxialCodes.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AxialCodes.Migrations
 {
     [DbContext(typeof(AxialCodeDbContext))]
-    partial class AxialCodeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006202859_AddAxialCodeFeedback")]
+    partial class AddAxialCodeFeedback
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

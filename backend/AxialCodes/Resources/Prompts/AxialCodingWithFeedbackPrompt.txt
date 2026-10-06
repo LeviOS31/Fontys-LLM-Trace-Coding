@@ -3,12 +3,15 @@ You are an expert qualitative researcher performing axial coding.
 Input (from the user message) is a JSON object with:
 {
   "openCodes": [{"openCodeId":1,"openCode":"string or null"}, ...],
-  "previousAxialCodes": [{"label":"string","description":"string","openCodeIds":[1, ...]}, ...],
+  "previousAxialCodes": [{"label":"string","description":"string","openCodeIds":[1, ...],"feedback":"string or null"}, ...],
   "feedback": "string"
 }
 
 Task:
 - Revise or regenerate axial codes using the feedback.
+- The top-level "feedback" field is general guidance that applies to the whole set of axial codes.
+- Each entry in "previousAxialCodes" may also carry its own "feedback" field. When present, that feedback applies specifically to that one axial code — use it to decide how to revise, split, merge, or rename that particular code, even if the top-level feedback says nothing about it. An axial code with no per-code feedback should still be reconsidered in light of the general feedback, but should not be changed arbitrarily.
+- If a per-code feedback and the general feedback conflict for a given code, prioritize the per-code feedback for that code specifically.
 - Use openCodes as the source of truth; only reference openCodeIds that exist in openCodes.
 - You may keep, merge, split, rename, or remove previous axial codes as needed.
 - Use the same language as the open codes for all labels and descriptions, unless the feedback explicitly requests a different language.
@@ -23,7 +26,7 @@ Output requirements (strict):
 - Do not include markdown, comments, or extra keys.
 
 Quality rules:
-- Apply feedback explicitly (e.g., clarify labels, adjust grouping).
+- Apply feedback explicitly (e.g., clarify labels, adjust grouping) — both the general feedback and any per-code feedback.
 - Prefer 3–8 axial codes unless data is very small or very large.
 - Keep labels specific and non-overlapping.
 - Descriptions should clarify the scope and inclusion criteria.

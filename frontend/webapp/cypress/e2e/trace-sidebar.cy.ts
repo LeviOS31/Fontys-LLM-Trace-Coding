@@ -165,45 +165,20 @@ describe('trace sidebar', () => {
   // ---------------------------------------------------------------------------
   // Traces inside a group
   // ---------------------------------------------------------------------------
-  context('switching between traces of a group', () => {
-    const traceRows = () => cy.get('[data-testid="trace-sidebar-trace"]');
-    const groupOf = (title: string) =>
-      cy.contains('[data-testid="trace-sidebar-group"]', title, { timeout: 10000 });
-
-    it('expands the open group and lists its traces', () => {
+  context('traces of a group', () => {
+    it('does not list the traces of a group in the sidebar', () => {
       sidebar().contains(alphaTitle).click();
       cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${alphaGroupId}`);
 
-      groupOf(alphaTitle).find('[data-testid="trace-sidebar-trace"]').should('have.length', 2);
-    });
-
-    it('names the selected trace in the URL', () => {
-      sidebar().contains(alphaTitle).click();
-      traceRows().should('have.length', 2);
-
-      traceRows().eq(1).click();
-
-      cy.location('search', { timeout: 10000 }).should('include', 'traceId=');
-      traceRows().eq(1).should('have.attr', 'aria-current', 'true');
-      traceRows().eq(0).should('not.have.attr', 'aria-current');
-    });
-
-    it('opens a trace of another group in one click', () => {
-      sidebar().contains(alphaTitle).click();
-      cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${alphaGroupId}`);
-
-      cy.get(`button[aria-label="Expand ${betaTitle}"]`).click();
-      groupOf(betaTitle).find('[data-testid="trace-sidebar-trace"]').first().click();
-
-      cy.location('pathname', { timeout: 10000 }).should('include', `/open-code/${betaGroupId}`);
-      cy.location('search').should('include', 'traceId=');
+      cy.get('[data-testid="trace-sidebar-trace"]').should('not.exist');
+      cy.get(`button[aria-label="Expand ${alphaTitle}"]`).should('not.exist');
     });
 
     it('drops the previous trace when switching to another group', () => {
-      sidebar().contains(alphaTitle).click();
-      traceRows().should('have.length', 2);
-      traceRows().eq(1).click();
-      cy.location('search', { timeout: 10000 }).should('include', 'traceId=');
+      cy.visit(
+        `/projects/${projectId}/versions/${versionId}/open-code/${alphaGroupId}?traceId=${alphaSecondTraceId}`
+      );
+      activeItem().should('contain.text', alphaTitle);
 
       sidebar().contains(betaTitle).click();
 

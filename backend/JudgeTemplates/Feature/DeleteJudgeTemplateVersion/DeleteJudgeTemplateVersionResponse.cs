@@ -1,0 +1,3 @@
+namespace JudgeTemplates.Feature.DeleteJudgeTemplateVersion;
+
+public record DeleteJudgeTemplateVersionResponse;

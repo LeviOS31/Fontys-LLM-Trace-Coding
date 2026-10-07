@@ -7,8 +7,9 @@ using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Contracts.Features.GetProject;
-using ProjectVersions.Contracts.Features.InternalGetProjectVersions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Shared;
 using Shouldly;
 
@@ -176,7 +177,7 @@ public class GetAxialCodesHandlerTests
             Description = "TestDescription",
             Versions =
             [
-                new InternalGetProjectVersionsResponse.ProjectVersionSummary
+                new GetAllProjectVersionsResponse.ProjectVersionSummary
                 {
                     VersionId = versionId,
                     ProjectId = new Guid("B1B2C3D4-0000-0000-0000-000000000010"),

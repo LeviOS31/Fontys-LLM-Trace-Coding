@@ -19,6 +19,13 @@ public class JudgeTemplate
     public Guid ProjectId { get; set; }
     public Guid ProjectVersionId { get; set; }
     public bool IsDeprecated { get; set; }
+
+    public int? CurrentVersionNumber { get; set; }
+
+    // Null = still using the auto-generated template from the axial code.
+    // Set once a user saves an edit; unbounded, since prompt text with
+    // examples/notes can run long.
+    public string? CustomJudgeTemplateContent { get; set; }
 }
 
 internal sealed class JudgeTemplateEntityConfiguration : IEntityTypeConfiguration<JudgeTemplate>
@@ -28,5 +35,6 @@ internal sealed class JudgeTemplateEntityConfiguration : IEntityTypeConfiguratio
         builder.HasKey(x => x.JudgeTemplateId);
         builder.Property(x => x.JudgeTemplateName).HasMaxLength(JudgeTemplate.MaxNameLength);
         builder.Property(x => x.JudgeTemplateDescription).HasMaxLength(JudgeTemplate.MaxDescriptionLength);
+        builder.Property(x => x.CustomJudgeTemplateContent).HasMaxLength(int.MaxValue);
     }
 }

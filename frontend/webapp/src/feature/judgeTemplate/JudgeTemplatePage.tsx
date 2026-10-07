@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { Box, Flex, Kbd, Text, TextField } from '@radix-ui/themes';
 import { Scale, Search } from 'lucide-react';
-import type { JudgeTemplate } from '../../shared/types/judgeTemplate.ts';
 import { useGetJudgeTemplates } from './hooks/useGetJudgeTemplates.ts';
 import { useCreateJudgeTemplate } from './hooks/useCreateJudgeTemplate.ts';
 import { useDeleteJudgeTemplate } from './hooks/useDeleteJudgeTemplate.ts';
+import { useUpdateJudgeTemplate } from './hooks/useUpdateJudgeTemplate.ts';
+import { useRestoreJudgeTemplateVersion } from './hooks/useRestoreJudgeTemplateVersion.ts';
 import { useGetCurrentAxialCodesOfVersion } from '../axialcode/hooks/useGetCurrentAxialCodesOfVersion.ts';
 import { isTyping } from '../../shared/util/shortcutHelpers.ts';
 import { CreateTemplatePanel } from './components/CreateTemplatePanel/CreateTemplatePanel.tsx';
@@ -17,7 +18,10 @@ type PageParams = { id: string; versionId: string };
 export default function JudgeTemplatePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
-  const [editing, setEditing] = useState<JudgeTemplate | null>(null);
+  // Only the ID is "selection" state — the actual template object is always
+  // derived live from the templates list below, so it updates automatically
+  // whenever the list refetches (e.g. after a save or restore).
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [scopeAxial, setScopeAxial] = useState('all');
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -34,12 +38,25 @@ export default function JudgeTemplatePage() {
     projectId ?? '',
     versionId ?? ''
   );
+  const { mutate: updateTemplate, isPending: isSaving } = useUpdateJudgeTemplate(
+    projectId ?? '',
+    versionId ?? ''
+  );
+  const { mutate: restoreVersion, isPending: isRestoring } = useRestoreJudgeTemplateVersion(
+    projectId ?? '',
+    versionId ?? ''
+  );
 
   const templates = judgeTemplatesData?.judgeTemplates ?? [];
   const axialCodes = axialCodesData?.axialCodes ?? [];
 
-  // The GET /judge-templates response does not include axialCodeId per template yet.
-  const axialCodeById: Record<string, string> = {};
+  const editing = templates.find((t) => t.id === editingId) ?? null;
+
+  const axialCodeById: Record<string, string> = Object.fromEntries(
+    templates
+      .map((t) => [t.id, axialCodes.find((a) => a.axialCodeId === t.axialCodeId)?.label ?? ''])
+      .filter(([, label]) => label)
+  );
 
   const filtered = templates.filter((t) => {
     if (!query) return true;
@@ -50,7 +67,7 @@ export default function JudgeTemplatePage() {
   const handleDelete = (id: string) => {
     deleteTemplate(id, {
       onSuccess: () => {
-        if (editing?.id === id) setEditing(null);
+        if (editingId === id) setEditingId(null);
       },
     });
   };
@@ -66,9 +83,17 @@ export default function JudgeTemplatePage() {
     });
   };
 
+  const handleSave = (id: string, content: string) => {
+    updateTemplate({ judgeTemplateId: id, content }, { onSuccess: () => setEditingId(null) });
+  };
+
+  const handleRestore = (id: string, versionNumber: number) => {
+    restoreVersion({ judgeTemplateId: id, versionNumber });
+  };
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (editing) return;
+      if (editingId) return;
       if (isTyping()) return;
 
       if (e.key === 'ArrowDown') {
@@ -83,7 +108,7 @@ export default function JudgeTemplatePage() {
       }
       if (e.key === 'Enter' && focusedIndex >= 0 && filtered[focusedIndex]) {
         e.preventDefault();
-        setEditing(filtered[focusedIndex]);
+        setEditingId(filtered[focusedIndex].id);
         return;
       }
       if (e.ctrlKey && e.key.toLowerCase() === 'd') {
@@ -105,7 +130,6 @@ export default function JudgeTemplatePage() {
         const select = axialSelectRef.current;
         if (select) {
           select.focus();
-          // showPicker() opens the dropdown — requires a user-gesture context (keypress qualifies)
           if ('showPicker' in select)
             (select as HTMLSelectElement & { showPicker(): void }).showPicker();
         }
@@ -113,7 +137,7 @@ export default function JudgeTemplatePage() {
     };
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
-  }, [editing, filtered, focusedIndex]);
+  }, [editingId, filtered, focusedIndex]);
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
@@ -159,7 +183,7 @@ export default function JudgeTemplatePage() {
           axialCodeById={axialCodeById}
           focusedIndex={focusedIndex}
           onOpen={(t) => {
-            setEditing(t);
+            setEditingId(t.id);
             setFocusedIndex(filtered.indexOf(t));
           }}
           onDelete={handleDelete}
@@ -169,8 +193,14 @@ export default function JudgeTemplatePage() {
       {editing && (
         <EditJudgeTemplateModal
           template={editing}
-          onClose={() => setEditing(null)}
+          projectId={projectId}
+          projectVersionId={versionId}
+          onClose={() => setEditingId(null)}
           onDelete={handleDelete}
+          onSave={handleSave}
+          onRestore={handleRestore}
+          isSaving={isSaving}
+          isRestoring={isRestoring}
         />
       )}
 

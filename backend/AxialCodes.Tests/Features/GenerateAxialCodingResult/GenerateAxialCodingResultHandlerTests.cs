@@ -1,4 +1,4 @@
-﻿using AxialCodes.Data;
+using AxialCodes.Data;
 using AxialCodes.Data.Models;
 using AxialCodes.Features.GenerateAxialCodingResult;
 using Mediator;
@@ -321,7 +321,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[99]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"}]}]"
                     ),
                 ])
             );
@@ -402,7 +402,13 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"},{\"openCodeId\":2,\"quote\":\"Open code B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"}]}]"
+                    ),
+                ]),
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "{\"checks\":[{\"index\":0,\"supported\":true,\"rationale\":\"Supported by the cited source codes.\"},{\"index\":1,\"supported\":false,\"rationale\":\"Unsupported by the cited source code.\"}]}"
                     ),
                 ])
             );
@@ -482,7 +488,13 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"},{\"openCodeId\":2,\"quote\":\"Open code B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"}]}]"
+                    ),
+                ]),
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "{\"checks\":[{\"index\":0,\"supported\":true,\"rationale\":\"Supported by the cited source codes.\"},{\"index\":1,\"supported\":false,\"rationale\":\"Unsupported by the cited source code.\"}]}"
                     ),
                 ])
             );
@@ -565,7 +577,13 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"},{\"openCodeId\":2,\"quote\":\"Open code B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"}]}]"
+                    ),
+                ]),
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "{\"checks\":[{\"index\":0,\"supported\":true,\"rationale\":\"Supported by the cited source codes.\"},{\"index\":1,\"supported\":false,\"rationale\":\"Unsupported by the cited source code.\"}]}"
                     ),
                 ])
             );
@@ -591,6 +609,7 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.Equal("L1", axialCode.Label);
         Assert.Equal("D1", axialCode.Description);
         Assert.Equal([traceId1, traceId2], axialCode.TraceIds);
+        Assert.DoesNotContain(result.Value.AxialCodes!, code => code.Label == "Unsupported");
         await mockContext.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -653,7 +672,13 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"},{\"openCodeId\":2,\"quote\":\"Open code B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\"}]}]"
+                    ),
+                ]),
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "{\"checks\":[{\"index\":0,\"supported\":true,\"rationale\":\"Supported by the cited source codes.\"},{\"index\":1,\"supported\":false,\"rationale\":\"Unsupported by the cited source code.\"}]}"
                     ),
                 ])
             );

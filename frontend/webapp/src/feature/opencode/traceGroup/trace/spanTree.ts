@@ -1,4 +1,5 @@
 import type { TraceScopeSpanView } from '../../../../shared/types/trace';
+import { extractSpanMessages } from './GenAIMessages';
 
 export type SpanNode = TraceScopeSpanView & { children: SpanNode[] };
 
@@ -91,8 +92,52 @@ export function buildDisplaySpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
   return tree;
 }
 
-function isChat(span: TraceScopeSpanView): boolean {
-  return span.name.toLowerCase().includes('openai.chat');
+/**
+ * Traces without a workflow span (e.g. hierarchical exports from LlamaIndex): keep the real
+ * span hierarchy and replace every span that has messages by its message nodes. Which spans are
+ * LLM spans follows from the anchors, which are derived from attributes, not from span names.
+ */
+function attachMessageNodes(nodes: SpanNode[], messages: MessageTreeAnchor[]): MessageSpanNode[] {
+  return nodes
+    .flatMap((node): MessageSpanNode[] => {
+      const children = attachMessageNodes(node.children, messages);
+      const own = messages.filter((message) => message.relatedSpanId === node.traceScopeSpanId);
+      const userMessage = own.find((message) => message.role === 'user');
+      const assistantMessage = own.find((message) => message.role === 'assistant');
+      if (!userMessage && !assistantMessage) return [{ ...node, children }];
+
+      const assistantNode: MessageSpanNode = {
+        ...node,
+        children: userMessage ? [] : children,
+        displayName: node.name,
+        messageRole: 'assistant',
+        nodeKey: `${node.traceScopeSpanId}-assistant`,
+      };
+      if (!userMessage) return [assistantNode];
+
+      const result: MessageSpanNode[] = [];
+      const system = extractSpanMessages(node.attributes)?.messages.find(
+        (m) => m.role === 'system'
+      );
+      if (system) {
+        result.push({
+          ...node,
+          children: [],
+          displayName: system.content,
+          messageRole: 'system',
+          nodeKey: `${node.traceScopeSpanId}-system`,
+        });
+      }
+      result.push({
+        ...node,
+        children: assistantMessage ? [assistantNode, ...children] : children,
+        displayName: userMessage.content,
+        messageRole: 'user',
+        nodeKey: `${node.traceScopeSpanId}-user`,
+      });
+      return result;
+    })
+    .sort((a, b) => a.startTimeUnixNano - b.startTimeUnixNano);
 }
 
 export function buildMessageAwareSpanTree(
@@ -101,33 +146,26 @@ export function buildMessageAwareSpanTree(
 ): MessageSpanNode[] {
   const spanTree = buildSpanTree(spans);
   const workflow = flattenSpanTree(spanTree).find(isWorkflow);
-  if (!workflow) return buildDisplaySpanTree(spans) as MessageSpanNode[];
+  if (!workflow) return attachMessageNodes(buildDisplaySpanTree(spans), messages);
 
   const messageNodes: MessageSpanNode[] = [];
   const chatSpanIds = [...new Set(messages.map((message) => message.relatedSpanId))].filter(
-    (spanId) => spans.some((span) => span.traceScopeSpanId === spanId && isChat(span))
+    (spanId) => spans.some((span) => span.traceScopeSpanId === spanId)
   );
 
-  // Read the system prompt straight off each chat span's own attributes rather than
-  // through `messages`: getLlmMessages() dedupes anchors by content across the whole
-  // trace group, so a span whose system prompt happens to match an earlier trace/span's
-  // would have no surviving anchor of its own — that would make an identical prompt
-  // look "missing" on this span even though it genuinely has one. Reading attributes
-  // directly gives per-span ground truth regardless of that dedup.
+  // No messages belong to this trace: show its real spans instead of a lone workflow node.
+  if (chatSpanIds.length === 0) return attachMessageNodes(buildDisplaySpanTree(spans), messages);
+
   const systemPromptBySpanId = new Map<string, string>();
   for (const spanId of chatSpanIds) {
     const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId);
     if (!chatSpan) continue;
-    const role = chatSpan.attributes.find((a) => a.key === 'gen_ai.prompt.0.role')?.value;
-    if (role !== 'system') continue;
-    const content = chatSpan.attributes.find((a) => a.key === 'gen_ai.prompt.0.content')?.value;
-    if (content !== undefined) systemPromptBySpanId.set(spanId, content);
+    const system = extractSpanMessages(chatSpan.attributes)?.messages.find(
+      (m) => m.role === 'system'
+    );
+    if (system) systemPromptBySpanId.set(spanId, system.content);
   }
 
-  // If every chat span in this trace carries the exact same system prompt, it's really
-  // one piece of conversation-level context — show it once, above everything. Otherwise
-  // (some spans have none, or they differ), each span's own prompt is shown above that
-  // specific span instead of guessing which one "wins".
   const allSpansHaveSystemPrompt =
     chatSpanIds.length > 0 && chatSpanIds.every((spanId) => systemPromptBySpanId.has(spanId));
   const distinctContents = new Set(systemPromptBySpanId.values());
@@ -144,7 +182,7 @@ export function buildMessageAwareSpanTree(
   }
 
   for (const spanId of chatSpanIds) {
-    const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId && isChat(span));
+    const chatSpan = spans.find((span) => span.traceScopeSpanId === spanId);
     if (!chatSpan) continue;
 
     if (!hoistToTop && systemPromptBySpanId.has(spanId)) {

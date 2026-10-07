@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Projects.Contracts.Features.GetProject;
 using Projects.Data;
 using Projects.Data.Models;
-using Projects.Features.DeleteAssessmentCriteria;
 using Serilog;
 using Shared;
 using System.Data.Common;
+using Traces.Contracts.Features.DeleteAllTracesOfVersion;
 
 namespace Projects.Features.DeleteProjectVersion
 {
@@ -78,6 +78,27 @@ namespace Projects.Features.DeleteProjectVersion
                 Logger.Error(
                     ex,
                     "Error while deleting version {VersionId} for project {ProjectId}: {ErrorMessage}",
+                    request.VersionId,
+                    request.ProjectId,
+                    ex.Message
+                );
+                return ErrorCode.DatabaseError;
+            }
+
+            try
+            {
+                var deletetraces = new DeleteAllTracesOfVersionRequest
+                {
+                    VersionId = request.VersionId,
+                };
+
+                var deleteTracesResult = await mediator.Send(deletetraces, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(
+                    ex,
+                    "Error while deleting traces for version {VersionId} of project {ProjectId}: {ErrorMessage}",
                     request.VersionId,
                     request.ProjectId,
                     ex.Message

@@ -71,6 +71,8 @@ public class OtlpJsonlParser
     /// <see cref="TracesData"/>, regardless of whether they originated from the same
     /// top-level JSON value or different ones (e.g. batched OTLP exports where a trace's
     /// spans are split across multiple lines/objects).
+    /// After merging, LLM input/output recorded in a supported legacy convention is
+    /// rewritten into the OpenTelemetry GenAI convention, see <see cref="GenAiMessageNormalizer"/>.
     /// </summary>
     /// <param name="jsonl">The JSON/JSONL string to parse.</param>
     /// <param name="cancellationToken">Token to cancel the async operation.</param>
@@ -105,7 +107,19 @@ public class OtlpJsonlParser
             }
         }
 
-        return MergeTracesById(traces).ToArray();
+        var mergedTraces = MergeTracesById(traces).ToArray();
+
+        // Map supported legacy LLM input/output conventions onto the OpenTelemetry GenAI convention.
+        var normalizedSpans = GenAiMessageNormalizer.Normalize(mergedTraces);
+        if (normalizedSpans > 0)
+        {
+            Logger.Information(
+                "Converted LLM messages of {SpanCount} spans to the OpenTelemetry GenAI convention",
+                normalizedSpans
+            );
+        }
+
+        return mergedTraces;
     }
 
     private static void AddTrace(JObject jsonObject, ICollection<TracesData> traces)
@@ -117,12 +131,6 @@ public class OtlpJsonlParser
         }
     }
 
-    /// <summary>
-    /// Merges spans from every parsed <see cref="TracesData"/> that share the same
-    /// <c>traceId</c> into a single <see cref="TracesData"/>, so a trace whose spans were
-    /// split across multiple top-level JSON documents (lines, batches, or array entries)
-    /// is reassembled into one complete span tree.
-    /// </summary>
     private static IEnumerable<TracesData> MergeTracesById(IEnumerable<TracesData> input)
     {
         var tracesById = new Dictionary<string, TracesData>(StringComparer.OrdinalIgnoreCase);

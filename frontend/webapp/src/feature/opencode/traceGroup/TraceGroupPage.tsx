@@ -9,6 +9,7 @@ import { useUpdateSearchParam } from '../hooks/useUpdateSearchParam';
 import { LlmContent } from './LLM/LlmContent';
 import { TraceTreeNav } from './trace/TraceTreeNav';
 import { TraceContentOverview } from './trace/TraceContentOverview';
+import { extractSpanMessages } from './trace/GenAIMessages';
 
 export type PageParams = {
   id: string;
@@ -29,59 +30,49 @@ export type LlmMessage = {
 
 function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): LlmMessage[] {
   const msgs: LlmMessage[] = [];
+  const attr = (attributes: { key: string; value: string }[], key: string) =>
+    attributes.find((a) => a.key === key)?.value;
 
   for (const trace of traceGroup?.traces ?? []) {
+    const amountOfSpans = trace.traceScopes.reduce((acc, s) => acc + s.spans.length, 0);
+    const outputOnly: LlmMessage[] = [];
+
     for (const scope of trace.traceScopes) {
       for (const span of scope.spans) {
-        const hasLlmAttribute = span.attributes.some((attr) => attr.key.startsWith('gen_ai'));
-        if (!hasLlmAttribute) continue;
+        const extracted = extractSpanMessages(span.attributes);
+        if (!extracted) continue;
 
-        let i = 0;
-        while (true) {
-          const roleAttr = span.attributes.find((attr) => attr.key === `gen_ai.prompt.${i}.role`);
-          const contentAttr = span.attributes.find(
-            (attr) => attr.key === `gen_ai.prompt.${i}.content`
-          );
-          if (!roleAttr || !contentAttr) break;
+        const modelName =
+          attr(span.attributes, 'gen_ai.request.model') ||
+          attr(span.attributes, 'gen_ai.response.model');
 
-          // Deduping: if a previous trace already has ownership of the message, ignore and continue.
-          if (
-            msgs.some(
-              (m) => m.content === contentAttr.value && m.role === roleAttr.value && m.index === i
-            )
-          ) {
-            i++;
-            continue;
+        extracted.messages.forEach((message, index) => {
+          const entry: LlmMessage = {
+            ...message,
+            index,
+            relatedTraceId: trace.traceId,
+            relatedSpanId: span.traceScopeSpanId,
+            modelName,
+            amountOfSpans,
+          };
+          // Spans without input messages have no reliable index; handled after this loop.
+          if (!extracted.hasInput) {
+            outputOnly.push(entry);
+            return;
           }
-
-          msgs.push({
-            role: roleAttr.value as LlmRole,
-            content: contentAttr.value,
-            index: i,
-            relatedTraceId: trace.traceId,
-            relatedSpanId: span.traceScopeSpanId,
-            modelName: span.attributes.find((attr) => attr.key === 'gen_ai.request.model')?.value,
-            amountOfSpans: trace.traceScopes.reduce((acc, s) => acc + s.spans.length, 0),
-          });
-          i++;
-        }
-
-        const completionRoleAttr = span.attributes.find(
-          (attr) => attr.key === `gen_ai.completion.0.role`
-        );
-        const completionContentAttr = span.attributes.find(
-          (attr) => attr.key === `gen_ai.completion.0.content`
-        );
-        if (completionRoleAttr && completionContentAttr) {
-          msgs.push({
-            role: completionRoleAttr.value as LlmRole,
-            content: completionContentAttr.value,
-            index: i,
-            relatedTraceId: trace.traceId,
-            relatedSpanId: span.traceScopeSpanId,
-          });
-        }
+          // Dedupe: an earlier trace/span already owns this message at this position.
+          const duplicate = msgs.some(
+            (m) => m.content === entry.content && m.role === entry.role && m.index === entry.index
+          );
+          if (!duplicate) msgs.push(entry);
+        });
       }
+    }
+
+    // Output-only spans often repeat an answer that another span already recorded.
+    for (const entry of outputOnly) {
+      const duplicate = msgs.some((m) => m.content === entry.content && m.role === entry.role);
+      if (!duplicate) msgs.push(entry);
     }
   }
 
@@ -97,9 +88,12 @@ export default function TraceGroupPage() {
     isError: isDetailError,
   } = useTraceGroup(id!, traceGroupId!, versionId!);
 
+  const llmMessages = useMemo(() => getLlmMessages(selectedTraceGroup), [selectedTraceGroup]);
+
+  // A group counts as an LLM group when the backend says so, or when its spans carry messages.
   const isLlmGroup = useMemo(
-    () => selectedTraceGroup?.traceGroupType === 'LlmGroup',
-    [selectedTraceGroup]
+    () => selectedTraceGroup?.traceGroupType === 'LlmGroup' || llmMessages.length > 0,
+    [selectedTraceGroup, llmMessages]
   );
 
   const [scrollSpanIndex, setScrollSpanIndex] = useState<string | null>(null);
@@ -150,11 +144,6 @@ export default function TraceGroupPage() {
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
   }, [selectedTraceGroup, effectiveSelectedTrace, setSelectedTrace]);
-
-  const llmMessages = useMemo(() => {
-    if (!isLlmGroup) return [];
-    return getLlmMessages(selectedTraceGroup);
-  }, [isLlmGroup, selectedTraceGroup]);
 
   const selectedTraceObject = useMemo(() => {
     if (!effectiveSelectedTrace || !selectedTraceGroup) return null;

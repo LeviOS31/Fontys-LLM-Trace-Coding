@@ -4,7 +4,6 @@ using MockQueryable.NSubstitute;
 using Npgsql;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Data;
 using Projects.Data.Models;
 using Projects.Features.DeleteAllAssessmentCriteriaOfProject;
@@ -12,6 +11,7 @@ using Projects.Features.DeleteAllProjectVersions;
 using Projects.Features.DeleteProject;
 using Shared;
 using Shouldly;
+using Traces.Contracts.Features.DeleteAllTracesOfVersion;
 
 namespace Projects.Tests.Features.DeleteProject;
 
@@ -52,11 +52,25 @@ public class DeleteProjectHandlerTests
             },
         };
 
+        var versions = new List<ProjectVersion>
+        {
+            new()
+            {
+                VersionId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024"),
+                ProjectId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024"),
+                Name = "TestVersion",
+                Description = "Description",
+            },
+        };
+
         var mockSet = projects.BuildMockDbSet();
+        var mockVersionSet = versions.BuildMockDbSet();
         var mockContext = Substitute.For<ProjectDbContext>(new DbContextOptionsBuilder<ProjectDbContext>().Options);
         mockContext.Projects.Returns(mockSet);
+        mockContext.Versions.Returns(mockVersionSet);
 
-        var handler = new DeleteProjectHandler(mockContext, CreateMediatorMock());
+        var mockMediator = CreateMediatorMock();
+        var handler = new DeleteProjectHandler(mockContext, mockMediator);
         var request = new DeleteProjectRequest
         {
             ProjectId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024"),
@@ -75,6 +89,7 @@ public class DeleteProjectHandlerTests
     {
         // Arrange
         var projectId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024");
+        var versionId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024");
         var userId = new Guid("68DF6625-60EA-4E0A-8F29-29DE14197024");
 
         var projects = new List<Project>
@@ -87,10 +102,22 @@ public class DeleteProjectHandlerTests
                 Description = "Description",
             },
         };
+        var versions = new List<ProjectVersion>
+        {
+            new()
+            {
+                VersionId = versionId,
+                ProjectId = projectId,
+                Name = "TestVersion",
+                Description = "Description",
+            },
+        };
 
         var mockSet = projects.BuildMockDbSet();
+        var mockVersionSet = versions.BuildMockDbSet();
         var mockContext = Substitute.For<ProjectDbContext>(new DbContextOptionsBuilder<ProjectDbContext>().Options);
         mockContext.Projects.Returns(mockSet);
+        mockContext.Versions.Returns(mockVersionSet);
 
         var mediator = CreateMediatorMock();
         var handler = new DeleteProjectHandler(mockContext, mediator);

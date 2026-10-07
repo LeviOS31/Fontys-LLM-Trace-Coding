@@ -406,5 +406,73 @@ describe('axial code', () => {
         });
       });
     });
+
+    // Differences between the approved codes (A) and the regenerated ones (B)
+    context('when the regenerated codes differ from the approved ones', () => {
+      // Renames "Usability Issues", adds an open code to "Performance Concerns"
+      // and adds a code that did not exist before.
+      const mockAxialCodesWithChanges = [
+        {
+          label: 'Navigation Problems',
+          description: 'Users struggle to find their way around',
+          traceIds: [traceId1, traceId2, traceId3],
+        },
+        {
+          label: 'Performance Concerns',
+          description: 'Slow response times and crashes',
+          traceIds: [traceId4, traceId5, traceId6],
+        },
+        {
+          label: 'Trust Signals',
+          description: 'User concerns about security and reliability',
+          traceIds: [traceId7],
+        },
+      ];
+
+      // Version B is listed after version A, so its card is the last one with that label.
+      const getVersionBCard = (title: string) =>
+        cy.get('[data-testid="axial-code-card"]').filter(`:contains("${title}")`).last();
+
+      beforeEach(() => {
+        interceptGenerate(mockAxialCodesWithChanges, resultIdB);
+        interceptSave();
+
+        regenerateWithFeedback('Rename usability and look for trust issues');
+      });
+
+      it('summarises what changed in the interpretation panel', () => {
+        cy.get('[data-testid="axial-code-change-summary"]').within(() => {
+          cy.contains('1 new').should('be.visible');
+          cy.contains('1 renamed').should('be.visible');
+          cy.contains('1 changed').should('be.visible');
+        });
+      });
+
+      it('marks a code that groups the same open codes under a new label as renamed', () => {
+        getVersionBCard('Navigation Problems').within(() => {
+          cy.contains('Renamed').should('be.visible');
+          cy.contains('Was Usability Issues').should('be.visible');
+        });
+      });
+
+      it('marks a code that gained open codes as changed', () => {
+        getVersionBCard('Performance Concerns').within(() => {
+          cy.contains('Changed').should('be.visible');
+          cy.contains('+1 open code').should('be.visible');
+        });
+      });
+
+      it('marks a code without counterpart in version A as new', () => {
+        getVersionBCard('Trust Signals').within(() => {
+          cy.contains('New').should('be.visible');
+        });
+      });
+
+      it('does not mark the cards of the approved version', () => {
+        getAxialCodeCard('Usability Issues')
+          .find('[data-testid="axial-code-change"]')
+          .should('not.exist');
+      });
+    });
   });
 });

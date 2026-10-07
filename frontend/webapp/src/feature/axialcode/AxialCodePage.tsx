@@ -246,6 +246,7 @@ export default function AxialCodePage() {
             onApprove={handleApproveB}
             onDiscard={handleDiscardB}
             isSaving={isSaving}
+            comparison={comparison?.result ?? null}
           />
 
           <Box mt="2">

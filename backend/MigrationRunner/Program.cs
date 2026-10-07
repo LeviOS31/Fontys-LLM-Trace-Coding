@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Projects.Data;
+using RawLLMOutputs.Data;
 using Settings.Data;
 using Traces.Data;
 
@@ -24,6 +25,7 @@ builder.Services.AddDbContext<TracesDbContext>(options => options.UseNpgsql(conn
 builder.Services.AddDbContext<AxialCodeDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<SettingsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<JudgeTemplatesDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<RawLLMOutputDbContext>(options => options.UseNpgsql(connectionString));
 
 // Migration runner
 builder.Services.AddScoped<MigrationRunner.MigrationRunner>();

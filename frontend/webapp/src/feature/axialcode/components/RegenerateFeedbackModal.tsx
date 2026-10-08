@@ -47,14 +47,6 @@ export default function RegenerateFeedbackModal({
           disabled={isPending}
         />
         
-        <TextArea
-          value={feedback}
-          onChange={(e) => setFeedback(e.target.value)}
-          placeholder="E.g. 'Split the largest category into two' or 'Merge codes X and Y into one'…"
-          size="2"
-          rows={7}
-          disabled={isPending}
-        />
 
         <Flex gap="2" mt="4" justify="end">
           <Button variant="soft" color="gray" onClick={() => handleOpenChange(false)}>

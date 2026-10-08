@@ -30,8 +30,4 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
     <PackageReference Include="Scriban" Version="7.0.0" PrivateAssets="all" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Endpoints\RawLLMData\Dtos\" />
-  </ItemGroup>
 </Project>

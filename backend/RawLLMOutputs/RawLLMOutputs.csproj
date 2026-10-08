@@ -7,12 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Features\**" />
-    <EmbeddedResource Remove="Features\**" />
-    <None Remove="Features\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Remove="20261008080806_FirstMigration.cs" />
     <Compile Remove="20261008080806_FirstMigration.Designer.cs" />
     <Compile Remove="RawLLMOutputDbContextModelSnapshot.cs" />

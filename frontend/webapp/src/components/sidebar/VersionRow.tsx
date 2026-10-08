@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ChevronDown, ChevronRight, Code2, GitBranch, LayoutDashboard, Scale } from 'lucide-react';
+import { ChevronDown, ChevronRight, Code2, Gavel, GitBranch, LayoutDashboard, Scale } from 'lucide-react';
 import { Box, Flex, Text, Tooltip } from '@radix-ui/themes';
 import { SidebarNavItem } from './SidebarNavItem.tsx';
 import { colors } from '../../shared/styling/colors.ts';
 import { isTyping } from '../../shared/util/shortcutHelpers.ts';
 import type { Version } from '../../shared/types/version.ts';
 import { useSidebarScrollContainer } from './SidebarScrollContent.ts';
+
 
 interface VersionRowProps {
   readonly collapsed?: boolean;
@@ -16,11 +17,13 @@ interface VersionRowProps {
   readonly isKeyFocused?: boolean;
 }
 
+
 const PAGES = [
   { id: 'overview', label: 'Overview', Icon: LayoutDashboard, shortcut: '1' },
   { id: 'open-code', label: 'Open Code', Icon: Code2, shortcut: '2' },
   { id: 'axial-code', label: 'Axial Code', Icon: GitBranch, shortcut: '3' },
   { id: 'judge-template', label: 'Judge Template', Icon: Scale, shortcut: '4' },
+  { id: 'judge', label: 'Judge', Icon: Gavel, shortcut: '5' },
 ] as const;
 
 export function VersionRow({
@@ -64,6 +67,7 @@ export function VersionRow({
       '2': 'open-code',
       '3': 'axial-code',
       '4': 'judge-template',
+      '5': 'judge',
     };
     const handleKey = (e: KeyboardEvent) => {
       if (isTyping()) return;

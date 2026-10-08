@@ -22,7 +22,7 @@ export async function resetDb(): Promise<void> {
               "TraceGroups",
               "TraceCollections",
               "ChatClientConfigurations",
-              "AssessmentCriteria",
+              "AssessmentCriterias",
               "AxialCodingResults",
               "JudgeTemplates"
             RESTART IDENTITY CASCADE;

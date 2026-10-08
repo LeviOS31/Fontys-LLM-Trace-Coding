@@ -16,6 +16,9 @@ import SnapshotSummaryCard from './components/SnapshotSummaryCard.tsx';
 import SnapshotTreemapSection from '../../shared/components/SnapshotTreemap.tsx';
 import AxialCodeList from './components/AxialCodeList.tsx';
 import { convertApiCodesToSnapshot } from '../../shared/util/convertApiCodesToSnapshot.ts';
+import { compareAxialCodes } from '../../shared/util/compareAxialCodes.ts';
+import buildComparisonColors from '../../shared/util/buildComparisonColors.ts';
+import ChangesSection from './components/ChangesSection/ChangesSection.tsx';
 import './AxialCodePage.module.css';
 
 function formatDate(iso: string): string {
@@ -81,6 +84,18 @@ export default function AxialCodePage() {
     [openCodes]
   );
 
+  // What changed between the approved codes (A) and the regenerated draft (B).
+  const comparison = useMemo(() => {
+    const approvedCodes = savedAxialCodes?.axialCodes ?? [];
+    if (!approvedCodes.length || !draftAxialCodes?.length) return null;
+    const result = compareAxialCodes(approvedCodes, draftAxialCodes);
+    return {
+      result,
+      colorOf: buildComparisonColors(approvedCodes, result),
+      changeOf: new Map(result.changes.map((change) => [change.code, change])),
+    };
+  }, [savedAxialCodes, draftAxialCodes]);
+
   const snapshotA = useMemo<Snapshot | null>(() => {
     const codes = savedAxialCodes?.axialCodes ?? [];
     if (!codes.length) return null;
@@ -89,9 +104,10 @@ export default function AxialCodePage() {
       codes,
       'Version A',
       snapshotAGeneratedAt || apiCreatedAt || 'Approved',
-      openCodeTextById
+      openCodeTextById,
+      { colorOf: comparison?.colorOf }
     );
-  }, [savedAxialCodes, snapshotAGeneratedAt, openCodeTextById]);
+  }, [savedAxialCodes, snapshotAGeneratedAt, openCodeTextById, comparison]);
 
   const snapshotB = useMemo<Snapshot | null>(() => {
     if (!draftAxialCodes?.length) return null;
@@ -99,9 +115,10 @@ export default function AxialCodePage() {
       draftAxialCodes,
       'Version B',
       snapshotBGeneratedAt,
-      openCodeTextById
+      openCodeTextById,
+      comparison ?? undefined
     );
-  }, [draftAxialCodes, snapshotBGeneratedAt, openCodeTextById]);
+  }, [draftAxialCodes, snapshotBGeneratedAt, openCodeTextById, comparison]);
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
@@ -230,7 +247,20 @@ export default function AxialCodePage() {
             onApprove={handleApproveB}
             onDiscard={handleDiscardB}
             isSaving={isSaving}
+            comparison={comparison?.result ?? null}
           />
+
+          {comparison && (
+            <Box mt="2">
+              <ChangesSection
+                comparison={comparison.result}
+                previousCodes={savedCodes}
+                nextCodes={draftAxialCodes ?? []}
+                colorOf={comparison.colorOf}
+                openCodeTextById={openCodeTextById}
+              />
+            </Box>
+          )}
 
           <Box mt="2">
             <SectionHead title="Version summary" />

@@ -1,3 +1,5 @@
+import type { AxialCodeChangeKind } from '../util/compareAxialCodes.ts';
+
 export interface AxialCodeSnapshotCode {
   readonly id: string;
   readonly name: string;
@@ -9,6 +11,9 @@ export interface AxialCodeSnapshotCode {
   readonly sampleTraces: readonly string[];
   readonly sampleOpenCodes: readonly string[];
   readonly color: string;
+  /** Labels of the approved codes this regenerated code comes from. */
   readonly derivedFrom?: readonly string[];
-  readonly changeKind?: 'new' | 'split' | 'renamed' | 'stable';
+  readonly changeKind?: AxialCodeChangeKind;
+  readonly addedTraceIds?: readonly string[];
+  readonly removedTraceIds?: readonly string[];
 }

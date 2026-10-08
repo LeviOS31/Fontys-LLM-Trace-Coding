@@ -7,6 +7,7 @@ public class AxialCode
 {
     public const int MaxLabelLength = 255;
     public const int MaxDescriptionLength = 255;
+    public const int MaxFeedbackLength = 1000;
 
     public required Guid AxialCodingResultId { get; init; }
     public required AxialCodingResult? AxialCodingResult { get; init; }
@@ -15,6 +16,8 @@ public class AxialCode
     public required string Label { get; init; }
     public required string Description { get; init; }
     public required ICollection<Guid> TraceIds { get; init; }
+
+    public string? Feedback { get; set; }
 }
 
 internal sealed class AxialCodeEntityConfiguration : IEntityTypeConfiguration<AxialCode>
@@ -25,6 +28,7 @@ internal sealed class AxialCodeEntityConfiguration : IEntityTypeConfiguration<Ax
 
         builder.Property(x => x.Label).HasMaxLength(AxialCode.MaxLabelLength);
         builder.Property(x => x.Description).HasMaxLength(AxialCode.MaxDescriptionLength);
+        builder.Property(x => x.Feedback).HasMaxLength(AxialCode.MaxFeedbackLength);
 
         builder.PrimitiveCollection(x => x.TraceIds);
     }

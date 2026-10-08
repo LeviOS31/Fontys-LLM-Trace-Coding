@@ -69,8 +69,8 @@ public class UpdateJudgeTemplateHandler
             return ErrorCode.EntityNotFound;
         }
 
-        try
-        {
+            try
+            {
             int? lastVersionNumber = await _dbContext
                 .JudgeTemplateVersions.Where(v => v.JudgeTemplateId == judgeTemplate.JudgeTemplateId)
                 .Select(v => (int?)v.VersionNumber)
@@ -94,15 +94,13 @@ public class UpdateJudgeTemplateHandler
                     {
                         JudgeTemplateVersionId = Guid.NewGuid(),
                         JudgeTemplateId = judgeTemplate.JudgeTemplateId,
-                        VersionNumber = lastVersionNumber.Value + 1,
-                        Content = request.Content,
+                        VersionNumber = 1,
+                        Content = previousContent,
                         CreatedAt = DateTimeOffset.UtcNow,
                     }
                 );
 
-                judgeTemplate.CustomJudgeTemplateContent = request.Content;
-                judgeTemplate.CurrentVersionNumber = lastVersionNumber.Value + 1; // new line
-                judgeTemplate.IsDeprecated = false;
+                lastVersionNumber = 1;
             }
 
             _dbContext.JudgeTemplateVersions.Add(
@@ -117,10 +115,11 @@ public class UpdateJudgeTemplateHandler
             );
 
             judgeTemplate.CustomJudgeTemplateContent = request.Content;
+            judgeTemplate.CurrentVersionNumber = lastVersionNumber.Value + 1;
             judgeTemplate.IsDeprecated = false;
 
             await _dbContext.SaveChangesAsync(cancellationToken);
-        }
+    }
         catch (Exception ex) when (ex is DbUpdateException or DbException or InvalidOperationException)
         {
             Logger.Error(ex, "Error updating judge template {JudgeTemplateId}", request.JudgeTemplateId);

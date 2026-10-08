@@ -9,7 +9,7 @@ import {
   Workflow,
   FileText,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TraceDetailView } from '../../../../shared/types/trace';
 import {
   buildMessageAwareSpanTree,
@@ -275,9 +275,13 @@ export function TraceTreeNav({
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [selectedNodeKey]);
 
-  const spans = buildMessageAwareSpanTree(
-    trace.traceScopes.flatMap((scope) => scope.spans),
-    messageAnchors
+  const spans = useMemo(
+    () =>
+      buildMessageAwareSpanTree(
+        trace.traceScopes.flatMap((scope) => scope.spans),
+        messageAnchors
+      ),
+    [trace.traceScopes, messageAnchors]
   );
 
   return (

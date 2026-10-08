@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Dialog, Flex, Heading, Text, ScrollArea } from '@radix-ui/themes';
 import type { LlmMessage } from '../TraceGroupPage';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -92,6 +92,9 @@ export function LlmContent({
   onScrollChange,
 }: Readonly<Props>) {
   const [relatedTraceHover] = useState<string | null>(null);
+  const messageElements = useRef(new Map<string, HTMLElement>());
+  const scrollFrame = useRef<number | null>(null);
+  const lastScrolledMessage = useRef<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<{
     sourceFile: string;
     chunks: NonNullable<LlmMessage['retrievedSources']>[number]['chunks'];
@@ -101,7 +104,6 @@ export function LlmContent({
     () => Array.from(new Set(llmMessages.map((msg) => msg.relatedTraceId))),
     [llmMessages]
   );
-
   // Scroll the chat to the selected trace (e.g. when navigating with the
   // arrow keys), unless its first message is already fully visible.
   useEffect(() => {
@@ -150,37 +152,53 @@ export function LlmContent({
     const viewport = source.matches('[data-radix-scroll-area-viewport]')
       ? source
       : source.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
-    if (!viewport) return;
+    if (!viewport || scrollFrame.current !== null) return;
 
-    const viewportRect = viewport.getBoundingClientRect();
-    const viewportCenter = viewportRect.top + viewportRect.height / 2;
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = null;
+      const viewportRect = viewport.getBoundingClientRect();
+      const viewportCenter = viewportRect.top + viewportRect.height / 2;
 
-    let closest: { traceId: string; spanId: string; role: 'user' | 'assistant' } | null = null;
-    let closestDistance = Infinity;
+      let closest: { traceId: string; spanId: string; role: 'user' | 'assistant' } | null = null;
+      let closestDistance = Infinity;
 
-    for (const msg of llmMessages) {
-      if (msg.role !== 'user' && msg.role !== 'assistant') continue; // skip system messages
+      for (const msg of llmMessages) {
+        if (msg.role !== 'user' && msg.role !== 'assistant') continue;
 
-      const element = document.querySelector(
-        `[data-trace-id="${msg.relatedTraceId}"][data-span-id="${msg.relatedSpanId}"][data-message-role="${msg.role}"]`
-      ) as HTMLElement | null;
-      if (!element) continue;
+        const element = messageElements.current.get(
+          `${msg.relatedTraceId}:${msg.relatedSpanId}:${msg.role}`
+        );
+        if (!element) continue;
 
-      const elementRect = element.getBoundingClientRect();
-      const distance = Math.abs(elementRect.top + elementRect.height / 2 - viewportCenter);
+        const elementRect = element.getBoundingClientRect();
+        const distance = Math.abs(elementRect.top + elementRect.height / 2 - viewportCenter);
 
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closest = { traceId: msg.relatedTraceId, spanId: msg.relatedSpanId, role: msg.role };
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closest = { traceId: msg.relatedTraceId, spanId: msg.relatedSpanId, role: msg.role };
+        }
       }
-    }
 
-    if (closest) {
-      onScrollChange(closest.traceId, closest.spanId, closest.role);
-    } else {
-      onScrollChange(null, null, null);
-    }
+      const closestKey = closest
+        ? `${closest.traceId}:${closest.spanId}:${closest.role}`
+        : null;
+      if (closestKey === lastScrolledMessage.current) return;
+      lastScrolledMessage.current = closestKey;
+      if (closest) onScrollChange(closest.traceId, closest.spanId, closest.role);
+      else onScrollChange(null, null, null);
+    });
   };
+
+  useEffect(
+    () => () => {
+      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    },
+    []
+  );
+
+  useEffect(() => {
+    lastScrolledMessage.current = null;
+  }, [llmMessages]);
 
   return (
     <ScrollArea
@@ -225,6 +243,11 @@ export function LlmContent({
             <Box
               px="4"
               py="1"
+              ref={(element: HTMLDivElement | null) => {
+                const key = `${msg.relatedTraceId}:${msg.relatedSpanId}:${msg.role}`;
+                if (element) messageElements.current.set(key, element);
+                else messageElements.current.delete(key);
+              }}
               data-trace-id={msg.relatedTraceId}
               data-span-id={msg.relatedSpanId}
               data-message-role={msg.role}

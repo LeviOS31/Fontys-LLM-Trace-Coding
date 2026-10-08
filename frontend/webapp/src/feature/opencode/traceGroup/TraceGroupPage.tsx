@@ -141,6 +141,16 @@ export default function TraceGroupPage() {
   } = useTraceGroup(id!, traceGroupId!, versionId!);
 
   const llmMessages = useMemo(() => getLlmMessages(selectedTraceGroup), [selectedTraceGroup]);
+  const messageAnchors = useMemo(
+    () =>
+      llmMessages.filter(
+        (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+          message.role === 'user' ||
+          message.role === 'assistant' ||
+          message.role === 'system'
+      ),
+    [llmMessages]
+  );
 
   // A group counts as an LLM group when the backend says so, or when its spans carry messages.
   const isLlmGroup = useMemo(
@@ -240,12 +250,7 @@ export default function TraceGroupPage() {
                     scrollToRetrievedSource(effectiveSelectedTrace, spanId, sourceFile);
                   }
                 }}
-                messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
-                    message.role === 'user' ||
-                    message.role === 'assistant' ||
-                    message.role === 'system'
-                )}
+                messageAnchors={messageAnchors}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}
               />
@@ -309,12 +314,7 @@ export default function TraceGroupPage() {
                     scrollToRetrievedSource(effectiveSelectedTrace, spanId, sourceFile);
                   }
                 }}
-                messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
-                    message.role === 'user' ||
-                    message.role === 'assistant' ||
-                    message.role === 'system'
-                )}
+                messageAnchors={messageAnchors}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}
               />

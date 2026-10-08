@@ -30,15 +30,3 @@
   outline: 2px solid var(--accent-8);
   outline-offset: 1px;
 }
-
-/* Only shown on hover or keyboard focus, to hint that the code leads to its card. */
-.icon {
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 120ms ease;
-}
-
-.codeLink:hover .icon,
-.codeLink:focus-visible .icon {
-  opacity: 1;
-}

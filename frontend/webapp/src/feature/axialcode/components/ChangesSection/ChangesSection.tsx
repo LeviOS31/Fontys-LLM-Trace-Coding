@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Card, Flex, Heading, Text } from '@radix-ui/themes';
-import { ArrowDownToLine, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { AxialCode } from '../../../../shared/types/axialCode.ts';
 import type {
   AxialCodeChange,
@@ -56,13 +56,11 @@ function CodeLink({
       type="button"
       className={styles.codeLink}
       onClick={() => scrollToCard(code.label, snap)}
-      title={`Show "${code.label}" in the version ${snap} list below`}
     >
       <Box style={{ width: 8, height: 8, borderRadius: 2, flexShrink: 0, background: color }} />
       <Text size="2" weight="medium" className={styles.label} style={{ overflowWrap: 'anywhere' }}>
         {code.label}
       </Text>
-      <ArrowDownToLine size={13} className={styles.icon} aria-hidden />
     </button>
   );
 }

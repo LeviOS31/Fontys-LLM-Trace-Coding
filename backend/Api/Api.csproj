@@ -10,6 +10,7 @@
     <ProjectReference Include="..\AxialCodes\AxialCodes.csproj" />
     <ProjectReference Include="..\JudgeTemplates\JudgeTemplates.csproj" />
     <ProjectReference Include="..\Projects\Projects.csproj" />
+    <ProjectReference Include="..\RawLLMOutputs\RawLLMOutputs.csproj" />
     <ProjectReference Include="..\Settings\Settings.csproj" />
     <ProjectReference Include="..\Statistics\Statistics.csproj" />
     <ProjectReference Include="..\Traces\Traces.csproj" />
@@ -28,5 +29,9 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
     <PackageReference Include="Scriban" Version="7.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Endpoints\RawLLMData\Dtos\" />
   </ItemGroup>
 </Project>

@@ -6,16 +6,15 @@ using Api.Endpoints.ProjectVersions;
 using Api.Endpoints.Settings;
 using Api.Endpoints.Statistics;
 using Api.Endpoints.Traces;
-using Api.Extensions;
 using AxialCodes.Extensions;
 using JudgeTemplates.Extensions;
 using Microsoft.AspNetCore.Http.Features;
 using Projects.Extensions;
+using RawLLMOutputs.Extensions;
 using Serilog;
 using Settings.Extensions;
 using Shared.Extensions;
 using Statistics.Extensions;
-using Traces.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +39,7 @@ builder.Services.AddStatisticsModule(builder.Configuration);
 builder.Services.AddAxialCodesModule(builder.Configuration);
 builder.Services.AddSettingsModule(builder.Configuration);
 builder.Services.AddJudgeTemplatesModule(builder.Configuration);
+builder.Services.AddRawLLMOutputModule(builder.Configuration);
 
 // Cors
 var origins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',');

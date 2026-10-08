@@ -54,3 +54,28 @@ export function buildChangeRows(comparison: AxialCodeComparison): ChangeRow[] {
 
   return rows.sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
 }
+
+/** The version A codes of a row. */
+export function sourcesOf(row: ChangeRow): readonly AxialCode[] {
+  switch (row.kind) {
+    case 'merged':
+      return row.from;
+    case 'split':
+    case 'removed':
+      return [row.from];
+    default:
+      return row.from ? [row.from] : [];
+  }
+}
+
+/** The version B codes of a row. */
+export function targetsOf(row: ChangeRow): readonly AxialCodeChange[] {
+  switch (row.kind) {
+    case 'removed':
+      return [];
+    case 'split':
+      return row.to;
+    default:
+      return [row.to];
+  }
+}

@@ -254,6 +254,8 @@ export default function AxialCodePage() {
             <Box mt="2">
               <ChangesSection
                 comparison={comparison.result}
+                previousCodes={savedCodes}
+                nextCodes={draftAxialCodes ?? []}
                 colorOf={comparison.colorOf}
                 openCodeTextById={openCodeTextById}
               />

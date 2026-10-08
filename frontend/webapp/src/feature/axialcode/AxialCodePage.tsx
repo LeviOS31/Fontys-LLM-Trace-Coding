@@ -18,6 +18,7 @@ import AxialCodeList from './components/AxialCodeList.tsx';
 import { convertApiCodesToSnapshot } from '../../shared/util/convertApiCodesToSnapshot.ts';
 import { compareAxialCodes } from '../../shared/util/compareAxialCodes.ts';
 import buildComparisonColors from '../../shared/util/buildComparisonColors.ts';
+import ChangesSection from './components/ChangesSection/ChangesSection.tsx';
 import './AxialCodePage.module.css';
 
 function formatDate(iso: string): string {
@@ -248,6 +249,16 @@ export default function AxialCodePage() {
             isSaving={isSaving}
             comparison={comparison?.result ?? null}
           />
+
+          {comparison && (
+            <Box mt="2">
+              <ChangesSection
+                comparison={comparison.result}
+                colorOf={comparison.colorOf}
+                openCodeTextById={openCodeTextById}
+              />
+            </Box>
+          )}
 
           <Box mt="2">
             <SectionHead title="Version summary" />

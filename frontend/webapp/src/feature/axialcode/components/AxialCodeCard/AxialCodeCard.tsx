@@ -62,6 +62,8 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
       size="1"
       className={styles.card}
       data-testid="axial-code-card"
+      data-snap={snap}
+      data-axial-code-name={code.name}
       onMouseEnter={() => onHover?.({ ...code, _snap: snap })}
       onMouseLeave={() => onHover?.(null)}
     >

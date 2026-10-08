@@ -468,6 +468,30 @@ describe('axial code', () => {
         });
       });
 
+      it('lists every difference in the changes section', () => {
+        cy.get('[data-testid="axial-code-changes"]').within(() => {
+          cy.get('[data-testid="axial-code-change-row"]').should('have.length', 3);
+
+          cy.contains('[data-testid="axial-code-change-row"]', 'Renamed').within(() => {
+            cy.contains('Usability Issues').should('be.visible');
+            cy.contains('Navigation Problems').should('be.visible');
+          });
+          cy.contains('[data-testid="axial-code-change-row"]', 'Changed')
+            .should('contain.text', 'Performance Concerns')
+            .and('contain.text', '+1');
+          cy.contains('[data-testid="axial-code-change-row"]', 'New').should(
+            'contain.text',
+            'Trust Signals'
+          );
+        });
+      });
+
+      it('scrolls to the card of a code clicked in the changes section', () => {
+        cy.get('[data-testid="axial-code-changes"]').contains('button', 'Trust Signals').click();
+
+        getVersionBCard('Trust Signals').should('be.visible');
+      });
+
       it('does not mark the cards of the approved version', () => {
         getAxialCodeCard('Usability Issues')
           .find('[data-testid="axial-code-change"]')

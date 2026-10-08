@@ -1,22 +1,19 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Box, Button, Card, Flex, Heading, IconButton, Text } from '@radix-ui/themes';
-import { ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
+import { useMemo, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { Box, Button, Card, Flex, Heading, Text } from '@radix-ui/themes';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 import type { AxialCode } from '../../../../shared/types/axialCode.ts';
 import type {
   AxialCodeChange,
   AxialCodeComparison,
 } from '../../../../shared/util/compareAxialCodes.ts';
 import ChangeKindBadge from '../ChangeKindBadge.tsx';
+import { CHANGE_KIND_META } from '../changeKindMeta.ts';
 import { buildChangeRows, sourcesOf, targetsOf, type ChangeRow } from './buildChangeRows.ts';
 import { describeChangeRow, type OpenCodeRef } from './describeChangeRow.ts';
 import styles from './ChangesSection.module.css';
 
 // Moved open codes shown before the list is expanded.
 const MOVED_PREVIEW = 5;
-
-// Width of the badge column, which the details of a row are aligned with.
-const BADGE_COLUMN = 96;
-const COLUMN_GAP = 12;
 
 interface ChangesSectionProps {
   readonly comparison: AxialCodeComparison;
@@ -64,7 +61,11 @@ function CodeLink({
     <button
       type="button"
       className={styles.codeLink}
-      onClick={() => scrollToCard(code.label, snap)}
+      onClick={(event: MouseEvent) => {
+        // The code sits inside a row that opens on click; following the link should not toggle it.
+        event.stopPropagation();
+        scrollToCard(code.label, snap);
+      }}
     >
       <Box style={{ width: 8, height: 8, borderRadius: 2, flexShrink: 0, background: color }} />
       <Text
@@ -109,76 +110,56 @@ function OpenCodeDelta({ change }: { readonly change: AxialCodeChange }) {
 
 type OpenCodeTone = 'kept' | 'added' | 'left';
 
-const TONE = {
-  kept: { sign: '•', color: 'gray' },
-  added: { sign: '+', color: 'green' },
-  left: { sign: '−', color: 'red' },
-} as const;
-
-function OpenCodeList({
+/** One column of open codes in the details of a row (kept, joined or left). */
+function OpenCodeColumn({
   title,
   tone,
   refs,
   openCodeTextById,
-  note,
+  colorOf,
+  relation,
 }: {
   readonly title: string;
   readonly tone: OpenCodeTone;
   readonly refs: readonly OpenCodeRef[];
   readonly openCodeTextById: Readonly<Record<string, string>>;
-  readonly note: (ref: OpenCodeRef) => ReactNode;
+  readonly colorOf: ReadonlyMap<AxialCode, string>;
+  /** How the related code of an open code is introduced, and what to say without one. */
+  readonly relation?: { readonly prefix: string; readonly snap: 'A' | 'B'; readonly none?: string };
 }) {
   if (refs.length === 0) return null;
-  const { sign, color } = TONE[tone];
 
   return (
-    <Flex direction="column" gap="1" data-testid={`axial-code-change-${tone}`}>
-      <Text size="1" color="gray" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        {title} ({refs.length})
+    <Box className={styles.column} data-testid={`axial-code-change-${tone}`}>
+      <Text size="1" weight="bold" color="gray" style={{ letterSpacing: '0.02em' }}>
+        {title} · {refs.length}
       </Text>
       {refs.map((ref) => (
-        <Flex key={ref.traceId} align="baseline" gap="2" wrap="wrap">
-          <Text size="2" weight="bold" color={color} style={{ width: 10, flexShrink: 0 }}>
-            {sign}
-          </Text>
+        <Box key={ref.traceId} className={styles.openCode} data-tone={tone}>
           <Text size="2" style={{ overflowWrap: 'anywhere' }}>
-            “{openCodeTextById[ref.traceId] ?? ref.traceId}”
+            {openCodeTextById[ref.traceId] ?? ref.traceId}
           </Text>
-          {note(ref)}
-        </Flex>
+          {relation && ref.other && (
+            <Flex align="center" gap="1">
+              <Text size="1" color="gray">
+                {relation.prefix}
+              </Text>
+              <CodeLink
+                code={ref.other}
+                snap={relation.snap}
+                color={colorOf.get(ref.other)}
+                size="1"
+              />
+            </Flex>
+          )}
+          {relation && !ref.other && relation.none && (
+            <Text size="1" color="gray">
+              {relation.none}
+            </Text>
+          )}
+        </Box>
       ))}
-    </Flex>
-  );
-}
-
-function RelatedCode({
-  prefix,
-  code,
-  snap,
-  colorOf,
-  fallback,
-}: {
-  readonly prefix: string;
-  readonly code: AxialCode | undefined;
-  readonly snap: 'A' | 'B';
-  readonly colorOf: ReadonlyMap<AxialCode, string>;
-  readonly fallback?: string;
-}) {
-  if (!code) {
-    return fallback ? (
-      <Text size="1" color="gray">
-        {fallback}
-      </Text>
-    ) : null;
-  }
-
-  return (
-    <Flex align="center" gap="1">
-      <Text size="1" color="gray">
-        {prefix}
-      </Text>
-      <CodeLink code={code} snap={snap} color={colorOf.get(code)} size="1" />
-    </Flex>
+    </Box>
   );
 }
 
@@ -195,7 +176,7 @@ function ChangeRowView({
   readonly colorOf: ReadonlyMap<AxialCode, string>;
   readonly openCodeTextById: Readonly<Record<string, string>>;
 }) {
-  const [isOpen, setIsOpen] = useState(row.kind !== 'unchanged');
+  const [isOpen, setIsOpen] = useState(false);
   const from = sourcesOf(row);
   const to = targetsOf(row);
   const details = useMemo(
@@ -203,19 +184,26 @@ function ChangeRowView({
     [row, previousCodes, nextCodes]
   );
   const showTargetHeaders = details.groups.length > 1;
+  const toggle = () => setIsOpen((value) => !value);
 
   return (
     <Box
+      className={styles.row}
       data-testid="axial-code-change-row"
-      py="3"
-      style={{ borderTop: '1px solid var(--gray-a4)' }}
+      style={{ borderLeftColor: `var(--${CHANGE_KIND_META[row.kind].color}-9)` }}
     >
-      <Box
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `${BADGE_COLUMN}px minmax(0, 1fr) 20px minmax(0, 1fr) 24px`,
-          alignItems: 'start',
-          columnGap: COLUMN_GAP,
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        className={styles.rowHeader}
+        onClick={toggle}
+        onKeyDown={(event: KeyboardEvent) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggle();
+          }
         }}
       >
         <Box pt="1">
@@ -240,9 +228,8 @@ function ChangeRowView({
 
         <Flex direction="column" gap="1" pt="1">
           {to.length === 0 ? (
-            <Text size="1" color="gray">
-              {openCodes(row.kind === 'removed' ? row.from.traceIds.length : 0)} moved to other
-              codes
+            <Text size="2" color="gray">
+              —
             </Text>
           ) : (
             to.map((change) => (
@@ -254,44 +241,32 @@ function ChangeRowView({
           )}
         </Flex>
 
-        <IconButton
-          variant="ghost"
+        <Text size="1" weight="medium" className={styles.toggle}>
+          {isOpen ? 'Hide' : 'Details'}
+          <ChevronDown
+            size={14}
+            style={{
+              transform: isOpen ? 'rotate(180deg)' : 'none',
+              transition: 'transform 150ms ease',
+            }}
+          />
+        </Text>
+
+        <Text
           size="1"
           color="gray"
-          aria-expanded={isOpen}
-          aria-label={
-            isOpen ? 'Hide the details of this change' : 'Show the details of this change'
-          }
-          onClick={() => setIsOpen((value) => !value)}
+          data-testid="axial-code-change-summary-text"
+          style={{ gridColumn: '2 / -1', marginTop: 6 }}
         >
-          {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </IconButton>
-      </Box>
+          {details.summary}
+        </Text>
+      </div>
 
       {isOpen && (
-        <Flex
-          direction="column"
-          gap="3"
-          mt="3"
-          p="3"
-          data-testid="axial-code-change-details"
-          style={{
-            marginLeft: BADGE_COLUMN + COLUMN_GAP,
-            background: 'var(--gray-a2)',
-            borderRadius: 'var(--radius-3)',
-          }}
-        >
-          <Text size="2" weight="medium" data-testid="axial-code-change-summary-text">
-            {details.summary}
-          </Text>
-
+        <Box className={styles.details} data-testid="axial-code-change-details">
           {details.description && (
             <Flex direction="column" gap="1">
-              <Text
-                size="1"
-                color="gray"
-                style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
-              >
+              <Text size="1" weight="bold" color="gray">
                 Description
               </Text>
               <Text size="2" color="gray" style={{ textDecoration: 'line-through' }}>
@@ -309,51 +284,50 @@ function ChangeRowView({
                   <CodeLink code={group.target} snap="B" color={colorOf.get(group.target)} />
                 </Flex>
               )}
-              <Flex direction="column" gap="2" style={{ paddingLeft: showTargetHeaders ? 22 : 0 }}>
-                <OpenCodeList
+              <Box className={styles.columns}>
+                <OpenCodeColumn
                   title={row.kind === 'new' ? 'Open codes' : 'Kept'}
                   tone="kept"
                   refs={group.kept}
                   openCodeTextById={openCodeTextById}
-                  note={(ref) => (
-                    <RelatedCode prefix="from" code={ref.other} snap="A" colorOf={colorOf} />
-                  )}
+                  colorOf={colorOf}
+                  relation={row.kind === 'merged' ? { prefix: 'from', snap: 'A' } : undefined}
                 />
-                <OpenCodeList
+                <OpenCodeColumn
                   title="Joined"
                   tone="added"
                   refs={group.added}
                   openCodeTextById={openCodeTextById}
-                  note={(ref) => (
-                    <RelatedCode
-                      prefix="from"
-                      code={ref.other}
-                      snap="A"
-                      colorOf={colorOf}
-                      fallback="newly coded"
-                    />
-                  )}
+                  colorOf={colorOf}
+                  relation={{ prefix: 'from', snap: 'A', none: 'Newly coded' }}
                 />
-              </Flex>
+                {!showTargetHeaders && (
+                  <OpenCodeColumn
+                    title={row.kind === 'removed' ? 'Went to' : 'Left'}
+                    tone="left"
+                    refs={details.left}
+                    openCodeTextById={openCodeTextById}
+                    colorOf={colorOf}
+                    relation={{ prefix: 'to', snap: 'B', none: 'No longer in any code' }}
+                  />
+                )}
+              </Box>
             </Flex>
           ))}
 
-          <OpenCodeList
-            title={row.kind === 'removed' ? 'Its open codes went to' : 'Left'}
-            tone="left"
-            refs={details.left}
-            openCodeTextById={openCodeTextById}
-            note={(ref) => (
-              <RelatedCode
-                prefix="to"
-                code={ref.other}
-                snap="B"
+          {(showTargetHeaders || details.groups.length === 0) && (
+            <Box className={styles.columns}>
+              <OpenCodeColumn
+                title={row.kind === 'removed' ? 'Went to' : 'Left'}
+                tone="left"
+                refs={details.left}
+                openCodeTextById={openCodeTextById}
                 colorOf={colorOf}
-                fallback="no longer in any code"
+                relation={{ prefix: 'to', snap: 'B', none: 'No longer in any code' }}
               />
-            )}
-          />
-        </Flex>
+            </Box>
+          )}
+        </Box>
       )}
     </Box>
   );
@@ -362,8 +336,8 @@ function ChangeRowView({
 /**
  * Lists every difference between the approved axial codes (version A) and the
  * regenerated ones (version B) in one place: what kind of change it is, a short
- * explanation, and which open codes were kept, joined or left, including the
- * removed codes, which have no card of their own.
+ * explanation, and, when a row is opened, which open codes were kept, joined or
+ * left, including the removed codes, which have no card of their own.
  */
 export default function ChangesSection({
   comparison,
@@ -391,8 +365,8 @@ export default function ChangesSection({
             Changes
           </Heading>
           <Text as="p" size="2" color="gray" mt="1">
-            How the codes of version A became the codes of version B, and which open codes moved
-            between them. Click a code to find it in the list below.
+            How the codes of version A became the codes of version B. Open a change to see its open
+            codes, or click a code to find it in the list below.
           </Text>
         </Box>
         {unchangedCount > 0 && (
@@ -402,73 +376,67 @@ export default function ChangesSection({
         )}
       </Flex>
 
-      <Card size="2">
-        {visibleRows.length === 0 ? (
+      {visibleRows.length === 0 ? (
+        <Card size="2">
           <Text size="2" color="gray">
             The axial codes did not change.
           </Text>
-        ) : (
-          <Box style={{ marginTop: -13 }}>
-            {visibleRows.map((row, index) => (
-              <ChangeRowView
-                key={`${row.kind}-${index}`}
-                row={row}
-                previousCodes={previousCodes}
-                nextCodes={nextCodes}
-                colorOf={colorOf}
-                openCodeTextById={openCodeTextById}
-              />
-            ))}
-          </Box>
-        )}
+        </Card>
+      ) : (
+        <Flex direction="column" gap="2">
+          {visibleRows.map((row, index) => (
+            <ChangeRowView
+              key={`${row.kind}-${index}`}
+              row={row}
+              previousCodes={previousCodes}
+              nextCodes={nextCodes}
+              colorOf={colorOf}
+              openCodeTextById={openCodeTextById}
+            />
+          ))}
+        </Flex>
+      )}
 
-        {moved.length > 0 && (
-          <Box mt="4" pt="3" style={{ borderTop: '1px dashed var(--gray-a6)' }}>
-            <Text
-              as="div"
-              size="1"
-              color="gray"
-              mb="2"
-              style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}
-            >
-              All moved open codes ({moved.length})
-            </Text>
-            <Flex direction="column" gap="2">
-              {visibleMoved.map((item) => (
-                <Box
-                  key={item.traceId}
-                  data-testid="axial-code-moved"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr) 20px minmax(0, 1fr)',
-                    alignItems: 'start',
-                    columnGap: COLUMN_GAP,
-                  }}
-                >
-                  <Text size="2" style={{ fontStyle: 'italic', overflowWrap: 'anywhere' }}>
-                    “{openCodeTextById[item.traceId] ?? item.traceId}”
-                  </Text>
-                  <CodeLink code={item.from} snap="A" color={colorOf.get(item.from)} />
-                  <Box style={{ color: 'var(--gray-9)' }}>
-                    <ArrowRight size={16} />
-                  </Box>
-                  <CodeLink code={item.to} snap="B" color={colorOf.get(item.to)} />
-                </Box>
-              ))}
-            </Flex>
-            {moved.length > MOVED_PREVIEW && (
-              <Button
-                variant="ghost"
-                size="1"
-                mt="2"
-                onClick={() => setShowAllMoved((value) => !value)}
+      {moved.length > 0 && (
+        <Card size="2" mt="3">
+          <Text as="div" size="1" weight="bold" color="gray" mb="2">
+            All moved open codes · {moved.length}
+          </Text>
+          <Flex direction="column" gap="2">
+            {visibleMoved.map((item) => (
+              <Box
+                key={item.traceId}
+                data-testid="axial-code-moved"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr) 20px minmax(0, 1fr)',
+                  alignItems: 'start',
+                  columnGap: 12,
+                }}
               >
-                {showAllMoved ? 'Show less' : `Show all ${moved.length}`}
-              </Button>
-            )}
-          </Box>
-        )}
-      </Card>
+                <Text size="2" style={{ overflowWrap: 'anywhere' }}>
+                  {openCodeTextById[item.traceId] ?? item.traceId}
+                </Text>
+                <CodeLink code={item.from} snap="A" color={colorOf.get(item.from)} />
+                <Box style={{ color: 'var(--gray-9)' }}>
+                  <ArrowRight size={16} />
+                </Box>
+                <CodeLink code={item.to} snap="B" color={colorOf.get(item.to)} />
+              </Box>
+            ))}
+          </Flex>
+          {moved.length > MOVED_PREVIEW && (
+            <Button
+              variant="ghost"
+              size="1"
+              mt="2"
+              onClick={() => setShowAllMoved((value) => !value)}
+            >
+              {showAllMoved ? 'Show less' : `Show all ${moved.length}`}
+            </Button>
+          )}
+        </Card>
+      )}
     </Box>
   );
 }

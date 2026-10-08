@@ -486,6 +486,23 @@ describe('axial code', () => {
         });
       });
 
+      it('opens a change to show the open codes it kept and gained', () => {
+        cy.contains('[data-testid="axial-code-change-row"]', 'Changed').within(() => {
+          cy.contains('kept its name; 1 open code joined it').should('be.visible');
+          cy.get('[data-testid="axial-code-change-details"]').should('not.exist');
+
+          cy.get('[role="button"]').click();
+
+          cy.get('[data-testid="axial-code-change-kept"]')
+            .should('contain.text', 'Search results were very slow')
+            .and('contain.text', 'App crashed during checkout');
+          cy.get('[data-testid="axial-code-change-added"]').should(
+            'contain.text',
+            'Back button did not work as expected'
+          );
+        });
+      });
+
       it('scrolls to the card of a code clicked in the changes section', () => {
         cy.get('[data-testid="axial-code-changes"]').contains('button', 'Trust Signals').click();
 

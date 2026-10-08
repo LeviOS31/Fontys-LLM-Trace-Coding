@@ -30,3 +30,87 @@
   outline: 2px solid var(--accent-8);
   outline-offset: 1px;
 }
+
+/* One change: a block with a left border in the color of its kind. */
+.row {
+  border: 1px solid var(--gray-a5);
+  border-left-width: 3px;
+  border-radius: var(--radius-3);
+  background: var(--color-panel-solid);
+  overflow: hidden;
+}
+
+.rowHeader {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 20px minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.rowHeader:hover {
+  background: var(--gray-a2);
+}
+
+.rowHeader:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: -2px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-2);
+  color: var(--accent-11);
+  white-space: nowrap;
+}
+
+.rowHeader:hover .toggle {
+  background: var(--accent-a3);
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border-top: 1px solid var(--gray-a4);
+  background: var(--gray-a2);
+}
+
+/* Kept, joined and left side by side. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-a4);
+  border-radius: var(--radius-2);
+  background: var(--color-panel-solid);
+}
+
+.openCode {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 2px solid var(--gray-a6);
+}
+
+.openCode[data-tone='added'] {
+  border-left-color: var(--green-9);
+}
+
+.openCode[data-tone='left'] {
+  border-left-color: var(--red-9);
+}

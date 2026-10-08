@@ -1,7 +1,18 @@
 import type { TraceScopeSpanView } from '../../../../shared/types/trace';
 import { extractSpanMessages } from './GenAIMessages';
+import {
+  getRetrievedSourcesForRetrievalSpan,
+  getRetrievedSourcesForUserSpan,
+  type RetrievedSource,
+} from './retrievalSources';
 
-export type SpanNode = TraceScopeSpanView & { children: SpanNode[] };
+export type SpanNode = TraceScopeSpanView & {
+  children: SpanNode[];
+  displayName?: string;
+  nodeKey?: string;
+  sourceSpanId?: string;
+  sourceMessageSpanId?: string;
+};
 
 export type MessageTreeAnchor = {
   relatedTraceId: string;
@@ -30,6 +41,58 @@ export function buildSpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
     }
   }
   return roots;
+}
+
+function isRetrievalSpan(span: TraceScopeSpanView): boolean {
+  return (
+    span.name.toLowerCase().includes('retrieval') ||
+    span.attributes.some(
+      (attribute) => attribute.key === 'gen_ai.operation.name' && attribute.value === 'retrieval'
+    ) ||
+    span.attributes.some(
+      (attribute) =>
+        attribute.key === 'gen_ai.retrieval.documents' || attribute.key === 'rag.retrieval.evidence'
+    )
+  );
+}
+
+function buildSourceNodes(
+  parent: TraceScopeSpanView,
+  sources: RetrievedSource[],
+  sourceMessageSpanId?: string
+): SpanNode[] {
+  return sources.map((source) => {
+    const nodeKey = `${parent.traceScopeSpanId}-source-${encodeURIComponent(source.sourceFile)}`;
+    return {
+      ...parent,
+      traceScopeSpanId: nodeKey,
+      parentId: parent.traceScopeSpanId,
+      name: source.sourceFile,
+      displayName: source.sourceFile,
+      nodeKey,
+      sourceSpanId: source.retrievalSpanIds[0],
+      ...(sourceMessageSpanId ? { sourceMessageSpanId } : {}),
+      attributes: [],
+      events: [],
+      children: [],
+    };
+  });
+}
+
+function addRetrievalSources(nodes: SpanNode[]): SpanNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    children: [
+      ...addRetrievalSources(node.children),
+      ...(isRetrievalSpan(node)
+        ? buildSourceNodes(node, getRetrievedSourcesForRetrievalSpan(node))
+        : []),
+    ],
+  }));
+}
+
+export function buildNavigationSpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
+  return addRetrievalSources(buildSpanTree(spans));
 }
 
 function isWorkflow(span: SpanNode): boolean {
@@ -97,15 +160,26 @@ export function buildDisplaySpanTree(spans: TraceScopeSpanView[]): SpanNode[] {
  * span hierarchy and replace every span that has messages by its message nodes. Which spans are
  * LLM spans follows from the anchors, which are derived from attributes, not from span names.
  */
-function attachMessageNodes(nodes: SpanNode[], messages: MessageTreeAnchor[]): MessageSpanNode[] {
+function attachMessageNodes(
+  nodes: SpanNode[],
+  messages: MessageTreeAnchor[],
+  allSpans: TraceScopeSpanView[] = flattenSpanTree(nodes)
+): MessageSpanNode[] {
   return nodes
     .flatMap((node): MessageSpanNode[] => {
-      const children = attachMessageNodes(node.children, messages);
+      const children = attachMessageNodes(node.children, messages, allSpans);
       const own = messages.filter((message) => message.relatedSpanId === node.traceScopeSpanId);
       const userMessage = own.find((message) => message.role === 'user');
       const assistantMessage = own.find((message) => message.role === 'assistant');
       if (!userMessage && !assistantMessage) return [{ ...node, children }];
 
+      const sourceNodes = userMessage
+        ? buildSourceNodes(
+            node,
+            getRetrievedSourcesForUserSpan(allSpans, node.traceScopeSpanId, userMessage.content),
+            node.traceScopeSpanId
+          )
+        : [];
       const assistantNode: MessageSpanNode = {
         ...node,
         children: userMessage ? [] : children,
@@ -130,7 +204,7 @@ function attachMessageNodes(nodes: SpanNode[], messages: MessageTreeAnchor[]): M
       }
       result.push({
         ...node,
-        children: assistantMessage ? [assistantNode, ...children] : children,
+        children: [...sourceNodes, ...(assistantMessage ? [assistantNode] : []), ...children],
         displayName: userMessage.content,
         messageRole: 'user',
         nodeKey: `${node.traceScopeSpanId}-user`,
@@ -146,7 +220,7 @@ export function buildMessageAwareSpanTree(
 ): MessageSpanNode[] {
   const spanTree = buildSpanTree(spans);
   const workflow = flattenSpanTree(spanTree).find(isWorkflow);
-  if (!workflow) return attachMessageNodes(buildDisplaySpanTree(spans), messages);
+  if (!workflow) return attachMessageNodes(buildDisplaySpanTree(spans), messages, spans);
 
   const messageNodes: MessageSpanNode[] = [];
   const chatSpanIds = [...new Set(messages.map((message) => message.relatedSpanId))].filter(
@@ -154,7 +228,8 @@ export function buildMessageAwareSpanTree(
   );
 
   // No messages belong to this trace: show its real spans instead of a lone workflow node.
-  if (chatSpanIds.length === 0) return attachMessageNodes(buildDisplaySpanTree(spans), messages);
+  if (chatSpanIds.length === 0)
+    return attachMessageNodes(buildDisplaySpanTree(spans), messages, spans);
 
   const systemPromptBySpanId = new Map<string, string>();
   for (const spanId of chatSpanIds) {
@@ -202,19 +277,27 @@ export function buildMessageAwareSpanTree(
     const assistantMessage = chatMessages.find((message) => message.role === 'assistant');
 
     if (userMessage) {
+      const sourceNodes = buildSourceNodes(
+        chatSpan,
+        getRetrievedSourcesForUserSpan(spans, spanId, userMessage.content),
+        spanId
+      );
       messageNodes.push({
         ...chatSpan,
-        children: assistantMessage
-          ? [
-              {
-                ...chatSpan,
-                children: [],
-                displayName: chatSpan.name,
-                messageRole: 'assistant',
-                nodeKey: `${chatSpan.traceScopeSpanId}-assistant`,
-              } as MessageSpanNode,
-            ]
-          : [],
+        children: [
+          ...sourceNodes,
+          ...(assistantMessage
+            ? [
+                {
+                  ...chatSpan,
+                  children: [],
+                  displayName: chatSpan.name,
+                  messageRole: 'assistant',
+                  nodeKey: `${chatSpan.traceScopeSpanId}-assistant`,
+                } as MessageSpanNode,
+              ]
+            : []),
+        ],
         displayName: userMessage.content,
         messageRole: 'user',
         nodeKey: `${chatSpan.traceScopeSpanId}-user`,

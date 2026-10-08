@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { TraceDetailView } from '../../../../shared/types/trace';
 import { getSpanCategory } from './getSpanCategory';
-import { buildSpanTree, type SpanNode } from './spanTree';
+import { buildNavigationSpanTree, type SpanNode } from './spanTree';
 import { scrollSpanIntoView } from './spanScroll';
 
 type Props = {
@@ -29,11 +29,12 @@ function SpanTree({ spans, selectedSpanId, depth = 0 }: Readonly<SpanTreeProps>)
     <>
       {visibleSpans.map((span) => {
         const hasChildren = span.children.length > 0;
-        const isSelected = selectedSpanId === span.traceScopeSpanId;
+        const sourceSpanId = span.sourceSpanId ?? span.traceScopeSpanId;
+        const isSelected = selectedSpanId === sourceSpanId;
         const isCollapsed = collapsed[span.traceScopeSpanId] ?? false;
 
         const handleNavigate = () => {
-          scrollSpanIntoView(span.traceScopeSpanId);
+          scrollSpanIntoView(sourceSpanId);
         };
 
         return (
@@ -92,7 +93,7 @@ function SpanTree({ spans, selectedSpanId, depth = 0 }: Readonly<SpanTreeProps>)
               </Badge>
 
               <Text size="2" weight={isSelected ? 'bold' : 'regular'}>
-                {span.name}
+                {span.displayName ?? span.name}
               </Text>
             </Flex>
 
@@ -108,7 +109,7 @@ function SpanTree({ spans, selectedSpanId, depth = 0 }: Readonly<SpanTreeProps>)
 
 export function TraceNav({ trace, scrollSpanIndex }: Readonly<Props>) {
   const spans = useMemo(
-    () => buildSpanTree(trace.traceScopes.flatMap((scope) => scope.spans)),
+    () => buildNavigationSpanTree(trace.traceScopes.flatMap((scope) => scope.spans)),
     [trace.traceScopes]
   );
 

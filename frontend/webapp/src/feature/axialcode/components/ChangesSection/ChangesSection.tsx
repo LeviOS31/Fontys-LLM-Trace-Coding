@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Card, Flex, Heading, Text } from '@radix-ui/themes';
-import { ArrowRight } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight } from 'lucide-react';
 import type { AxialCode } from '../../../../shared/types/axialCode.ts';
 import type {
   AxialCodeChange,
@@ -8,6 +8,7 @@ import type {
 } from '../../../../shared/util/compareAxialCodes.ts';
 import ChangeKindBadge from '../ChangeKindBadge.tsx';
 import { buildChangeRows, type ChangeRow } from './buildChangeRows.ts';
+import styles from './ChangesSection.module.css';
 
 // Moved open codes shown before the list is expanded.
 const MOVED_PREVIEW = 5;
@@ -20,13 +21,25 @@ interface ChangesSectionProps {
 
 const openCodes = (count: number) => `${count} open code${count === 1 ? '' : 's'}`;
 
-/** Scrolls to the card of a code in the side-by-side list below. */
+/**
+ * Scrolls to the card of a code in the side-by-side list below and briefly
+ * outlines it, so it is clear which card the click led to.
+ */
 function scrollToCard(label: string, snap: 'A' | 'B') {
-  document
-    .querySelector(
-      `[data-testid="axial-code-card"][data-snap="${snap}"][data-axial-code-name="${CSS.escape(label)}"]`
-    )
-    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const card = document.querySelector<HTMLElement>(
+    `[data-testid="axial-code-card"][data-snap="${snap}"][data-axial-code-name="${CSS.escape(label)}"]`
+  );
+  if (!card) return;
+
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.animate?.(
+    [
+      { boxShadow: '0 0 0 3px var(--accent-8)' },
+      { boxShadow: '0 0 0 3px var(--accent-8)', offset: 0.7 },
+      { boxShadow: '0 0 0 0 transparent' },
+    ],
+    { duration: 1800, easing: 'ease-out' }
+  );
 }
 
 function CodeLink({
@@ -41,25 +54,15 @@ function CodeLink({
   return (
     <button
       type="button"
+      className={styles.codeLink}
       onClick={() => scrollToCard(code.label, snap)}
-      title="Show this code in the list below"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        minWidth: 0,
-        padding: 0,
-        border: 'none',
-        background: 'none',
-        color: 'inherit',
-        textAlign: 'left',
-        cursor: 'pointer',
-      }}
+      title={`Show "${code.label}" in the version ${snap} list below`}
     >
       <Box style={{ width: 8, height: 8, borderRadius: 2, flexShrink: 0, background: color }} />
-      <Text size="2" weight="medium" style={{ overflowWrap: 'anywhere' }}>
+      <Text size="2" weight="medium" className={styles.label} style={{ overflowWrap: 'anywhere' }}>
         {code.label}
       </Text>
+      <ArrowDownToLine size={13} className={styles.icon} aria-hidden />
     </button>
   );
 }

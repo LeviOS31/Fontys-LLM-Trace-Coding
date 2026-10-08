@@ -1,0 +1,44 @@
+.codeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border: none;
+  border-radius: var(--radius-2);
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.codeLink:hover {
+  background: var(--accent-a3);
+  color: var(--accent-11);
+}
+
+.codeLink:hover .label {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.codeLink:focus-visible {
+  outline: 2px solid var(--accent-8);
+  outline-offset: 1px;
+}
+
+/* Only shown on hover or keyboard focus, to hint that the code leads to its card. */
+.icon {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.codeLink:hover .icon,
+.codeLink:focus-visible .icon {
+  opacity: 1;
+}

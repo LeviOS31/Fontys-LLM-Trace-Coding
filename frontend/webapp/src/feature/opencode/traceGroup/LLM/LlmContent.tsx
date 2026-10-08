@@ -1,6 +1,7 @@
-import { Badge, Box, Flex, Heading, Text, ScrollArea } from '@radix-ui/themes';
+import { Badge, Box, Button, Dialog, Flex, Heading, Text, ScrollArea } from '@radix-ui/themes';
 import type { LlmMessage } from '../TraceGroupPage';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -18,6 +19,7 @@ type Props = {
   selectedTraceId: string | null;
   selectedSpanId: string | null;
   selectedMessageRole: 'user' | 'assistant' | 'system' | null;
+  selectedSourceFile: string | null;
   setSelectedTrace: (traceId: string) => void;
   scrollRequest: number;
   onScrollChange: (
@@ -85,10 +87,15 @@ export function LlmContent({
   selectedTraceId,
   selectedSpanId,
   selectedMessageRole,
+  selectedSourceFile,
   scrollRequest,
   onScrollChange,
 }: Readonly<Props>) {
   const [relatedTraceHover] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<{
+    sourceFile: string;
+    chunks: NonNullable<LlmMessage['retrievedSources']>[number]['chunks'];
+  } | null>(null);
 
   const uniqueTraces = useMemo(
     () => Array.from(new Set(llmMessages.map((msg) => msg.relatedTraceId))),
@@ -103,11 +110,17 @@ export function LlmContent({
     const spanSelector = selectedSpanId
       ? `[data-trace-id="${selectedTraceId}"][data-span-id="${selectedSpanId}"]`
       : null;
-    const element = spanSelector
-      ? ((document.querySelector(
-          `${spanSelector}[data-message-role="${selectedMessageRole ?? 'user'}"]`
-        ) as HTMLElement | null) ?? (document.querySelector(spanSelector) as HTMLElement | null))
-      : null;
+    const sourceSelector =
+      spanSelector && selectedSourceFile
+        ? `${spanSelector}[data-message-role="user"] details[data-source-file="${CSS.escape(selectedSourceFile)}"]`
+        : null;
+    const element = sourceSelector
+      ? (document.querySelector(sourceSelector) as HTMLElement | null)
+      : spanSelector
+        ? ((document.querySelector(
+            `${spanSelector}[data-message-role="${selectedMessageRole ?? 'user'}"]`
+          ) as HTMLElement | null) ?? (document.querySelector(spanSelector) as HTMLElement | null))
+        : null;
     const traceElement = document.querySelector(
       `[data-trace-id="${selectedTraceId}"]`
     ) as HTMLElement | null;
@@ -123,14 +136,14 @@ export function LlmContent({
       if (isFullyVisible) return;
 
       viewport.scrollTo({
-        top: viewport.scrollTop + elementRect.top - viewportRect.top,
+        top: viewport.scrollTop + elementRect.top - viewportRect.top - viewportRect.height / 3,
         behavior: 'smooth',
       });
       return;
     }
 
     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [selectedTraceId, selectedSpanId, selectedMessageRole, scrollRequest]);
+  }, [selectedTraceId, selectedSpanId, selectedMessageRole, selectedSourceFile, scrollRequest]);
 
   const onScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const source = event.currentTarget;
@@ -182,42 +195,40 @@ export function LlmContent({
         </Box>
 
         {llmMessages.map((msg, index) => (
-          <>
-              {index === 0 &&
-                 <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
-              {/* Title and divider */}
-              {index === 0  &&
-                  (
-                  <Flex direction="row" gap="2" align="center" px="4" py="2"  style={{ borderRadius: 'var(--radius-2)' }}>
-                    <Badge color="green" radius="full" size="3">
-                      <Text as="span" weight="bold">
-                        {uniqueTraces.indexOf(msg.relatedTraceId) + 1}
-                      </Text>
-                    </Badge>
-                    <Heading
-                      as="h4"
-                      size="3"
-                      weight="bold"
-                      style={{ transform: 'translateY(-2px)' }}
-                    >
-                      {msg.modelName?.toUpperCase() ?? 'UNKOWN MODEL'}
-                    </Heading>
-                    {msg.amountOfSpans && (
-                      <Badge color="gray" style={{ transform: 'translateY(-2px)' }}>
-                        {msg.amountOfSpans} span{msg.amountOfSpans > 1 ? 's' : ''}
-                      </Badge>
-                    )}
-                  </Flex>
+          <Fragment key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}>
+            {index === 0 && <hr style={{ width: '90%', color: 'var(--gray-5)' }} />}
+            {/* Title and divider */}
+            {index === 0 && (
+              <Flex
+                direction="row"
+                gap="2"
+                align="center"
+                px="4"
+                py="2"
+                style={{ borderRadius: 'var(--radius-2)' }}
+              >
+                <Badge color="green" radius="full" size="3">
+                  <Text as="span" weight="bold">
+                    {uniqueTraces.indexOf(msg.relatedTraceId) + 1}
+                  </Text>
+                </Badge>
+                <Heading as="h4" size="3" weight="bold" style={{ transform: 'translateY(-2px)' }}>
+                  {msg.modelName?.toUpperCase() ?? 'UNKOWN MODEL'}
+                </Heading>
+                {msg.amountOfSpans && (
+                  <Badge color="gray" style={{ transform: 'translateY(-2px)' }}>
+                    {msg.amountOfSpans} span{msg.amountOfSpans > 1 ? 's' : ''}
+                  </Badge>
                 )}
+              </Flex>
+            )}
             <Box
-              key={`${msg.relatedTraceId}-${msg.index}-${msg.role}`}
               px="4"
               py="1"
               data-trace-id={msg.relatedTraceId}
               data-span-id={msg.relatedSpanId}
               data-message-role={msg.role}
             >
-
               {/* Message content */}
               <Flex
                 direction="column"
@@ -244,12 +255,17 @@ export function LlmContent({
                     lineHeight: 'var(--line-height-2)',
                     overflowWrap: 'break-word',
                     wordBreak: 'break-word',
-                    textAlign: msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center',
+                    textAlign:
+                      msg.role === 'user' ? 'end' : msg.role === 'assistant' ? 'start' : 'center',
                     backgroundColor:
-                    (relatedTraceHover === msg.relatedTraceId ||
-                      selectedTraceId === msg.relatedTraceId)
-                      ? msg.role === 'system' ? 'var(--blue-a5)' : msg.role === 'user' ? '#A7F3D0' : '#CBD5E1'
-                      : 'transparent',
+                      relatedTraceHover === msg.relatedTraceId ||
+                      selectedTraceId === msg.relatedTraceId
+                        ? msg.role === 'system'
+                          ? 'var(--blue-a5)'
+                          : msg.role === 'user'
+                            ? '#A7F3D0'
+                            : '#CBD5E1'
+                        : 'transparent',
                   }}
                 >
                   <ReactMarkdown
@@ -286,7 +302,7 @@ export function LlmContent({
                         const match = /language-(\w+)/.exec(className || '');
                         let codeblock = String(children).replace(/\n$/, '');
 
-                        if ( match) {
+                        if (match) {
                           try {
                             codeblock = await FormatCode(match[1], codeblock);
                           } catch (error) {
@@ -295,15 +311,37 @@ export function LlmContent({
                         }
 
                         return match ? (
-                          <div style={{ backgroundColor: 'rgb(40, 44, 52)', borderRadius: 'var(--radius-6)' }}>
-                            <p style={{ minWidth: 0, fontFamily: 'inherit', textAlign: 'left', color: 'lightgray', fontWeight: 'bold', fontSize: '1.25em', paddingLeft: '0.825em', paddingTop: '0.5em', marginBottom: '0.5em' }}>
+                          <div
+                            style={{
+                              backgroundColor: 'rgb(40, 44, 52)',
+                              borderRadius: 'var(--radius-6)',
+                            }}
+                          >
+                            <p
+                              style={{
+                                minWidth: 0,
+                                fontFamily: 'inherit',
+                                textAlign: 'left',
+                                color: 'lightgray',
+                                fontWeight: 'bold',
+                                fontSize: '1.25em',
+                                paddingLeft: '0.825em',
+                                paddingTop: '0.5em',
+                                marginBottom: '0.5em',
+                              }}
+                            >
                               {match[1]}
                             </p>
                             <SyntaxHighlighter
                               language={match[1]}
                               style={oneDark}
                               PreTag="div"
-                              customStyle={{ maxWidth: '100%', overflowX: 'auto', textAlign: 'left', paddingTop: '0px' }}
+                              customStyle={{
+                                maxWidth: '100%',
+                                overflowX: 'auto',
+                                textAlign: 'left',
+                                paddingTop: '0px',
+                              }}
                             >
                               {codeblock}
                             </SyntaxHighlighter>
@@ -328,10 +366,93 @@ export function LlmContent({
                   </ReactMarkdown>
                 </Box>
               </Flex>
+              {msg.role === 'user' && msg.retrievedSources && msg.retrievedSources.length > 0 && (
+                <Flex direction="column" gap="2" align="end" pb="2">
+                  <Text size="1" weight="bold" color="gray">
+                    RETRIEVED SOURCES
+                  </Text>
+                  {msg.retrievedSources.map((source) => (
+                    <Button
+                      key={`${msg.relatedSpanId}-${source.sourceFile}`}
+                      type="button"
+                      variant="soft"
+                      radius="full"
+                      color="gray"
+                      data-source-file={source.sourceFile}
+                      onClick={() =>
+                        setSelectedSource({
+                          sourceFile: source.sourceFile,
+                          chunks: source.chunks,
+                        })
+                      }
+                    >
+                      <Flex align="center" gap="2" wrap="wrap">
+                        <FileText size={14} />
+                        <Text size="2" weight="medium">
+                          {source.sourceFile}
+                        </Text>
+                        <Badge size="1" color="gray">
+                          {source.chunks.length} chunk{source.chunks.length === 1 ? '' : 's'}
+                        </Badge>
+                      </Flex>
+                    </Button>
+                  ))}
+                </Flex>
+              )}
             </Box>
-          </>
+          </Fragment>
         ))}
       </Flex>
+      <Dialog.Root
+        open={selectedSource !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSource(null);
+        }}
+      >
+        <Dialog.Content maxWidth="760px" style={{ maxHeight: '80vh', overflow: 'auto' }}>
+          <Dialog.Title>{selectedSource?.sourceFile}</Dialog.Title>
+          <Dialog.Description size="2" color="gray" mb="4">
+            Retrieved source content
+          </Dialog.Description>
+          <Flex direction="column" gap="3">
+            {selectedSource?.chunks.map((chunk, chunkIndex) => (
+              <Box
+                key={chunk.id ?? `${selectedSource.sourceFile}-${chunkIndex}`}
+                p="3"
+                style={{
+                  borderRadius: 'var(--radius-3)',
+                  backgroundColor: 'var(--gray-4)',
+                }}
+              >
+                <Flex align="center" gap="2" mb="2" wrap="wrap">
+                  <Badge size="1" color={chunk.usedForGeneration ? 'green' : 'gray'}>
+                    {chunk.usedForGeneration ? 'Used for generation' : 'Not used for generation'}
+                  </Badge>
+                  {chunk.score !== undefined && (
+                    <Text size="1" color="gray">
+                      Score: {chunk.score.toFixed(3)}
+                    </Text>
+                  )}
+                  {chunk.id && (
+                    <Text size="1" color="gray">
+                      {chunk.id}
+                    </Text>
+                  )}
+                </Flex>
+                {chunk.content && (
+                  <Text
+                    as="p"
+                    size="2"
+                    style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                  >
+                    {chunk.content}
+                  </Text>
+                )}
+              </Box>
+            ))}
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </ScrollArea>
   );
 }

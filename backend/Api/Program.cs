@@ -6,6 +6,7 @@ using Api.Endpoints.ProjectVersions;
 using Api.Endpoints.Settings;
 using Api.Endpoints.Statistics;
 using Api.Endpoints.Traces;
+using Api.Endpoints.RawLLMOutput;
 using AxialCodes.Extensions;
 using JudgeTemplates.Extensions;
 using Microsoft.AspNetCore.Http.Features;
@@ -80,5 +81,6 @@ app.MapTracesEndpoint();
 app.MapStatisticsEndpoint();
 app.MapAxialCodeEndpoint();
 app.MapJudgeTemplatesEndpoint();
+app.MapRawLLMDataEndpoints();
 
 await app.RunAsync();

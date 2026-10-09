@@ -6,7 +6,7 @@ using RawLLMOutputs.Data.Models;
 using Serilog;
 using Shared;
 
-namespace RawLLMOutputs.Features.ImportRawLLMData
+namespace RawLLMOutputs.Features.ImportRawLLMOutput
 {
     public class ImportRawLLMOutputHandler : IRequestHandler<ImportRawLLMOutputRequest, Result<ImportRawLLMOutputResponse>>
     {
@@ -79,8 +79,37 @@ namespace RawLLMOutputs.Features.ImportRawLLMData
             {
                 RawLLMOutputId = Guid.NewGuid(),
                 VersionId = request.ProjectVersionId,
-                Output = request.File,
+                Name = request.Name,
+                Output = request.File.ContentDisposition,
                 CreatedAt = DateTime.UtcNow
+            };
+
+            int changes;
+            try
+            {
+                _dbContext.RawLLMOutputs.Add(rawLLMOutput);
+                changes = await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error occurred while adding RawLLMOutput for project {ProjectId}", request.ProjectId);
+                return ErrorCode.DatabaseError;
+            }
+
+            if (changes == 0)
+            {
+                Logger.Warning(
+                    "No changes were made to the database when adding RawLLMOutput for project {ProjectId}",
+                    request.ProjectId
+                );
+                return ErrorCode.NoChanges;
+            }
+
+            return new ImportRawLLMOutputResponse {
+                RawLLMOutputId = rawLLMOutput.RawLLMOutputId,
+                ProjectVersionId = rawLLMOutput.VersionId,
+                Name = rawLLMOutput.Name,
+                CreatedAt = rawLLMOutput.CreatedAt
             };
 
         }

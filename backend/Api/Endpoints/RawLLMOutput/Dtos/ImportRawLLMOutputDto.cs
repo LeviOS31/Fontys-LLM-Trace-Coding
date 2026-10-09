@@ -1,6 +1,6 @@
-﻿namespace Api.Endpoints.RawLLMData.Dtos
+﻿namespace Api.Endpoints.RawLLMOutput.Dtos
 {
-    public class ImportRawLLMDataDto
+    public class ImportRawLLMOutputDto
     {
         public required string Name { get; init; }
         public required IFormFile File { get; init; }

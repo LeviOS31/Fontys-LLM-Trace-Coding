@@ -3,7 +3,7 @@ using Mediator;
 using Microsoft.AspNetCore.Http;
 using Shared;
 
-namespace RawLLMOutputs.Features.ImportRawLLMData
+namespace RawLLMOutputs.Features.ImportRawLLMOutput
 {
     public record ImportRawLLMOutputRequest : IRequest<Result<ImportRawLLMOutputResponse>>
     {

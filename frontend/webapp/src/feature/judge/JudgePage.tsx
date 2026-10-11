@@ -1,32 +1,47 @@
-import { useParams, Navigate } from 'react-router';
-import { Box, Flex, Heading, Text } from '@radix-ui/themes';
-import { Gavel } from 'lucide-react';
+import { useParams } from 'react-router';
+import { useState } from 'react';
+import { BASE_URL } from '../../shared/api/api';
 
-type PageParams = {
-  id: string;
-  versionId: string;
-};
+
+type PageParams = { id: string; versionId: string };
 
 export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
+  const [axialCodeId, setAxialCodeId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
 
-  if (!projectId || !versionId) return <Navigate to="/404" replace />;
+  const runJudge = async () => {
+    setLoading(true);
+    setResult(null);
+    try {
+      const url = new URL(
+        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`,
+        BASE_URL
+      );
+      const res = await fetch(url.toString(), { method: 'POST' });
+      const data = await res.json();
+      setResult(JSON.stringify(data, null, 2));
+    } catch (err) {
+      setResult(String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <Flex direction="column" gap="4">
-      <Flex align="center" gap="2">
-        <Gavel size={20} />
-        <Text size="6" weight="bold">
-          Judge
-        </Text>
-      </Flex>
-      <Text as="p" size="2" color="gray" ml="6" style={{ maxWidth: 720 }}>
-        Judge the traces using the judge LLM with the generated judge template.
-      </Text>
-
-      <Box>
-        <Heading size="3">Coming soon</Heading>
-      </Box>
-    </Flex>
+    <div style={{ padding: 16 }}>
+      <h2>Judge (test)</h2>
+      <input
+        placeholder="Axial Code Id"
+        value={axialCodeId}
+        onChange={(e) => setAxialCodeId(e.target.value)}
+        style={{ width: 320, marginRight: 8 }}
+      />
+      <button onClick={runJudge} disabled={loading || !axialCodeId}>
+        {loading ? 'Running...' : 'Run Judge'}
+      </button>
+      {result && <pre style={{ whiteSpace: 'pre-wrap', marginTop: 16 }}>{result}</pre>}
+    </div>
   );
 }

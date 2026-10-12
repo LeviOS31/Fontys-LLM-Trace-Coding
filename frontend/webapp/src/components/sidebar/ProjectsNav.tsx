@@ -32,14 +32,10 @@ function useProjectsNavState() {
     error: projectError,
   } = useGetProject(currentProjectId);
 
-  const [keyFocusedIndex, setKeyFocusedIndex] = useState(-1);
+  const keyFocusedIndex = (projectData?.versions ?? []).findIndex(
+    (version) => version.versionId === currentVersionId
+  );
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const versions = projectData?.versions ?? [];
-    const idx = versions.findIndex((v) => v.versionId === currentVersionId);
-    setKeyFocusedIndex(idx);
-  }, [currentVersionId, projectData]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TraceScopeSpanView } from '../../../../shared/types/trace';
-import { getRetrievedSourcesForUserSpan } from './retrievalSources';
+import type { TraceScopeSpanView } from '../../../../../shared/types/trace';
+import { getRetrievedSourcesForUserSpan } from '../retrievalSources';
 
 function span(
   id: string,

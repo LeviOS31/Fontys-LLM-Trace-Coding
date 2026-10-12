@@ -4,7 +4,7 @@ import {
   extractSpanMessages,
   parseGenAiMessages,
   parseSystemInstructions,
-} from './GenAIMessages';
+} from '../GenAIMessages';
 
 describe('GenAI message parsing', () => {
   it('parses message content and joins text parts while ignoring non-text parts', () => {

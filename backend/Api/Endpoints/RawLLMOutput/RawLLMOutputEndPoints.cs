@@ -2,6 +2,8 @@
 using Api.Extensions;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
+using RawLLMOutputs.Contracts.Features.GetAllRawLLMOutputOfVersion;
+using RawLLMOutputs.Contracts.Features.GetRawLLMOutput;
 using RawLLMOutputs.Features.DeleteRawLLMOuput;
 using RawLLMOutputs.Features.ImportRawLLMOutput;
 
@@ -43,6 +45,28 @@ namespace Api.Endpoints.RawLLMOutput
                     }
                 )
                 .WithTags("RawLLMData");
+
+            app.MapGet(
+                    "/v1/projects/{projectId:guid}/version/{projectversionid:guid}/raw-llm-data/{rawllmoutputid:guid}",
+                    async(Guid rawllmoutputid, IMediator mediator) =>
+                    {
+                        var request = new GetRawLLMOutputQuery
+                        {
+                            RawLLMOutputId = rawllmoutputid,
+                        };
+                    }
+                ).WithTags("RawLLMData");
+
+            app.MapGet(
+                    "/v1/projects/{projectId:guid}/version/{projectversionid:guid}/raw-llm-data",
+                    async (Guid projectId, Guid projectversionid, IMediator mediator) =>
+                    { 
+                        var request = new GetAllRawLLMOutputOfVersionQuery
+                        {
+                            VersionId = projectversionid,
+                        };
+                    }
+                ).WithTags("RawLLMData");
         }
     }
 }

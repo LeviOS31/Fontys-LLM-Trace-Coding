@@ -5,6 +5,13 @@ on:
     branches: ["**"]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_full_browser_suite:
+        description: "Run all Cypress E2E specs as a pre-release browser check"
+        type: boolean
+        default: false
+        required: false
 
 env:
   DOTNET_VERSION: "10.0.x"
@@ -51,8 +58,8 @@ jobs:
             echo "No .NET test projects found yet — skipping."
           fi
 
-  frontend:
-    name: Frontend (Node)
+  frontend-lint-typecheck:
+    name: Frontend lint and type checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -62,31 +69,97 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: Cache node_modules
-        id: node-modules-cache
-        uses: actions/cache@v4
-        with:
-          path: frontend/webapp/node_modules
-          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/webapp/package-lock.json') }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
 
       - name: Install dependencies
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
         working-directory: frontend/webapp
 
-      - name: Build
-        run: npm run build
+      - name: Lint
+        run: npm run lint
         working-directory: frontend/webapp
 
-      - name: Test
-        run: npm test -- --watch=false --passWithNoTests
+      - name: Type check
+        run: npx tsc -b --pretty false
+        working-directory: frontend/webapp
+
+      - name: Cypress type check
+        run: npx tsc -p cypress/tsconfig.json --noEmit --moduleResolution bundler --skipLibCheck
+        working-directory: frontend/webapp
+
+  frontend-unit-component:
+    name: Frontend unit and component tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend/webapp
+
+      - name: Run unit and component tests
+        run: npm test -- --run
+        working-directory: frontend/webapp
+
+  frontend-integration:
+    name: Frontend integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend/webapp
+
+      - name: Run retrieval integration tests
+        run: npm test -- --run src/feature/opencode/traceGroup/trace/retrievalSources.test.ts
+        working-directory: frontend/webapp
+
+  frontend-build:
+    name: Frontend production build
+    runs-on: ubuntu-latest
+    needs:
+      [frontend-lint-typecheck, frontend-unit-component, frontend-integration]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend/webapp
+
+      - name: Build frontend
+        run: npm run build
         working-directory: frontend/webapp
 
   docker-build:
     name: Docker build (with layer cache)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend-build]
     env:
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
     steps:
@@ -129,12 +202,28 @@ jobs:
           cache-to: type=gha,mode=max,scope=migrator
 
   smoke-test:
-    name: Smoke test full stack (with Ollama)
+    name: Selected browser tests and full-stack smoke test
     runs-on: ubuntu-latest
     needs: [docker-build]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    env:
+      CYPRESS_BASE_URL: http://localhost:3000
+      CYPRESS_SKIP_DOCKER_RESET: "true"
+      TEST_DATABASE_URL: postgres://user:password@localhost:5432/mydb
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install frontend and Cypress dependencies
+        run: npm ci
+        working-directory: frontend/webapp
 
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
@@ -211,6 +300,48 @@ jobs:
           done
           echo "Frontend did not become ready in time"
           exit 1
+
+      - name: Run selected LLM and trace-group E2E tests
+        run: npx cypress run --browser electron --spec "cypress/e2e/llm-content.cy.ts,cypress/e2e/trace-group.cy.ts"
+        working-directory: frontend/webapp
+
+      - name: Run accessibility E2E checks when present
+        if: hashFiles('frontend/webapp/cypress/e2e/**/*.a11y.cy.ts') != ''
+        run: npx cypress run --browser electron --spec "cypress/e2e/**/*.a11y.cy.ts"
+        working-directory: frontend/webapp
+
+      - name: Report accessibility checks are not implemented yet
+        if: hashFiles('frontend/webapp/cypress/e2e/**/*.a11y.cy.ts') == ''
+        run: echo "Accessibility E2E pipeline is ready; add cypress/e2e/*.a11y.cy.ts tests to enable it."
+
+      - name: Run visual regression E2E checks when present
+        if: github.event_name == 'pull_request' && hashFiles('frontend/webapp/cypress/e2e/**/*.visual.cy.ts') != ''
+        run: npx cypress run --browser electron --spec "cypress/e2e/**/*.visual.cy.ts"
+        working-directory: frontend/webapp
+
+      - name: Report visual regression checks are not implemented yet
+        if: github.event_name == 'pull_request' && hashFiles('frontend/webapp/cypress/e2e/**/*.visual.cy.ts') == ''
+        run: echo "Visual regression pipeline is ready; add cypress/e2e/*.visual.cy.ts tests to enable it."
+
+      - name: Run the full Cypress suite for a manual pre-release check
+        if: github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite
+        run: npx cypress run --browser electron
+        working-directory: frontend/webapp
+
+      - name: Remind reviewers about manual release audits
+        if: github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite
+        run: echo "::notice::Complete the manual accessibility review and performance audit before release; automated checks are not configured yet."
+
+      - name: Upload Cypress screenshots and videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-browser-artifacts
+          path: |
+            frontend/webapp/cypress/screenshots
+            frontend/webapp/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Show logs on failure
         if: failure()

@@ -1,8 +1,6 @@
 ﻿import { getPool } from './db';
 
 export async function resetDb(): Promise<void> {
-  console.log(process.env.TEST_DATABASE_URL);
-
   const client = await getPool().connect();
 
   try {

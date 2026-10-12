@@ -58,6 +58,7 @@
     "eslint-plugin-react-hooks": "7.0.1",
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "17.4.0",
+    "happy-dom": "^21.0.1",
     "jsdom": "29.0.1",
     "pg": "8.20.0",
     "prettier": "^3.9.9",

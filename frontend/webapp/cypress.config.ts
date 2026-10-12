@@ -32,9 +32,14 @@ function runCommand(command: string): Promise<void> {
 }
 export default defineConfig({
   e2e: {
-    baseUrl: 'http://localhost:5173',
+    baseUrl: process.env.CYPRESS_BASE_URL ?? 'http://localhost:5173',
     setupNodeEvents(on) {
       on('before:run', async () => {
+        if (process.env.CYPRESS_SKIP_DOCKER_RESET === 'true') {
+          console.log('Skipping Docker reset; using the CI-provided test stack.');
+          return;
+        }
+
         console.log('🔄 Resetting Docker (clean state)...');
         await runCommand('npm run docker:reset');
 

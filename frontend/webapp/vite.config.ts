@@ -11,6 +11,6 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'happy-dom',
   },
 });

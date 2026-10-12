@@ -1,7 +1,9 @@
 import { Badge, Box, Button, Dialog, Flex, Heading, Text, ScrollArea } from '@radix-ui/themes';
 import type { LlmMessage } from '../TraceGroupPage';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentProps } from 'react';
 import { FileText } from 'lucide-react';
+import type { Plugin } from 'prettier';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -43,7 +45,7 @@ async function FormatCode(language: string, codeString: string): Promise<string>
 
   // 2. Prettier Parser Mapping
   let parser: string | null = null;
-  let plugins: any[] = [];
+  let plugins: Plugin[] = [];
 
   if (['js', 'jsx', 'javascript', 'ts', 'typescript'].includes(lang)) {
     parser = 'babel';
@@ -80,6 +82,85 @@ function normalizeContent(content: string): string {
     .split('\n')
     .map((line) => line.trimStart())
     .join('\n');
+}
+
+function MarkdownCode({ className, children, ...props }: ComponentProps<'code'>) {
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match?.[1];
+  const code = String(children).replace(/\n$/, '');
+  const [formattedCode, setFormattedCode] = useState(code);
+
+  useEffect(() => {
+    if (!language) return;
+
+    let cancelled = false;
+    void FormatCode(language, code)
+      .then((formatted) => {
+        if (!cancelled) setFormattedCode(formatted);
+      })
+      .catch((error: unknown) => {
+        console.error('Error parsing', error);
+        if (!cancelled) setFormattedCode(code);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code, language]);
+
+  if (!match) {
+    return (
+      <code
+        className={className}
+        style={{
+          fontFamily: 'inherit',
+          wordBreak: 'break-word',
+          whiteSpace: 'pre-wrap',
+        }}
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        backgroundColor: 'rgb(40, 44, 52)',
+        borderRadius: 'var(--radius-6)',
+      }}
+    >
+      <p
+        style={{
+          minWidth: 0,
+          fontFamily: 'inherit',
+          textAlign: 'left',
+          color: 'lightgray',
+          fontWeight: 'bold',
+          fontSize: '1.25em',
+          paddingLeft: '0.825em',
+          paddingTop: '0.5em',
+          marginBottom: '0.5em',
+        }}
+      >
+        {match[1]}
+      </p>
+      <SyntaxHighlighter
+        language={match[1]}
+        style={oneDark}
+        PreTag="div"
+        customStyle={{
+          maxWidth: '100%',
+          overflowX: 'auto',
+          textAlign: 'left',
+          paddingTop: '0px',
+        }}
+      >
+        {formattedCode}
+      </SyntaxHighlighter>
+    </div>
+  );
 }
 
 export function LlmContent({
@@ -179,9 +260,7 @@ export function LlmContent({
         }
       }
 
-      const closestKey = closest
-        ? `${closest.traceId}:${closest.spanId}:${closest.role}`
-        : null;
+      const closestKey = closest ? `${closest.traceId}:${closest.spanId}:${closest.role}` : null;
       if (closestKey === lastScrolledMessage.current) return;
       lastScrolledMessage.current = closestKey;
       if (closest) onScrollChange(closest.traceId, closest.spanId, closest.role);
@@ -306,7 +385,9 @@ export function LlmContent({
                           {children}
                         </p>
                       ),
-                      li: ({ children }) => <li style={{ fontFamily: 'inherit', textAlign: 'start' }}>{children}</li>,
+                      li: ({ children }) => (
+                        <li style={{ fontFamily: 'inherit', textAlign: 'start' }}>{children}</li>
+                      ),
                       pre: ({ children }) => (
                         <pre
                           style={{
@@ -321,68 +402,7 @@ export function LlmContent({
                           {children}
                         </pre>
                       ),
-                      async code({ className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || '');
-                        let codeblock = String(children).replace(/\n$/, '');
-
-                        if (match) {
-                          try {
-                            codeblock = await FormatCode(match[1], codeblock);
-                          } catch (error) {
-                            console.error('Error parsing', error);
-                          }
-                        }
-
-                        return match ? (
-                          <div
-                            style={{
-                              backgroundColor: 'rgb(40, 44, 52)',
-                              borderRadius: 'var(--radius-6)',
-                            }}
-                          >
-                            <p
-                              style={{
-                                minWidth: 0,
-                                fontFamily: 'inherit',
-                                textAlign: 'left',
-                                color: 'lightgray',
-                                fontWeight: 'bold',
-                                fontSize: '1.25em',
-                                paddingLeft: '0.825em',
-                                paddingTop: '0.5em',
-                                marginBottom: '0.5em',
-                              }}
-                            >
-                              {match[1]}
-                            </p>
-                            <SyntaxHighlighter
-                              language={match[1]}
-                              style={oneDark}
-                              PreTag="div"
-                              customStyle={{
-                                maxWidth: '100%',
-                                overflowX: 'auto',
-                                textAlign: 'left',
-                                paddingTop: '0px',
-                              }}
-                            >
-                              {codeblock}
-                            </SyntaxHighlighter>
-                          </div>
-                        ) : (
-                          <code
-                            className={className}
-                            style={{
-                              fontFamily: 'inherit',
-                              wordBreak: 'break-word',
-                              whiteSpace: 'pre-wrap',
-                            }}
-                            {...props}
-                          >
-                            {children}
-                          </code>
-                        );
-                      },
+                      code: MarkdownCode,
                     }}
                   >
                     {normalizeContent(msg.content)}

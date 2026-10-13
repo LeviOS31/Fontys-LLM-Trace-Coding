@@ -16,12 +16,13 @@ export default function RawLLMOutputPage() {
 
     const { id, versionId, rawllmoutputId } = useParams<rawllmoutputparams>();
 
+    const { data: rawLLMOutput, isLoading: isRawLLMOutputsLoading }
+     = useGetRawLLMOutputById(id, versionId, rawllmoutputId);
+
     if (!versionId) return <Navigate to="/404" replace />;
     if (!id) return <Navigate to="/404" replace />;
     if (!rawllmoutputId) return <Navigate to="/404" replace />;
 
-    const { data: rawLLMOutput, isLoading: isRawLLMOutputsLoading }
-     = useGetRawLLMOutputById(id, versionId, rawllmoutputId);
 
     return (
     <main className={styles.root}>

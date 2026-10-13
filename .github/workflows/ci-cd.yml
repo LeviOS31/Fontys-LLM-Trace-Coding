@@ -13,12 +13,13 @@ name: CI/CD
 #                        -> full Cypress suite, Lighthouse performance audit,
 #                           reminder for the manual accessibility review
 #
-# Pushes to main also run everything a PR does, because deploy depends on it.
+# Pushes to main and develop (i.e. merged PRs) also run everything a PR does,
+# plus the Lighthouse audit on develop. Only pushes to main deploy.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       run_full_browser_suite:
@@ -200,8 +201,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [frontend-build]
-    # Performance audit: pre-release only (manual run with the box ticked).
-    if: github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite
+    # Performance audit: after merges into develop, and on a manual
+    # pre-release run with the box ticked.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -242,7 +244,7 @@ jobs:
     needs: [backend, frontend-build]
     # Not run on plain feature-branch pushes. Skipping this also skips
     # smoke-test, which depends on it.
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -285,7 +287,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: [docker-build]
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     env:
       CYPRESS_BASE_URL: http://localhost:3000
       CYPRESS_SKIP_DOCKER_RESET: "true"

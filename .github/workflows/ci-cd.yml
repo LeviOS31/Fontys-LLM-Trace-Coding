@@ -1,21 +1,55 @@
 name: CI/CD
 
+# Execution schedule (section 6.1)
+#
+#   During development   push to a feature branch
+#                        -> backend, lint/type checks, unit and component tests
+#   On every pull request
+#                        -> the above, plus integration tests, production
+#                           build, selected accessibility checks, and
+#                           selected E2E tests with visual regression
+#                           (smoke-test job)
+#   Before a release     manual run with "run_full_browser_suite" ticked
+#                        -> full Cypress suite, Lighthouse performance audit,
+#                           reminder for the manual accessibility review
+#
+# Pushes to main and develop (i.e. merged PRs) also run everything a PR does,
+# plus the Lighthouse audit on develop. Only pushes to main deploy.
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      run_full_browser_suite:
+        description: "Pre-release checks: full Cypress suite and Lighthouse performance audit"
+        type: boolean
+        default: false
+        required: false
+
+# Least privilege by default; the deploy job opts in to what it needs.
+permissions:
+  contents: read
+
+# Cancel superseded runs on branches/PRs, but never cancel a run on main
+# (a half-finished deploy is worse than a queued one).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   DOTNET_VERSION: "10.0.x"
   NODE_VERSION: "22"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
 
 jobs:
   backend:
     name: Backend (.NET)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,9 +85,13 @@ jobs:
             echo "No .NET test projects found yet — skipping."
           fi
 
-  frontend:
-    name: Frontend (Node)
+  frontend-lint-typecheck:
+    name: Frontend lint and type checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # These jobs never run Cypress, so skip the ~200 MB binary download.
+      CYPRESS_INSTALL_BINARY: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,40 +100,156 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: Cache node_modules
-        id: node-modules-cache
-        uses: actions/cache@v4
-        with:
-          path: frontend/webapp/node_modules
-          key: node-modules-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('frontend/webapp/package-lock.json') }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
 
       - name: Install dependencies
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm ci --no-audit --no-fund
         working-directory: frontend/webapp
 
-      - name: Build
-        run: npm run build
+      - name: Lint
+        run: npm run lint
         working-directory: frontend/webapp
 
-      - name: Test
-        run: npm test -- --watch=false --passWithNoTests
+      - name: Type check
+        run: npx tsc -b --pretty false
         working-directory: frontend/webapp
 
-  docker-build:
-    name: Docker build (with layer cache)
+      - name: Cypress type check
+        run: npx tsc -p cypress/tsconfig.json --noEmit --moduleResolution bundler --skipLibCheck
+        working-directory: frontend/webapp
+
+  frontend-unit-component:
+    name: Frontend unit and component tests
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    timeout-minutes: 10
     env:
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      CYPRESS_INSTALL_BINARY: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
 
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: frontend/webapp
+
+      - name: Run unit and component tests
+        run: npm test -- --run
+        working-directory: frontend/webapp
+
+  frontend-integration:
+    name: Frontend integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CYPRESS_INSTALL_BINARY: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: frontend/webapp
+
+      - name: Run retrieval integration tests
+        run: npm test -- --run src/feature/opencode/traceGroup/trace/tests/retrievalSources.test.ts
+        working-directory: frontend/webapp
+
+  frontend-build:
+    name: Frontend production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      [frontend-lint-typecheck, frontend-unit-component, frontend-integration]
+    env:
+      CYPRESS_INSTALL_BINARY: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: frontend/webapp
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend/webapp
+
+  frontend-lighthouse:
+    name: Frontend Lighthouse audits
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [frontend-build]
+    # Performance audit: after merges into develop, and on a manual
+    # pre-release run with the box ticked.
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: frontend/webapp
+
+      - name: Setup Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Run Lighthouse CI
+        run: npm run lighthouse
+        working-directory: frontend/webapp
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: frontend/webapp/.lighthouseci
+          if-no-files-found: ignore
+
+  docker-build:
+    name: Docker build (with layer cache)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend, frontend-build]
+    # Not run on plain feature-branch pushes. Skipping this also skips
+    # smoke-test, which depends on it.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # No QEMU here: this job only builds for the runner's own platform.
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -129,12 +283,42 @@ jobs:
           cache-to: type=gha,mode=max,scope=migrator
 
   smoke-test:
-    name: Smoke test full stack (with Ollama)
+    name: Selected browser tests and full-stack smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     needs: [docker-build]
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    env:
+      CYPRESS_BASE_URL: http://localhost:3000
+      CYPRESS_SKIP_DOCKER_RESET: "true"
+      TEST_DATABASE_URL: postgres://user:password@localhost:5432/mydb
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/webapp/package-lock.json
+
+      # The Cypress binary is not covered by the npm cache.
+      - name: Cache Cypress binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('frontend/webapp/package-lock.json') }}
+          restore-keys: |
+            cypress-${{ runner.os }}-
+
+      - name: Install frontend and Cypress dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: frontend/webapp
+
+      - name: Verify Cypress binary
+        run: npx cypress verify
+        working-directory: frontend/webapp
 
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
@@ -159,7 +343,14 @@ jobs:
           sudo journalctl -u ollama --no-pager | tail -n 100 || true
           exit 1
 
-      - name: Write Compose override for CI networking
+      # Lets docker compose use the GitHub Actions layer cache (type=gha).
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Expose GitHub runtime for cache backend
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Write Compose override for CI networking and caching
         run: |
           cat > docker-compose.ci.yml <<'EOF'
           services:
@@ -170,10 +361,16 @@ jobs:
                 timeout: 5s
                 retries: 10
             migrator:
+              build:
+                cache_from:
+                  - type=gha,scope=migrator
               depends_on:
                 db:
                   condition: service_healthy
             backend:
+              build:
+                cache_from:
+                  - type=gha,scope=backend
               extra_hosts:
                 - "host.docker.internal:host-gateway"
               depends_on:
@@ -181,9 +378,16 @@ jobs:
                   condition: service_healthy
                 migrator:
                   condition: service_completed_successfully
+            frontend:
+              build:
+                cache_from:
+                  - type=gha,scope=frontend
           EOF
 
+      # Read-only cache use: docker-build already writes these scopes.
       - name: Start stack
+        env:
+          COMPOSE_BAKE: "true"
         run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d --build
 
       - name: Wait for backend to respond
@@ -212,6 +416,48 @@ jobs:
           echo "Frontend did not become ready in time"
           exit 1
 
+      - name: Run selected LLM and trace-group E2E tests
+        run: npx cypress run --browser electron --spec "cypress/e2e/llm-content.cy.ts,cypress/e2e/trace-group.cy.ts"
+        working-directory: frontend/webapp
+
+      - name: Run accessibility E2E checks when present
+        if: hashFiles('frontend/webapp/cypress/e2e/**/*.a11y.cy.ts') != ''
+        run: npx cypress run --browser electron --spec "cypress/e2e/**/*.a11y.cy.ts"
+        working-directory: frontend/webapp
+
+      - name: Report accessibility checks are not implemented yet
+        if: hashFiles('frontend/webapp/cypress/e2e/**/*.a11y.cy.ts') == ''
+        run: echo "No Cypress-specific accessibility specs found; axe route scans run in the frontend Vitest suite."
+
+      - name: Run visual regression E2E checks when present
+        if: github.event_name == 'pull_request' && hashFiles('frontend/webapp/cypress/e2e/visual-regression.cy.ts') != ''
+        run: npx cypress run --browser electron --env skipDockerReset=true,skipDbReset=true --spec "cypress/e2e/visual-regression.cy.ts"
+        working-directory: frontend/webapp
+
+      - name: Report visual regression checks are not implemented yet
+        if: github.event_name == 'pull_request' && hashFiles('frontend/webapp/cypress/e2e/visual-regression.cy.ts') == ''
+        run: echo "Visual regression spec not found."
+
+      - name: Run the full Cypress suite for a manual pre-release check
+        if: github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite
+        run: npx cypress run --browser electron
+        working-directory: frontend/webapp
+
+      - name: Remind reviewers about manual release audits
+        if: github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite
+        run: echo "::notice::Complete the manual accessibility review and performance audit before release; automated checks are not configured yet."
+
+      - name: Upload Cypress screenshots and videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-browser-artifacts
+          path: |
+            frontend/webapp/cypress/screenshots
+            frontend/webapp/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Show logs on failure
         if: failure()
         run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml logs
@@ -223,8 +469,14 @@ jobs:
   deploy:
     name: Build & push images (main only)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [smoke-test]
-    if: github.ref == 'refs/heads/main'
+    # Manual runs on main are pre-release checks, so only a push deploys.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Never run two deploys at once, and never cancel one midway.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: write
@@ -232,11 +484,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Lowercase image name
-        run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-
-      - name: Set build version
-        run: echo "BUILD_VERSION=build-${{ github.run_number }}" >> "$GITHUB_ENV"
+      - name: Set image name and build version
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=build-${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

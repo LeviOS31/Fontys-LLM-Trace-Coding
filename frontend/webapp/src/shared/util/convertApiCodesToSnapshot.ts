@@ -3,12 +3,21 @@ import type { AxialCodeSnapshotCode } from '../types/axialCodeSnapshotCode.ts';
 import type { Snapshot } from '../types/snapshot.ts';
 import type { SnapshotTotals } from '../types/snapshotTotals.ts';
 import buildColors from './buildColors.ts';
+import type { AxialCodeChange } from './compareAxialCodes.ts';
+
+export interface SnapshotComparisonOptions {
+  /** Colors shared by both versions of a comparison (see buildComparisonColors). */
+  readonly colorOf?: ReadonlyMap<ApiAxialCode, string>;
+  /** What happened to each code compared to the approved version. */
+  readonly changeOf?: ReadonlyMap<ApiAxialCode, AxialCodeChange>;
+}
 
 export function convertApiCodesToSnapshot(
   apiCodes: ApiAxialCode[],
   label: string,
   generatedAt: string,
-  openCodeTextById: Readonly<Record<string, string>>
+  openCodeTextById: Readonly<Record<string, string>>,
+  comparison?: SnapshotComparisonOptions
 ): Snapshot {
   if (apiCodes.length === 0) {
     return {
@@ -34,6 +43,7 @@ export function convertApiCodesToSnapshot(
     const openCodeCount = apiCode.traceIds.length;
     const prevalence =
       totalOpenCodes > 0 ? Math.round((openCodeCount / totalOpenCodes) * 1000) / 10 : 0;
+    const change = comparison?.changeOf?.get(apiCode);
 
     return {
       id: `code_${i}_${label}`,
@@ -47,7 +57,11 @@ export function convertApiCodesToSnapshot(
       sampleOpenCodes: apiCode.traceIds
         .map((id) => openCodeTextById[id])
         .filter((text): text is string => Boolean(text)),
-      color: palette[i],
+      color: comparison?.colorOf?.get(apiCode) ?? palette[i],
+      changeKind: change?.kind,
+      derivedFrom: change?.previous.map((previousCode) => previousCode.label),
+      addedTraceIds: change?.addedTraceIds,
+      removedTraceIds: change?.removedTraceIds,
     };
   });
 

@@ -1,8 +1,11 @@
 name: CI/CD
 
 on:
+  # Feature branches are covered by pull_request, so push only runs on main.
+  # This avoids every PR commit triggering two identical runs.
+  # To also get checks on branches without a PR, change to: branches: ["**"]
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -13,16 +16,28 @@ on:
         default: false
         required: false
 
+# Least privilege by default; the deploy job opts in to what it needs.
+permissions:
+  contents: read
+
+# Cancel superseded runs on branches/PRs, but never cancel a run on main
+# (a half-finished deploy is worse than a queued one).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   DOTNET_VERSION: "10.0.x"
   NODE_VERSION: "22"
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
 
 jobs:
   backend:
     name: Backend (.NET)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,6 +76,10 @@ jobs:
   frontend-lint-typecheck:
     name: Frontend lint and type checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # These jobs never run Cypress, so skip the ~200 MB binary download.
+      CYPRESS_INSTALL_BINARY: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,7 +92,7 @@ jobs:
           cache-dependency-path: frontend/webapp/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
         working-directory: frontend/webapp
 
       - name: Lint
@@ -88,9 +107,14 @@ jobs:
         run: npx tsc -p cypress/tsconfig.json --noEmit --moduleResolution bundler --skipLibCheck
         working-directory: frontend/webapp
 
+  # The full Vitest run already includes the retrieval integration test that
+  # used to have its own job, so it is no longer executed twice.
   frontend-unit-component:
-    name: Frontend unit and component tests
+    name: Frontend unit, component and integration tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CYPRESS_INSTALL_BINARY: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -103,40 +127,20 @@ jobs:
           cache-dependency-path: frontend/webapp/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
         working-directory: frontend/webapp
 
-      - name: Run unit and component tests
+      - name: Run unit, component and integration tests
         run: npm test -- --run
-        working-directory: frontend/webapp
-
-  frontend-integration:
-    name: Frontend integration tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/webapp/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: frontend/webapp
-
-      - name: Run retrieval integration tests
-        run: npm test -- --run src/feature/opencode/traceGroup/trace/tests/retrievalSources.test.ts
         working-directory: frontend/webapp
 
   frontend-build:
     name: Frontend production build
     runs-on: ubuntu-latest
-    needs:
-      [frontend-lint-typecheck, frontend-unit-component, frontend-integration]
+    timeout-minutes: 10
+    needs: [frontend-lint-typecheck, frontend-unit-component]
+    env:
+      CYPRESS_INSTALL_BINARY: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -149,7 +153,7 @@ jobs:
           cache-dependency-path: frontend/webapp/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
         working-directory: frontend/webapp
 
       - name: Build frontend
@@ -159,7 +163,10 @@ jobs:
   frontend-lighthouse:
     name: Frontend Lighthouse audits
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [frontend-build]
+    env:
+      CYPRESS_INSTALL_BINARY: "0"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -172,7 +179,7 @@ jobs:
           cache-dependency-path: frontend/webapp/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
         working-directory: frontend/webapp
 
       - name: Setup Chrome
@@ -196,16 +203,13 @@ jobs:
   docker-build:
     name: Docker build (with layer cache)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend, frontend-build]
-    env:
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
+      # No QEMU here: this job only builds for the runner's own platform.
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -241,6 +245,7 @@ jobs:
   smoke-test:
     name: Selected browser tests and full-stack smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     needs: [docker-build]
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     env:
@@ -258,8 +263,21 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/webapp/package-lock.json
 
+      # The Cypress binary is not covered by the npm cache.
+      - name: Cache Cypress binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('frontend/webapp/package-lock.json') }}
+          restore-keys: |
+            cypress-${{ runner.os }}-
+
       - name: Install frontend and Cypress dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
+        working-directory: frontend/webapp
+
+      - name: Verify Cypress binary
+        run: npx cypress verify
         working-directory: frontend/webapp
 
       - name: Install Ollama
@@ -285,7 +303,14 @@ jobs:
           sudo journalctl -u ollama --no-pager | tail -n 100 || true
           exit 1
 
-      - name: Write Compose override for CI networking
+      # Lets docker compose use the GitHub Actions layer cache (type=gha).
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Expose GitHub runtime for cache backend
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Write Compose override for CI networking and caching
         run: |
           cat > docker-compose.ci.yml <<'EOF'
           services:
@@ -296,10 +321,16 @@ jobs:
                 timeout: 5s
                 retries: 10
             migrator:
+              build:
+                cache_from:
+                  - type=gha,scope=migrator
               depends_on:
                 db:
                   condition: service_healthy
             backend:
+              build:
+                cache_from:
+                  - type=gha,scope=backend
               extra_hosts:
                 - "host.docker.internal:host-gateway"
               depends_on:
@@ -307,9 +338,16 @@ jobs:
                   condition: service_healthy
                 migrator:
                   condition: service_completed_successfully
+            frontend:
+              build:
+                cache_from:
+                  - type=gha,scope=frontend
           EOF
 
+      # Read-only cache use: docker-build already writes these scopes.
       - name: Start stack
+        env:
+          COMPOSE_BAKE: "true"
         run: docker compose -f docker-compose.yaml -f docker-compose.ci.yml up -d --build
 
       - name: Wait for backend to respond
@@ -391,8 +429,13 @@ jobs:
   deploy:
     name: Build & push images (main only)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [smoke-test]
     if: github.ref == 'refs/heads/main'
+    # Never run two deploys at once, and never cancel one midway.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: write
@@ -400,11 +443,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Lowercase image name
-        run: echo "IMAGE_NAME=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
-
-      - name: Set build version
-        run: echo "BUILD_VERSION=build-${{ github.run_number }}" >> "$GITHUB_ENV"
+      - name: Set image name and build version
+        run: |
+          echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=build-${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

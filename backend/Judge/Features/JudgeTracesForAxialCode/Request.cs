@@ -10,6 +10,8 @@ public record JudgeTracesForAxialCodeRequest : IRequest<Result<JudgeTracesForAxi
     public required Guid ProjectVersionId { get; init; }
     public required Guid AxialCodeId { get; init; }
     public required Guid UserId { get; init; }
+    public Guid? TraceCollectionId { get; init; }
+    public Guid? TraceId { get; init; }
 }
 
 public sealed class JudgeTracesForAxialCodeRequestValidator : AbstractValidator<JudgeTracesForAxialCodeRequest>

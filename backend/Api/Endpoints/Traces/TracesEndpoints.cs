@@ -3,13 +3,13 @@ using Api.Endpoints.Traces.HelperFunctions;
 using Api.Extensions;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
-using Traces.Contracts.Features.GetTrace;
 using Traces.Contracts.Features.GetVersionOpencode;
 using Traces.Dtos;
 using Traces.Features.DeleteTraceCollection;
 using Traces.Features.EditOpenCode;
 using Traces.Features.EditTraceCollection;
 using Traces.Features.GetTraceCollections;
+using Traces.Features.GetTraceCollectionTraces;
 using Traces.Features.GetTraceGroup;
 using Traces.Features.GetTraceSummaries;
 using Traces.Features.ImportTraces;
@@ -119,6 +119,25 @@ public static class TracesEndpoints
                         {
                             ProjectId = projectId,
                             UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get from claims
+                            TraceCollectionId = collectionId,
+                        }
+                    );
+
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("Traces");
+
+        app.MapGet(
+                "/v1/projects/{projectId:guid}/versions/{versionId:guid}/traces/collections/{collectionId:guid}/traces",
+                async Task<IResult> (Guid projectId, Guid versionId, Guid collectionId, IMediator mediator) =>
+                {
+                    var result = await mediator.Send(
+                        new GetTraceCollectionTracesQuery
+                        {
+                            ProjectId = projectId,
+                            UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get from claims
+                            ProjectVersionId = versionId,
                             TraceCollectionId = collectionId,
                         }
                     );

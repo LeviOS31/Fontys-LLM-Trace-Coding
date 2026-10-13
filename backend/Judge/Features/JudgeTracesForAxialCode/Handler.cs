@@ -12,7 +12,7 @@ using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
 using Shared.Builders;
 using Shared.Interfaces;
-using Traces.Contracts.Features.GetVersionOpencode;
+using Traces.Contracts.Features.InternalGetTraceTranscripts;
 using System.Text.RegularExpressions;
 
 namespace Judge.Features.JudgeTracesForAxialCode;
@@ -80,25 +80,43 @@ public class JudgeTracesForAxialCodeHandler
             return templateResult.ErrorCode!.Value;
         }
 
-        // 3. Trace content, filtered to this axial code's TraceIds
-        var opencodesResult = await _mediator.Send(
-            new GetVersionOpencodeQuery
+        // 3. Trace transcripts
+        var transcriptsResult = await _mediator.Send(
+            new InternalGetTraceTranscriptsRequest
             {
                 ProjectId = request.ProjectId,
                 ProjectVersionId = request.ProjectVersionId,
                 UserId = request.UserId,
+                TraceCollectionId = request.TraceCollectionId,
+                TraceId = request.TraceId,
             },
             cancellationToken
         );
-        if (opencodesResult.IsError)
+        if (transcriptsResult.IsError)
         {
-            return opencodesResult.ErrorCode!.Value;
+            return transcriptsResult.ErrorCode!.Value;
         }
 
+        
+        var transcripts = transcriptsResult.Value.Transcripts.ToList();
+
         var traceIdSet = axialCode.TraceIds.ToHashSet();
-        var tracesToJudge = opencodesResult
-            .Value.Opencodes.Where(o => traceIdSet.Contains(o.TraceId))
-            .ToList();
+
+        var tracesToJudge = request.TraceId.HasValue
+            ? transcripts
+                .Where(t => t.TraceId == request.TraceId.Value)
+                .ToList()
+            : request.TraceCollectionId.HasValue
+                ? transcripts
+                : transcripts
+                    .Where(t => traceIdSet.Contains(t.TraceId))
+                    .ToList();
+
+        if (request.TraceId.HasValue && tracesToJudge.Count != 1)
+        {
+            return ErrorCode.EntityNotFound;
+        }
+
 
         // 4. Judge each trace
         var results = new List<TraceJudgeResultViewModel>();
@@ -107,7 +125,7 @@ public class JudgeTracesForAxialCodeHandler
             var result = await JudgeSingleTraceAsync(
                 request.UserId,
                 templateResult.Value.Content,
-                trace.OpenCode,
+                trace.Transcript,
                 cancellationToken
             );
             results.Add(

@@ -105,6 +105,7 @@ export function VersionRow({
             ref={interactiveRef}
             role="button"
             tabIndex={0}
+            aria-label={version.name}
             align="center"
             justify="center"
             py="2"

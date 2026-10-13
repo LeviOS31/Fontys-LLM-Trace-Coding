@@ -17,6 +17,8 @@
 import './commands';
 
 beforeEach(() => {
+  if (Cypress.env('skipDbReset') === true) return;
+
   cy.task('resetDb');
   cy.task('seedDb');
 });

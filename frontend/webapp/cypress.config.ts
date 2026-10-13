@@ -37,6 +37,8 @@ function runCommand(command: string): Promise<void> {
 export default defineConfig({
   e2e: {
     baseUrl: process.env.CYPRESS_BASE_URL ?? 'http://localhost:5173',
+    viewportWidth: 1280,
+    viewportHeight: 720,
     setupNodeEvents(on, config) {
       const visualBaselineDir = path.resolve(__dirname, 'cypress', 'visual-baselines');
       const visualDiffDir = path.resolve(__dirname, 'cypress', 'visual-diffs');

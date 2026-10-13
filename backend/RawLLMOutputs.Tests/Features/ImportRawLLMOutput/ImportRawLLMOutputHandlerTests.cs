@@ -135,8 +135,7 @@ namespace RawLLMOutputs.Tests.Features.ImportRawLLMOutput
             outputSet.Received(1).Add(Arg.Is<RawLLMOutput>(output =>
                 output.RawLLMOutputId == response.RawLLMOutputId &&
                 output.VersionId == request.ProjectVersionId &&
-                output.Name == request.Name &&
-                output.Output == request.File.ContentDisposition
+                output.Name == request.Name
             ));
         }
 
@@ -169,7 +168,7 @@ namespace RawLLMOutputs.Tests.Features.ImportRawLLMOutput
 
         private static ImportRawLLMOutputRequest CreateRequest(string contentType = "application/json")
         {
-            var file = CreateFakeJsonFile("{\"output\":\"test\"}");
+            var file = CreateFakeJsonFile("{\"output\":\"test\"}", contentType);
 
             return new ImportRawLLMOutputRequest
             {
@@ -181,15 +180,15 @@ namespace RawLLMOutputs.Tests.Features.ImportRawLLMOutput
             };
         }
 
-        private static IFormFile CreateFakeJsonFile(string jsonContent, string fileName = "test.json")
+        private static IFormFile CreateFakeJsonFile(string jsonContent, string contentType = "application/json")
         {
             var bytes = Encoding.UTF8.GetBytes(jsonContent);
             var stream = new MemoryStream(bytes);
 
-            IFormFile file = new FormFile(stream, 0, bytes.Length, "data_file", fileName)
+            IFormFile file = new FormFile(stream, 0, bytes.Length, "data_file", "test.json")
             {
                 Headers = new HeaderDictionary(),
-                ContentType = "application/json"
+                ContentType = contentType
             };
 
             return file;

@@ -30,6 +30,7 @@ export function ProjectNavItem({
           to={`/projects/${projectId}`}
           className="project-nav-item project-nav-item--collapsed"
           style={style}
+          aria-label={title}
         >
           <Box style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             <Home size={20} color="var(--green-9)" style={{ flexShrink: 0 }} />

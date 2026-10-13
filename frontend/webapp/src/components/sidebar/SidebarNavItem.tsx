@@ -42,6 +42,7 @@ export function SidebarNavItem({
           end
           className="sidebar-nav-item sidebar-nav-item--collapsed"
           style={activeStyle}
+          aria-label={label}
         >
           <Box style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             {renderedIcon}

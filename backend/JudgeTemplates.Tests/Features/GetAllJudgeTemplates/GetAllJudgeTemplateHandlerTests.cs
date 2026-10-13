@@ -37,6 +37,7 @@ public class GetAllJudgeTemplateHandlerTests
                             Label = "Test Label",
                             Description = "Test Description",
                             IsActive = true,
+                            TraceIds = [],
                         },
                     ],
             }
@@ -151,6 +152,7 @@ public class GetAllJudgeTemplateHandlerTests
                 Label = "Label A",
                 Description = "Desc A",
                 IsActive = true,
+                TraceIds = [],
             },
             new()
             {
@@ -158,6 +160,7 @@ public class GetAllJudgeTemplateHandlerTests
                 Label = "Label B",
                 Description = "Desc B",
                 IsActive = true,
+                TraceIds = [],
             },
         };
 

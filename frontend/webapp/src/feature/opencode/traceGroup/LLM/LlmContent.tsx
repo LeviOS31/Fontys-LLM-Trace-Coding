@@ -267,7 +267,7 @@ export function LlmContent({
                           {children}
                         </p>
                       ),
-                      li: ({ children }) => <li style={{ fontFamily: 'inherit' }}>{children}</li>,
+                      li: ({ children }) => <li style={{ fontFamily: 'inherit', textAlign: 'start' }}>{children}</li>,
                       pre: ({ children }) => (
                         <pre
                           style={{

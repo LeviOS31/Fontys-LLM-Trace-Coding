@@ -1,4 +1,3 @@
-import type { RawLLMOutput } from './RawLLMOutput.ts';
 
 export interface ImportRawLLMOutputDto {
     projectId: string;

@@ -1,10 +1,9 @@
 import { Button, Callout, Flex, Spinner, Text, TextField, Tooltip } from '@radix-ui/themes';
 import { Info } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Modal from '../../../shared/components/Modal.tsx';
 import { useEditRawLLMOutput } from '../hooks/useEditRawLLMOutput.ts';
 // import { DeleteRawLLMOutputAlert } from './DeleteRawLLMOutputAlert.tsx';
-import { isTyping } from '../../../shared/util/shortcutHelpers.ts';
 
 type EditRawLLMOutputModalProps = {
     open: boolean;
@@ -24,7 +23,7 @@ export function EditRawLLMOutputModal({
     rawLLMOutputName,
 }: Readonly<EditRawLLMOutputModalProps>) {
     const [nameOverride, setNameOverride] = useState<string | null>(null);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    //const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     const {
         mutate: editRawLLMOutput,
@@ -49,7 +48,7 @@ export function EditRawLLMOutputModal({
         (nextOpen: boolean) => {
             if (!nextOpen) {
                 setNameOverride(null);
-                setDeleteDialogOpen(false);
+                // setDeleteDialogOpen(false);
                 resetEdit();
             }
             onOpenChange(nextOpen);

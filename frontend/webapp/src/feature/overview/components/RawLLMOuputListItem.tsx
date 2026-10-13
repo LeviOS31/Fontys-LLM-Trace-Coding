@@ -1,4 +1,4 @@
-import { Badge, Button, Flex, Text } from '@radix-ui/themes';
+import { Button, Flex, Text } from '@radix-ui/themes';
 import { ArrowRightLeft, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { formatTraceDate } from '../../../shared/util/formatTraceDate.ts';

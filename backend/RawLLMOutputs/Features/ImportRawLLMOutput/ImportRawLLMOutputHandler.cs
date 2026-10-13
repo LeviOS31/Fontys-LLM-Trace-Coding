@@ -77,9 +77,17 @@ namespace RawLLMOutputs.Features.ImportRawLLMOutput
             }
 
             string content;
-            using (var reader = new StreamReader(request.File.OpenReadStream()))
+            try
             {
-                content = await reader.ReadToEndAsync();
+                using (var reader = new StreamReader(request.File.OpenReadStream()))
+                {
+                    content = await reader.ReadToEndAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error occurred while reading file");
+                return ErrorCode.FileReadError;
             }
 
             var rawLLMOutput = new RawLLMOutput

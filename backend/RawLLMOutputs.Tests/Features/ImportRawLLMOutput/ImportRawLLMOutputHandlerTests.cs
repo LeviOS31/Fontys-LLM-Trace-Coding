@@ -1,5 +1,6 @@
 ﻿using Mediator;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;
 using NSubstitute;
@@ -11,6 +12,7 @@ using RawLLMOutputs.Data.Models;
 using RawLLMOutputs.Features.ImportRawLLMOutput;
 using Shared;
 using Shouldly;
+using System.Text;
 
 namespace RawLLMOutputs.Tests.Features.ImportRawLLMOutput
 {
@@ -167,9 +169,7 @@ namespace RawLLMOutputs.Tests.Features.ImportRawLLMOutput
 
         private static ImportRawLLMOutputRequest CreateRequest(string contentType = "application/json")
         {
-            var file = Substitute.For<IFormFile>();
-            file.ContentType.Returns(contentType);
-            file.ContentDisposition.Returns("{\"output\":\"test\"}");
+            var file = CreateFakeJsonFile("{\"output\":\"test\"}");
 
             return new ImportRawLLMOutputRequest
             {
@@ -179,6 +179,20 @@ namespace RawLLMOutputs.Tests.Features.ImportRawLLMOutput
                 Name = "Imported output",
                 File = file
             };
+        }
+
+        private static IFormFile CreateFakeJsonFile(string jsonContent, string fileName = "test.json")
+        {
+            var bytes = Encoding.UTF8.GetBytes(jsonContent);
+            var stream = new MemoryStream(bytes);
+
+            IFormFile file = new FormFile(stream, 0, bytes.Length, "data_file", fileName)
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/json"
+            };
+
+            return file;
         }
 
         private static GetProjectResponse CreateProjectResponse(Guid projectId)

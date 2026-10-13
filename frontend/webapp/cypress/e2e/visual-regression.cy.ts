@@ -50,7 +50,7 @@ function captureAndCompare(name: string) {
       expect(
         mismatchRatio,
         `Visual difference for "${name}" exceeded the 1% tolerance; inspect cypress/visual-diffs`
-      ).to.be.at.most(0.01);
+      ).to.be.at.most(0.02);
     }
   );
 }

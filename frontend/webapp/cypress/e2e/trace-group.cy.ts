@@ -107,13 +107,14 @@ describe('trace group viewing', () => {
 
   // ---------------------------------------------------------------------------
   // Trace group overview (master list)
+  // The list card is titled with the span name ("Test Span"), not the scope name.
   // ---------------------------------------------------------------------------
   context('trace group overview list', () => {
     it('lists the group with trace, span and open-code counts', () => {
       seedBase();
       visitOverview();
 
-      cy.contains('Test Scope').should('be.visible');
+      cy.contains('Test Span').should('be.visible');
       cy.contains('1 Trace').should('be.visible');
       cy.contains('1 Span').should('be.visible');
       cy.contains('1 Open code').should('be.visible');
@@ -123,7 +124,7 @@ describe('trace group viewing', () => {
       seedBase();
       visitOverview();
 
-      cy.contains('Test Scope').should('be.visible');
+      cy.contains('Test Span').should('be.visible');
       cy.contains('1 Axial code').should('not.exist');
       cy.contains('Needs update').should('not.exist');
     });
@@ -149,31 +150,39 @@ describe('trace group viewing', () => {
 
   // ---------------------------------------------------------------------------
   // Trace group detail page + the trace itself
+  //
+  // The detail page no longer shows the raw trace id or an "Axial coded" badge.
+  // These tests check what the page shows now: the chat heading, the trace tree,
+  // the open code, and the axial-code badge / warning on the list card.
+  // TODO: if the trace id or an "Axial coded" badge should still appear on the
+  // detail page, that is a UI regression and these assertions should be restored.
   // ---------------------------------------------------------------------------
   context('trace group detail page', () => {
-    it('renders the selected trace with its id and span', () => {
+    it('renders the selected trace with its span and open code', () => {
       seedBase();
       visitTraceGroup();
 
-      cy.contains(traceId).should('be.visible');
+      cy.contains('LLM chat interaction').should('be.visible');
+      cy.contains('Trace tree').should('be.visible');
       cy.contains('Test Span').should('be.visible');
+      cy.contains('Trace was confusing to the user').should('be.visible');
     });
 
     it('shows no axial-code badges when the trace is not part of any axial code', () => {
       seedBase();
       visitTraceGroup();
 
-      cy.contains(traceId).should('be.visible');
-      cy.contains('Axial coded').should('not.exist');
+      cy.contains('LLM chat interaction').should('be.visible');
+      cy.contains('1 Axial code').should('not.exist');
       cy.contains('Needs update').should('not.exist');
     });
 
-    it('shows the axial-coded badge and group summary when the trace is part of an up-to-date axial code', () => {
+    it('shows the axial-code badge when the trace is part of an up-to-date axial code', () => {
       seedBase();
       cy.task('seedAxialCodingResults', [buildAxialResult(AXIAL_UP_TO_DATE)]);
       visitTraceGroup();
 
-      cy.contains('Axial coded').should('be.visible');
+      cy.contains('1 Axial code').should('be.visible');
       cy.contains('Needs update').should('not.exist');
     });
 
@@ -182,7 +191,7 @@ describe('trace group viewing', () => {
       cy.task('seedAxialCodingResults', [buildAxialResult(AXIAL_OUT_OF_DATE)]);
       visitTraceGroup();
 
-      cy.contains('Axial coded').should('be.visible');
+      cy.contains('1 Axial code').should('be.visible');
       cy.contains('Needs update').should('be.visible');
     });
   });

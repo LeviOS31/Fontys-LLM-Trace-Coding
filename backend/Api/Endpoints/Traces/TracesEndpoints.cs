@@ -3,7 +3,6 @@ using Api.Endpoints.Traces.HelperFunctions;
 using Api.Extensions;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
-using Traces.Contracts.Features.GetTrace;
 using Traces.Contracts.Features.GetVersionOpencode;
 using Traces.Dtos;
 using Traces.Features.DeleteTraceCollection;

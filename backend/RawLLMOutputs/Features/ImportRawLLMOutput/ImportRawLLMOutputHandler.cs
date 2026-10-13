@@ -5,6 +5,7 @@ using RawLLMOutputs.Data;
 using RawLLMOutputs.Data.Models;
 using Serilog;
 using Shared;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace RawLLMOutputs.Features.ImportRawLLMOutput
 {
@@ -25,7 +26,7 @@ namespace RawLLMOutputs.Features.ImportRawLLMOutput
             CancellationToken cancellationToken
         )
         {
-            var getProjectQuery = new GetProjectQuery { ProjectId = request.ProjectId };
+            var getProjectQuery = new GetProjectQuery { ProjectId = request.ProjectId, UserId = request.UserId };
             var result = await _mediator.Send(getProjectQuery, cancellationToken);
 
             if (!result.IsSuccess)
@@ -75,12 +76,18 @@ namespace RawLLMOutputs.Features.ImportRawLLMOutput
                 return ErrorCode.UnsupportedFileType;
             }
 
+            string content;
+            using (var reader = new StreamReader(request.File.OpenReadStream()))
+            {
+                content = await reader.ReadToEndAsync();
+            }
+
             var rawLLMOutput = new RawLLMOutput
             {
                 RawLLMOutputId = Guid.NewGuid(),
                 VersionId = request.ProjectVersionId,
                 Name = request.Name,
-                Output = request.File.ContentDisposition,
+                Output = content,
                 CreatedAt = DateTime.UtcNow
             };
 

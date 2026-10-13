@@ -12,7 +12,6 @@ namespace RawLLMOutputs.Features.UpdateRawLLMOutput
         public required Guid RawLLMOutputId { get; init; }
         public required Guid VersionId { get; init; }
         public required string Name { get; init; }
-        public required string Output { get; init; }
     }
 
     public sealed class EditRawLLMOutputRequestValidator : AbstractValidator<UpdateRawLLMOutputRequest>
@@ -22,7 +21,6 @@ namespace RawLLMOutputs.Features.UpdateRawLLMOutput
             RuleFor(x => x.RawLLMOutputId).NotEmpty();
             RuleFor(x => x.VersionId).NotEmpty();
             RuleFor(x => x.Name).NotEmpty();
-            RuleFor(x => x.Output).NotEmpty();
         }
     }
 }

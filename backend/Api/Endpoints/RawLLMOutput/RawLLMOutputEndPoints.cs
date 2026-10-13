@@ -1,4 +1,5 @@
 ﻿using Api.Endpoints.RawLLMOutput.Dtos;
+using Api.Endpoints.Traces.Dtos;
 using Api.Extensions;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +7,7 @@ using RawLLMOutputs.Contracts.Features.GetAllRawLLMOutputOfVersion;
 using RawLLMOutputs.Contracts.Features.GetRawLLMOutput;
 using RawLLMOutputs.Features.DeleteRawLLMOuput;
 using RawLLMOutputs.Features.ImportRawLLMOutput;
+using RawLLMOutputs.Features.UpdateRawLLMOutput;
 
 namespace Api.Endpoints.RawLLMOutput
 {
@@ -29,6 +31,8 @@ namespace Api.Endpoints.RawLLMOutput
                         return result.ToHttpResult();
                     }
                 )
+                .Accepts<ImportRawLLMOutputDto>("multipart/form-data")
+                .DisableAntiforgery()
                 .WithTags("RawLLMData");
 
             app.MapDelete(
@@ -37,23 +41,27 @@ namespace Api.Endpoints.RawLLMOutput
                     {
                         var request = new DeleteRawLLMOutputRequest
                         {
-                            UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
+                            UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"),
                             ProjectVersionId = projectversionid,
                             ProjectId = projectId,
                             RawLLMOutputId = rawllmoutputid,
                         };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
                     }
                 )
                 .WithTags("RawLLMData");
 
             app.MapGet(
                     "/v1/projects/{projectId:guid}/version/{projectversionid:guid}/raw-llm-data/{rawllmoutputid:guid}",
-                    async(Guid rawllmoutputid, IMediator mediator) =>
+                    async(Guid projectId, Guid projectversionid, Guid rawllmoutputid, IMediator mediator) =>
                     {
                         var request = new GetRawLLMOutputQuery
                         {
                             RawLLMOutputId = rawllmoutputid,
                         };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
                     }
                 ).WithTags("RawLLMData");
 
@@ -65,7 +73,24 @@ namespace Api.Endpoints.RawLLMOutput
                         {
                             VersionId = projectversionid,
                         };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
                     }
+                ).WithTags("RawLLMData");
+
+            app.MapPatch(
+                    "/v1/projects/{projectId:guid}/version/{projectversionid:guid}/raw-llm-data/{rawllmoutputid:guid}",
+                     async ([FromForm] EditRawLLMOutputDto dto, Guid projectId, Guid projectversionid, Guid rawllmoutputid, IMediator mediator) =>
+                     {
+                         var request = new UpdateRawLLMOutputRequest
+                         {
+                             RawLLMOutputId = rawllmoutputid,
+                             VersionId = projectversionid,
+                             Name = dto.Name,
+                         };
+                         var result = await mediator.Send(request);
+                         return result.ToHttpResult();
+                     }
                 ).WithTags("RawLLMData");
         }
     }

@@ -147,8 +147,6 @@ jobs:
     name: Frontend integration tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # PR-level check: not run on plain feature-branch pushes.
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     env:
       CYPRESS_INSTALL_BINARY: "0"
     steps:
@@ -176,9 +174,6 @@ jobs:
     timeout-minutes: 10
     needs:
       [frontend-lint-typecheck, frontend-unit-component, frontend-integration]
-    # Not part of the "during development" checks. Skipping this also skips
-    # docker-build and smoke-test, which depend on it.
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     env:
       CYPRESS_INSTALL_BINARY: "0"
     steps:
@@ -245,6 +240,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [backend, frontend-build]
+    # Not run on plain feature-branch pushes. Skipping this also skips
+    # smoke-test, which depends on it.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

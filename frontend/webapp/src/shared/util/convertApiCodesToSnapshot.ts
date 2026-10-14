@@ -49,6 +49,12 @@ export function convertApiCodesToSnapshot(
       id: `code_${i}_${label}`,
       name: apiCode.label,
       description: apiCode.description,
+      inclusionCriteria: apiCode.inclusionCriteria ?? null,
+      justifications: (apiCode.traceJustifications ?? []).map((j) => ({
+        traceId: j.traceId,
+        quote: j.quote,
+        justification: j.justification,
+      })),
       prevalence,
       traceCount: openCodeCount,
       openCodeCount,

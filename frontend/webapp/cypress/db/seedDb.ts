@@ -160,11 +160,19 @@ export async function seedTraces(collections: TraceCollection[]): Promise<void> 
   }
 }
 
+export interface SeedTraceJustification {
+  traceId: string;
+  quote: string;
+  justification: string;
+}
+
 export interface SeedAxialCode {
   axialCodeId: string;
   label: string;
   description: string;
   traceIds: string[];
+  inclusionCriteria?: string;
+  traceJustifications?: SeedTraceJustification[];
 }
 
 export interface SeedAxialCodingResult {
@@ -186,15 +194,27 @@ export async function seedAxialCodingResults(results: SeedAxialCodingResult[]): 
       );
       for (const code of result.axialCodes) {
         await client.query(
-          `INSERT INTO "AxialCode" ("AxialCodeId", "AxialCodingResultId", "Label", "Description", "TraceIds") VALUES ($1, $2, $3, $4, $5::uuid[])`,
+          `INSERT INTO "AxialCode" ("AxialCodeId", "AxialCodingResultId", "Label", "Description", "TraceIds", "InclusionCriteria") VALUES ($1, $2, $3, $4, $5::uuid[], $6)`,
           [
             code.axialCodeId,
             result.axialCodingResultId,
             code.label,
             code.description,
             code.traceIds,
+            code.inclusionCriteria ?? null,
           ]
         );
+        for (const justification of code.traceJustifications ?? []) {
+          await client.query(
+            `INSERT INTO "AxialCodeTraceJustification" ("AxialCodeId", "TraceId", "Quote", "Justification") VALUES ($1, $2, $3, $4)`,
+            [
+              code.axialCodeId,
+              justification.traceId,
+              justification.quote,
+              justification.justification,
+            ]
+          );
+        }
       }
     }
     await client.query('COMMIT');

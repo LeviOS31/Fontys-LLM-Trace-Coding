@@ -40,6 +40,46 @@ describe('AxialCodeCard', () => {
     expect(screen.queryByText('Invented warranty terms')).not.toBeInTheDocument();
   });
 
+  it('shows when a trace fits and why each trace fits when expanded', () => {
+    render(
+      <AxialCodeCard
+        code={{
+          ...code,
+          inclusionCriteria: 'A trace fits when the model states a policy that does not exist',
+          justifications: [
+            {
+              traceId: 'trace-1',
+              quote: 'Invented warranty',
+              justification: 'The model made up warranty terms',
+            },
+          ],
+        }}
+        snap="A"
+      />
+    );
+
+    expect(screen.getByText('Fits when')).toBeInTheDocument();
+    expect(
+      screen.getByText('A trace fits when the model states a policy that does not exist')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('The model made up warranty terms')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand details ↓' }));
+
+    expect(screen.getByText('Why these traces fit')).toBeInTheDocument();
+    const justification = screen.getByTestId('axial-code-justification');
+    expect(justification).toHaveTextContent('“Invented warranty”');
+    expect(justification).toHaveTextContent('The model made up warranty terms');
+    // The plain open-code badges are replaced by the justifications.
+    expect(screen.queryByText('Made-up refund rule')).not.toBeInTheDocument();
+  });
+
+  it('hides the inclusion criteria for codes generated before justifications existed', () => {
+    render(<AxialCodeCard code={code} snap="A" />);
+
+    expect(screen.queryByTestId('axial-code-inclusion-criteria')).not.toBeInTheDocument();
+  });
+
   it('reports hover and leave with the snapshot identity', () => {
     const onHover = vi.fn();
     render(<AxialCodeCard code={code} snap="A" onHover={onHover} />);

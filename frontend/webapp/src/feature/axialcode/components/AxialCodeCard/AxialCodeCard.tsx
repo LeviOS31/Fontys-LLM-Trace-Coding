@@ -3,6 +3,50 @@ import { Badge, Box, Card, Flex, Text } from '@radix-ui/themes';
 import type { AxialCodeSnapshotCode } from '../../../../shared/types/axialCodeSnapshotCode.ts';
 import { colors } from '../../../../shared/styling/colors.ts';
 import styles from './AxialCodeCard.module.css';
+import ChangeKindBadge from '../ChangeKindBadge.tsx';
+
+const ORIGIN_PREFIX: Partial<Record<NonNullable<AxialCodeSnapshotCode['changeKind']>, string>> = {
+  renamed: 'Was',
+  merged: 'Merged from',
+  split: 'Split from',
+};
+
+/** Where a regenerated code comes from and how many open codes it gained or lost. */
+function ChangeDetails({ code }: { readonly code: AxialCodeSnapshotCode }) {
+  const prefix = code.changeKind ? ORIGIN_PREFIX[code.changeKind] : undefined;
+  const added = code.addedTraceIds?.length ?? 0;
+  const removed = code.removedTraceIds?.length ?? 0;
+  const showCounts = code.changeKind !== 'new' && (added > 0 || removed > 0);
+
+  if (!prefix && !showCounts) return null;
+
+  return (
+    <Flex direction="column" gap="1">
+      {prefix && code.derivedFrom && code.derivedFrom.length > 0 && (
+        <Text size="1" color="gray">
+          {prefix}{' '}
+          <Text as="span" size="1" weight="bold" highContrast>
+            {code.derivedFrom.join(', ')}
+          </Text>
+        </Text>
+      )}
+      {showCounts && (
+        <Flex gap="2">
+          {added > 0 && (
+            <Text size="1" weight="bold" color="green">
+              +{added} open code{added > 1 ? 's' : ''}
+            </Text>
+          )}
+          {removed > 0 && (
+            <Text size="1" weight="bold" color="red">
+              −{removed} open code{removed > 1 ? 's' : ''}
+            </Text>
+          )}
+        </Flex>
+      )}
+    </Flex>
+  );
+}
 
 interface AxialCodeCardProps {
   readonly code: AxialCodeSnapshotCode;
@@ -18,6 +62,8 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
       size="1"
       className={styles.card}
       data-testid="axial-code-card"
+      data-snap={snap}
+      data-axial-code-name={code.name}
       onMouseEnter={() => onHover?.({ ...code, _snap: snap })}
       onMouseLeave={() => onHover?.(null)}
     >
@@ -33,9 +79,14 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
         />
 
         <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
-          <Text size="2" weight="bold" style={{ letterSpacing: '-0.005em' }}>
-            {code.name}
-          </Text>
+          <Flex align="center" gap="2" wrap="wrap">
+            <Text size="2" weight="bold" style={{ letterSpacing: '-0.005em' }}>
+              {code.name}
+            </Text>
+            {code.changeKind && <ChangeKindBadge kind={code.changeKind} />}
+          </Flex>
+
+          {code.changeKind && <ChangeDetails code={code} />}
 
           <Text size="2" color="gray" style={{ lineHeight: 1.5 }}>
             {code.description}

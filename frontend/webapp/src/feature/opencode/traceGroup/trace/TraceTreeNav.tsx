@@ -7,8 +7,9 @@ import {
   ListCollapse,
   MessageCircle,
   Workflow,
+  FileText,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TraceDetailView } from '../../../../shared/types/trace';
 import {
   buildMessageAwareSpanTree,
@@ -24,7 +25,11 @@ type Props = {
   selectedSpanId: string | null;
   setSelectedTrace: (traceId: string) => void;
   setSelectedSpan: (spanId: string | null) => void;
-  requestChatScroll: (spanId: string, role: 'user' | 'assistant' | 'system') => void;
+  requestChatScroll: (
+    spanId: string,
+    role: 'user' | 'assistant' | 'system',
+    sourceFile?: string
+  ) => void;
   messageAnchors: MessageTreeAnchor[];
   selectedNodeKey: string | null;
   setSelectedNodeKey: (nodeKey: string | null) => void;
@@ -48,6 +53,7 @@ function getSpanCount(trace: TraceDetailView): number {
 }
 
 function getTreeIcon(span: SpanNode, messageRole?: MessageSpanNode['messageRole']) {
+  if (span.sourceSpanId) return FileText;
   if (messageRole === 'system') return ServerCog;
   if (messageRole === 'user') return UserPen;
   if (messageRole === 'assistant') return MessageCircle;
@@ -63,7 +69,11 @@ type SpanTreeProps = {
   selectedSpanId: string | null;
   setSelectedSpan: (spanId: string) => void;
   setSelectedTrace: (traceId: string) => void;
-  requestChatScroll: (spanId: string, role: 'user' | 'assistant' | 'system') => void;
+  requestChatScroll: (
+    spanId: string,
+    role: 'user' | 'assistant' | 'system',
+    sourceFile?: string
+  ) => void;
   messageAnchors: MessageTreeAnchor[];
   depth?: number;
   selectedNodeKey?: string | null;
@@ -99,6 +109,7 @@ function SpanTree({
         const isCollapsed = collapsed[span.traceScopeSpanId] ?? false;
         const messageSpan = span as MessageSpanNode;
         const nodeKey = messageSpan.nodeKey ?? span.traceScopeSpanId;
+        const sourceSpanId = span.sourceSpanId ?? span.traceScopeSpanId;
         const isSelected = selectedNodeKey === nodeKey;
         const isHovered = hoveredKey === nodeKey;
         const Icon = getTreeIcon(span, messageSpan.messageRole);
@@ -107,13 +118,19 @@ function SpanTree({
 
         const handleSelect = () => {
           setSelectedNodeKey?.(nodeKey);
-          setSelectedSpan(span.traceScopeSpanId);
-          setSelectedTrace(traceId);
-          if (messageSpan.messageRole) {
-            requestChatScroll(span.traceScopeSpanId, messageSpan.messageRole);
+          if (span.sourceMessageSpanId) {
+            setSelectedSpan(span.sourceMessageSpanId);
+            setSelectedTrace(traceId);
+            requestChatScroll(span.sourceMessageSpanId, 'user', span.displayName ?? span.name);
             return;
           }
-          scrollSpanIntoView(span.traceScopeSpanId);
+          setSelectedSpan(sourceSpanId);
+          setSelectedTrace(traceId);
+          if (messageSpan.messageRole) {
+            requestChatScroll(sourceSpanId, messageSpan.messageRole);
+            return;
+          }
+          scrollSpanIntoView(sourceSpanId);
         };
 
         return (
@@ -151,7 +168,7 @@ function SpanTree({
                   aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${span.name}`}
                   onClick={(event) => {
                     event.stopPropagation();
-                    setSelectedSpan(span.traceScopeSpanId);
+                    setSelectedSpan(sourceSpanId);
                     setCollapsed((previous) => ({
                       ...previous,
                       [span.traceScopeSpanId]: !isCollapsed,
@@ -258,9 +275,13 @@ export function TraceTreeNav({
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [selectedNodeKey]);
 
-  const spans = buildMessageAwareSpanTree(
-    trace.traceScopes.flatMap((scope) => scope.spans),
-    messageAnchors
+  const spans = useMemo(
+    () =>
+      buildMessageAwareSpanTree(
+        trace.traceScopes.flatMap((scope) => scope.spans),
+        messageAnchors
+      ),
+    [trace.traceScopes, messageAnchors]
   );
 
   return (

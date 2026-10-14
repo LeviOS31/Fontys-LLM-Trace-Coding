@@ -3,4 +3,5 @@ export interface AxialCode {
   label: string;
   description: string;
   traceIds: string[];
+  feedback?: string | null;
 }

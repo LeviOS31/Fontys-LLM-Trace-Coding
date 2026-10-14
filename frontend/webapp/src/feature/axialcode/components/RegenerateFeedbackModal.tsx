@@ -46,6 +46,7 @@ export default function RegenerateFeedbackModal({
           rows={7}
           disabled={isPending}
         />
+        
 
         <Flex gap="2" mt="4" justify="end">
           <Button variant="soft" color="gray" onClick={() => handleOpenChange(false)}>

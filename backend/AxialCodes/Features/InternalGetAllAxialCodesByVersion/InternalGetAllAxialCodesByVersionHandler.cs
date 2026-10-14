@@ -57,6 +57,7 @@ public class InternalGetAllAxialCodesByVersionHandler
                         Label = a.Label,
                         Description = a.Description,
                         IsActive = r.IsActive,
+                        TraceIds = a.TraceIds,
                     })
                 )
                 .ToListAsync(cancellationToken);

@@ -16,6 +16,8 @@ using Settings.Extensions;
 using Shared.Extensions;
 using Statistics.Extensions;
 using Traces.Extensions;
+using Api.Endpoints.Judge;
+using Judge.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +42,7 @@ builder.Services.AddStatisticsModule(builder.Configuration);
 builder.Services.AddAxialCodesModule(builder.Configuration);
 builder.Services.AddSettingsModule(builder.Configuration);
 builder.Services.AddJudgeTemplatesModule(builder.Configuration);
+builder.Services.AddJudgeModule(builder.Configuration);
 
 // Cors
 var origins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',');
@@ -80,5 +83,6 @@ app.MapTracesEndpoint();
 app.MapStatisticsEndpoint();
 app.MapAxialCodeEndpoint();
 app.MapJudgeTemplatesEndpoint();
+app.MapJudgeEndpoint();
 
 await app.RunAsync();

@@ -13,6 +13,7 @@
     <ProjectReference Include="..\Settings\Settings.csproj" />
     <ProjectReference Include="..\Statistics\Statistics.csproj" />
     <ProjectReference Include="..\Traces\Traces.csproj" />
+    <ProjectReference Include="..\Judge\Judge.csproj" />
   </ItemGroup>
 
   <ItemGroup>

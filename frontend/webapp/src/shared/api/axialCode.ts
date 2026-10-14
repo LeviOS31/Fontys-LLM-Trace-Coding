@@ -99,3 +99,5 @@ export async function getCurrentAxialCodesOfVersion(
     createdAt: json.createdAt ?? null,
   };
 }
+
+export { BASE_URL };

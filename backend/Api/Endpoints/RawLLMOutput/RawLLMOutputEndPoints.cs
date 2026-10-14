@@ -1,0 +1,104 @@
+﻿using Api.Endpoints.RawLLMOutput.Dtos;
+using Api.Endpoints.Traces.Dtos;
+using Api.Extensions;
+using Mediator;
+using Microsoft.AspNetCore.Mvc;
+using RawLLMOutputs.Contracts.Features.GetAllRawLLMOutputOfVersion;
+using RawLLMOutputs.Contracts.Features.GetRawLLMOutput;
+using RawLLMOutputs.Features.DeleteRawLLMOuput;
+using RawLLMOutputs.Features.ImportRawLLMOutput;
+using RawLLMOutputs.Features.UpdateRawLLMOutput;
+
+namespace Api.Endpoints.RawLLMOutput
+{
+    public static class RawLLMOutputEndPoints
+    {
+        public static void MapRawLLMDataEndpoints(this WebApplication app)
+        {
+            app.MapPost(
+                    "/v1/projects/{projectId:guid}/versions/{projectversionid:guid}/raw-llm-output",
+                    async ([FromForm] ImportRawLLMOutputDto dto, Guid projectId, Guid projectversionid, IMediator mediator) =>
+                    {
+                        var request = new ImportRawLLMOutputRequest
+                        {
+                            UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
+                            ProjectVersionId = projectversionid,
+                            ProjectId = projectId,
+                            Name = dto.Name,
+                            File = dto.File,
+                        };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
+                    }
+                )
+                .Accepts<ImportRawLLMOutputDto>("multipart/form-data")
+                .DisableAntiforgery()
+                .WithTags("RawLLMData");
+
+            app.MapDelete(
+                    "/v1/projects/{projectId:guid}/versions/{projectversionid:guid}/raw-llm-output/{rawllmoutputid:guid}",
+                    async (Guid projectId, Guid projectversionid, Guid rawllmoutputid, IMediator mediator) =>
+                    {
+                        var request = new DeleteRawLLMOutputRequest
+                        {
+                            UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"),
+                            ProjectVersionId = projectversionid,
+                            ProjectId = projectId,
+                            RawLLMOutputId = rawllmoutputid,
+                        };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
+                    }
+                )
+                .WithTags("RawLLMData");
+
+            app.MapGet(
+                    "/v1/projects/{projectId:guid}/versions/{projectversionid:guid}/raw-llm-output/{rawllmoutputid:guid}",
+                    async(Guid projectId, Guid projectversionid, Guid rawllmoutputid, IMediator mediator) =>
+                    {
+                        var request = new GetRawLLMOutputQuery
+                        {
+                            RawLLMOutputId = rawllmoutputid,
+                        };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
+                    }
+                ).WithTags("RawLLMData");
+
+            app.MapGet(
+                    "/v1/projects/{projectId:guid}/versions/{projectversionid:guid}/raw-llm-output",
+                    async (Guid projectId, Guid projectversionid, IMediator mediator) =>
+                    { 
+                        var request = new GetAllRawLLMOutputOfVersionQuery
+                        {
+                            VersionId = projectversionid,
+                        };
+                        var result = await mediator.Send(request);
+                        return result.ToHttpResult();
+                    }
+                ).WithTags("RawLLMData");
+
+            app.MapPatch(
+                    "/v1/projects/{projectId:guid}/versions/{projectversionid:guid}/raw-llm-output/{rawllmoutputid:guid}",
+                     async Task<IResult>(
+                         Guid projectId,
+                         Guid projectversionid,
+                         Guid rawllmoutputid,
+                         [FromBody] EditRawLLMOutputDto dto,
+                         IMediator mediator
+                     ) =>
+                     {
+                         var request = new UpdateRawLLMOutputRequest
+                         {
+                             RawLLMOutputId = rawllmoutputid,
+                             VersionId = projectversionid,
+                             Name = dto.Name,
+                         };
+
+                         var result = await mediator.Send(request);
+                         return result.ToHttpResult();
+                     }
+                ).WithTags("RawLLMData");
+        }
+    }
+}

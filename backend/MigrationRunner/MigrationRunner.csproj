@@ -11,6 +11,7 @@
     <ProjectReference Include="..\AxialCodes\AxialCodes.csproj" />
     <ProjectReference Include="..\JudgeTemplates\JudgeTemplates.csproj" />
     <ProjectReference Include="..\Projects\Projects.csproj" />
+    <ProjectReference Include="..\RawLLMOutputs\RawLLMOutputs.csproj" />
     <ProjectReference Include="..\Settings\Settings.csproj" />
     <ProjectReference Include="..\Traces\Traces.csproj" />
   </ItemGroup>

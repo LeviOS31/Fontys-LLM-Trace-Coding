@@ -2,17 +2,20 @@ import { useParams } from 'react-router';
 import { useEffect, useState } from 'react';
 import { BASE_URL } from '../../shared/api/api';
 import styles from './JudgePage.module.css';
+import JudgePageTemplateSelect from './Components/JudgeTemplateSelect';
+import type { JudgeTemplate } from '../../shared/types/judgeTemplate';
+import { useForm, FormProvider } from 'react-hook-form';
 
 type PageParams = { id: string; versionId: string };
 type Status = 'idle' | 'success' | 'error';
 type View = 'formatted' | 'raw';
 
-type JudgeTemplate = {
-  id: string;
-  axialCodeId: string;
-  name: string;
-  isDeprecated: boolean;
-};
+// type JudgeTemplate = {
+//   id: string;
+//   axialCodeId: string;
+//   name: string;
+//   isDeprecated: boolean;
+// };
 
 type JudgeResult = {
   traceId: string;
@@ -32,8 +35,7 @@ export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
-  const [templateId, setTemplateId] = useState('');
-  const axialCodeId = templates.find((t) => t.id === templateId)?.axialCodeId ?? '';
+  const [templateId] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [raw, setRaw] = useState<string | null>(null);
@@ -85,10 +87,16 @@ export default function JudgePage() {
       // Ignore clipboard unavailable error
     }
   };
+  const methods = useForm({ defaultValues: { templateId: '' } });
+
+  const templateIdwatch = methods.watch('templateId');
+  const axialCodeId = templates.find((t) => t.id === templateIdwatch)?.axialCodeId ?? '';
 
   const canRun = !loading && axialCodeId.trim().length > 0;
   const canFormat = parsed !== null;
   const showFormatted = canFormat && view === 'formatted';
+
+
 
   return (
     <main className={styles.root}>
@@ -109,33 +117,25 @@ export default function JudgePage() {
           </div>
         </dl>
 
-        <form
-          className={styles.form}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (canRun) runJudge();
-          }}
-        >
-          <label htmlFor="judge-template">Judge template</label>
-          <div className={styles.row}>
-            <select
-              id="judge-template"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              <option value="">Select a judge template</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <button type="submit" disabled={!canRun}>
+        <FormProvider {...methods}>
+          <form
+            className={styles.form}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canRun) runJudge();
+            }}
+          >
+            <div className={styles.row}>
+              <JudgePageTemplateSelect
+                templates={templates}
+              />
+            </div>
+            <button className={styles.submit} type="submit" disabled={!canRun}>
               {loading && <span className={styles.spinner} aria-hidden />}
               {loading ? 'Running judge' : 'Run judge'}
             </button>
-          </div>
-        </form>
+          </form>
+        </FormProvider>
       </section>
 
       <section aria-live="polite">

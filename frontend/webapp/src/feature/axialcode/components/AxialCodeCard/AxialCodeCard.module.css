@@ -13,3 +13,29 @@
   margin: 0;
   text-align: left;
 }
+
+.sectionLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.criteria {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-2);
+  background: var(--gray-a2);
+}
+
+.justificationList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.justification {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}

@@ -516,4 +516,68 @@ describe('axial code', () => {
       });
     });
   });
+
+  // Scenario 4: Axial codes that explain when and why traces fit
+  context('given an approved snapshot with justifications', () => {
+    const seededResultWithJustifications = {
+      ...seededAxialResultA,
+      axialCodes: [
+        {
+          ...seededAxialResultA.axialCodes[0],
+          inclusionCriteria:
+            'A trace fits when the user cannot navigate or understand the interface',
+          traceJustifications: [
+            {
+              traceId: openCodes[0].traceId,
+              quote: 'struggled to find the settings menu',
+              justification: 'The user could not locate a feature in the interface',
+            },
+          ],
+        },
+        seededAxialResultA.axialCodes[1],
+      ],
+    };
+
+    beforeEach(() => {
+      cy.task('seedProjects', [project]);
+      cy.task('seedVersions', [version]);
+      cy.task('seedTraces', [traceCollection]);
+      cy.task('seedOpenCodes', openCodes);
+      cy.task('seedAxialCodingResults', [seededResultWithJustifications]);
+
+      visitAxialCodePage();
+
+      cy.contains('Usability Issues', { timeout: 8000 }).should('be.visible');
+    });
+
+    it('shows when a trace fits the axial code on its card', () => {
+      getAxialCodeCard('Usability Issues').within(() => {
+        cy.get('[data-testid="axial-code-inclusion-criteria"]')
+          .should('be.visible')
+          .and('contain.text', 'Fits when')
+          .and(
+            'contain.text',
+            'A trace fits when the user cannot navigate or understand the interface'
+          );
+      });
+    });
+
+    it('expands a card to show why each trace fits', () => {
+      getAxialCodeCard('Usability Issues').within(() => {
+        cy.contains('button', 'Expand details ↓').click();
+        cy.contains('Why these traces fit').should('be.visible');
+        cy.get('[data-testid="axial-code-justification"]')
+          .should('have.length', 1)
+          .and('contain.text', 'User struggled to find the settings menu')
+          .and('contain.text', 'struggled to find the settings menu')
+          .and('contain.text', 'The user could not locate a feature in the interface');
+      });
+    });
+
+    it('does not show inclusion criteria for codes generated without them', () => {
+      getAxialCodeCard('Performance Concerns')
+        .find('[data-testid="axial-code-inclusion-criteria"]')
+        .should('not.exist');
+    });
+  });
 });

@@ -3,7 +3,7 @@ You are an expert qualitative researcher performing axial coding.
 Input (from the user message) is a JSON object with:
 {
   "openCodes": [{"openCodeId":1,"openCode":"string or null"}, ...],
-  "previousAxialCodes": [{"label":"string","description":"string","openCodeIds":[1, ...],"feedback":"string or null"}, ...],
+  "previousAxialCodes": [{"label":"string","description":"string","inclusionCriteria":"string or null","openCodeIds":[1, ...],"feedback":"string or null"}, ...],
   "feedback": "string"
 }
 
@@ -16,18 +16,22 @@ Task:
 - Use openCodes as the source of truth; only reference openCodeIds that exist in openCodes.
 - Base every label and description only on the cited open-code text. Do not add facts, causes, context, or interpretations that are not supported by those open codes or preserve unsupported claims from previousAxialCodes.
 - For every openCodeId in an axial code, provide one short exact quote copied from that open code as evidence.
+- For every axial code, state its inclusion criteria: the observable condition under which a trace belongs to this axial code (when it fits), derived only from the cited open codes. Revise the previous inclusion criteria when the feedback or the regrouping requires it.
+- For every piece of evidence, write a short justification explaining why that specific open code fits the axial code, referring to its quote and the inclusion criteria.
 - You may keep, merge, split, rename, or remove previous axial codes as needed.
-- Use the same language as the open codes for all labels and descriptions, unless the feedback explicitly requests a different language.
+- Use the same language as the open codes for all labels, descriptions, inclusion criteria and justifications, unless the feedback explicitly requests a different language.
 
 Output requirements (strict):
 - Return ONLY a JSON array.
 - Each element must have:
   - label: string, <= 255 chars.
   - description: string, <= 255 chars.
+  - inclusionCriteria: string, <= 500 chars. Describes when a trace belongs to this axial code (e.g. "A trace fits when ...").
   - openCodeIds: array of integer IDs (openCodeId values from openCodes).
   - evidence: array of objects, one per openCodeId, each with:
     - openCodeId: integer ID from openCodeIds.
-    - quote: a short exact excerpt copied verbatim from that open code.
+    - quote: a short exact excerpt copied verbatim from that open code, <= 500 chars.
+    - justification: string, <= 1000 chars. Explains why this open code fits the axial code, without adding facts that are not in the open code.
   - An openCodeId may appear in multiple axial codes when it legitimately spans multiple themes; avoid unnecessary duplication.
 - Do not include markdown, comments, or extra keys.
 

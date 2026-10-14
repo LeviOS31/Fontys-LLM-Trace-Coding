@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { Badge, Box, Card, Flex, Text } from '@radix-ui/themes';
-import type { AxialCodeSnapshotCode } from '../../../../shared/types/axialCodeSnapshotCode.ts';
+import { Badge, Blockquote, Box, Card, Flex, Text } from '@radix-ui/themes';
+import type {
+  AxialCodeSnapshotCode,
+  AxialCodeSnapshotJustification,
+} from '../../../../shared/types/axialCodeSnapshotCode.ts';
 import { colors } from '../../../../shared/styling/colors.ts';
 import styles from './AxialCodeCard.module.css';
 import ChangeKindBadge from '../ChangeKindBadge.tsx';
@@ -48,6 +51,31 @@ function ChangeDetails({ code }: { readonly code: AxialCodeSnapshotCode }) {
   );
 }
 
+/** Per-trace explanation of why each open code was placed in this axial code. */
+function JustificationList({
+  justifications,
+}: {
+  readonly justifications: readonly AxialCodeSnapshotJustification[];
+}) {
+  return (
+    <ul className={styles.justificationList}>
+      {justifications.map((j) => (
+        <li key={j.traceId} className={styles.justification} data-testid="axial-code-justification">
+          {j.openCode && (
+            <Text as="p" size="1" color="gray">
+              {j.openCode}
+            </Text>
+          )}
+          <Blockquote size="1">“{j.quote}”</Blockquote>
+          <Text as="p" size="2">
+            {j.justification}
+          </Text>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 interface AxialCodeCardProps {
   readonly code: AxialCodeSnapshotCode;
   readonly onHover?: (code: (AxialCodeSnapshotCode & { _snap: string }) | null) => void;
@@ -56,6 +84,7 @@ interface AxialCodeCardProps {
 
 export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const justifications = code.justifications ?? [];
 
   return (
     <Card
@@ -92,6 +121,17 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
             {code.description}
           </Text>
 
+          {code.inclusionCriteria && (
+            <Box className={styles.criteria} data-testid="axial-code-inclusion-criteria">
+              <Text as="p" size="1" color="gray" className={styles.sectionLabel}>
+                Fits when
+              </Text>
+              <Text as="p" size="2">
+                {code.inclusionCriteria}
+              </Text>
+            </Box>
+          )}
+
           <Flex gap="4">
             <Text size="1" color="gray">
               <Text as="span" size="1" weight="bold" highContrast>
@@ -125,23 +165,27 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
               pt="3"
               style={{ borderTop: '1px dashed var(--gray-5)' }}
             >
-              <Text
-                size="1"
-                color="gray"
-                style={{
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                Open codes
-              </Text>
-              <Flex wrap="wrap" gap="1">
-                {code.sampleOpenCodes.map((c, index) => (
-                  <Badge key={`${c}-${index}`} variant="surface" color="gray" size="1">
-                    {c}
-                  </Badge>
-                ))}
-              </Flex>
+              {justifications.length > 0 ? (
+                <>
+                  <Text size="1" color="gray" className={styles.sectionLabel}>
+                    Why these traces fit
+                  </Text>
+                  <JustificationList justifications={justifications} />
+                </>
+              ) : (
+                <>
+                  <Text size="1" color="gray" className={styles.sectionLabel}>
+                    Open codes
+                  </Text>
+                  <Flex wrap="wrap" gap="1">
+                    {code.sampleOpenCodes.map((c, index) => (
+                      <Badge key={`${c}-${index}`} variant="surface" color="gray" size="1">
+                        {c}
+                      </Badge>
+                    ))}
+                  </Flex>
+                </>
+              )}
             </Flex>
           )}
 

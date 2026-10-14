@@ -136,6 +136,13 @@ public class GenerateAxialCodingResultHandler
                 Label = ac.Label,
                 Description = ac.Description,
                 TraceIds = ac.TraceIds,
+                InclusionCriteria = ac.InclusionCriteria,
+                TraceJustifications = ac.TraceJustifications.Select(j => new TraceJustificationViewModel
+                {
+                    TraceId = j.TraceId,
+                    Quote = j.Quote,
+                    Justification = j.Justification,
+                }),
             }),
         };
     }
@@ -158,6 +165,9 @@ public class GenerateAxialCodingResultHandler
         [JsonPropertyName("description")]
         public required string Description { get; init; }
 
+        [JsonPropertyName("inclusionCriteria")]
+        public required string InclusionCriteria { get; init; }
+
         [JsonPropertyName("openCodeIds")]
         public required ICollection<int> OpenCodeIds { get; init; }
 
@@ -173,6 +183,9 @@ public class GenerateAxialCodingResultHandler
         [JsonPropertyName("description")]
         public required string Description { get; init; }
 
+        [JsonPropertyName("inclusionCriteria")]
+        public string? InclusionCriteria { get; init; }
+
         [JsonPropertyName("openCodeIds")]
         public required ICollection<int> OpenCodeIds { get; init; }
     }
@@ -184,6 +197,9 @@ public class GenerateAxialCodingResultHandler
 
         [JsonPropertyName("quote")]
         public required string Quote { get; init; }
+
+        [JsonPropertyName("justification")]
+        public required string Justification { get; init; }
     }
 
     private sealed record AxialCodeVerificationResponse
@@ -233,6 +249,7 @@ public class GenerateAxialCodingResultHandler
         {
             Label = axial.Label,
             Description = axial.Description,
+            InclusionCriteria = axial.InclusionCriteria,
             OpenCodeIds = axial
                 .TraceIds.Select(id => mapping.FirstOrDefault(kvp => kvp.Value == id).Key)
                 .Where(id => id > 0)
@@ -281,12 +298,7 @@ public class GenerateAxialCodingResultHandler
             return validationResult.ErrorCode;
         }
 
-        var verificationResult = await VerifyAxialCodesAsync(
-            userId,
-            candidates,
-            openCodesPayload,
-            cancellationToken
-        );
+        var verificationResult = await VerifyAxialCodesAsync(userId, candidates, openCodesPayload, cancellationToken);
         if (verificationResult.IsError)
         {
             return verificationResult.ErrorCode;
@@ -295,15 +307,7 @@ public class GenerateAxialCodingResultHandler
         var acceptedAxialCodes = candidates
             .Select((candidate, index) => (candidate, index))
             .Where(item => verificationResult.Value.Contains(item.index))
-            .Select(item => new AxialCode
-            {
-                AxialCodeId = Guid.NewGuid(),
-                Label = item.candidate.Label.Trim(),
-                Description = item.candidate.Description.Trim(),
-                TraceIds = item.candidate.OpenCodeIds.Select(id => mapping[id]).Distinct().ToArray(),
-                AxialCodingResultId = Guid.Empty,
-                AxialCodingResult = null,
-            })
+            .Select(item => BuildAxialCode(item.candidate, mapping))
             .ToArray();
 
         if (acceptedAxialCodes.Length == 0)
@@ -313,6 +317,32 @@ public class GenerateAxialCodingResultHandler
         }
 
         return Result.Success<IEnumerable<AxialCode>>(acceptedAxialCodes);
+    }
+
+    private static AxialCode BuildAxialCode(AxialCodeLlmItem candidate, Dictionary<int, Guid> mapping)
+    {
+        var axialCodeId = Guid.NewGuid();
+        return new AxialCode
+        {
+            AxialCodeId = axialCodeId,
+            Label = candidate.Label.Trim(),
+            Description = candidate.Description.Trim(),
+            InclusionCriteria = candidate.InclusionCriteria.Trim(),
+            TraceIds = candidate.OpenCodeIds.Select(id => mapping[id]).Distinct().ToArray(),
+            // Several open codes can map to the same trace; keep the first justification per trace.
+            TraceJustifications = candidate
+                .Evidence.Select(evidence => new AxialCodeTraceJustification
+                {
+                    AxialCodeId = axialCodeId,
+                    TraceId = mapping[evidence.OpenCodeId],
+                    Quote = evidence.Quote.Trim(),
+                    Justification = evidence.Justification.Trim(),
+                })
+                .DistinctBy(justification => justification.TraceId)
+                .ToList(),
+            AxialCodingResultId = Guid.Empty,
+            AxialCodingResult = null,
+        };
     }
 
     private static Dictionary<int, Guid> BuildOpenCodeMapping(
@@ -381,8 +411,10 @@ public class GenerateAxialCodingResultHandler
             if (
                 string.IsNullOrWhiteSpace(axialCode.Label)
                 || string.IsNullOrWhiteSpace(axialCode.Description)
+                || string.IsNullOrWhiteSpace(axialCode.InclusionCriteria)
                 || axialCode.Label.Length > AxialCode.MaxLabelLength
                 || axialCode.Description.Length > AxialCode.MaxDescriptionLength
+                || axialCode.InclusionCriteria.Trim().Length > AxialCode.MaxInclusionCriteriaLength
                 || axialCode.OpenCodeIds == null
                 || axialCode.Evidence == null
                 || axialCode.OpenCodeIds.Count == 0
@@ -405,6 +437,9 @@ public class GenerateAxialCodingResultHandler
                     evidence == null
                     || !axialCode.OpenCodeIds.Contains(evidence.OpenCodeId)
                     || string.IsNullOrWhiteSpace(evidence.Quote)
+                    || evidence.Quote.Trim().Length > AxialCodeTraceJustification.MaxQuoteLength
+                    || string.IsNullOrWhiteSpace(evidence.Justification)
+                    || evidence.Justification.Trim().Length > AxialCodeTraceJustification.MaxJustificationLength
                     || !evidenceById.TryAdd(evidence.OpenCodeId, evidence.Quote)
                 )
                 {
@@ -449,14 +484,18 @@ public class GenerateAxialCodingResultHandler
     )
     {
         var candidates = axialCodes
-            .Select((code, index) => new
-            {
-                index,
-                label = code.Label,
-                description = code.Description,
-                openCodeIds = code.OpenCodeIds,
-                evidence = code.Evidence,
-            })
+            .Select(
+                (code, index) =>
+                    new
+                    {
+                        index,
+                        label = code.Label,
+                        description = code.Description,
+                        inclusionCriteria = code.InclusionCriteria,
+                        openCodeIds = code.OpenCodeIds,
+                        evidence = code.Evidence,
+                    }
+            )
             .ToArray();
         var input = JsonSerializer.Serialize(new { openCodes, axialCodes = candidates });
         var messages = new List<ChatMessage>
@@ -505,7 +544,6 @@ public class GenerateAxialCodingResultHandler
 
     private static string NormalizeWhitespace(string? text) =>
         string.Join(' ', (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-
 
     private static string NormalizeLlmResponse(string llmResponse)
     {

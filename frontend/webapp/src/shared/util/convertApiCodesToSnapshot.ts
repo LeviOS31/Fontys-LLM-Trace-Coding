@@ -52,7 +52,6 @@ export function convertApiCodesToSnapshot(
       inclusionCriteria: apiCode.inclusionCriteria ?? null,
       justifications: (apiCode.traceJustifications ?? []).map((j) => ({
         traceId: j.traceId,
-        openCode: openCodeTextById[j.traceId],
         quote: j.quote,
         justification: j.justification,
       })),

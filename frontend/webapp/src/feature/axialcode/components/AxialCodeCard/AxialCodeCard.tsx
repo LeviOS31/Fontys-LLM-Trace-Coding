@@ -61,11 +61,6 @@ function JustificationList({
     <ul className={styles.justificationList}>
       {justifications.map((j) => (
         <li key={j.traceId} className={styles.justification} data-testid="axial-code-justification">
-          {j.openCode && (
-            <Text as="p" size="1" color="gray">
-              {j.openCode}
-            </Text>
-          )}
           <Blockquote size="1">“{j.quote}”</Blockquote>
           <Text as="p" size="2">
             {j.justification}

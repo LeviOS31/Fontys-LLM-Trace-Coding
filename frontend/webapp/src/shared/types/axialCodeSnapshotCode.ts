@@ -3,8 +3,6 @@ import type { AxialCodeChangeKind } from '../util/compareAxialCodes.ts';
 /** Why a single trace was placed in an axial code. */
 export interface AxialCodeSnapshotJustification {
   readonly traceId: string;
-  /** The trace's full open code, when known. */
-  readonly openCode?: string;
   readonly quote: string;
   readonly justification: string;
 }

@@ -49,7 +49,6 @@ describe('AxialCodeCard', () => {
           justifications: [
             {
               traceId: 'trace-1',
-              openCode: 'Invented warranty terms',
               quote: 'Invented warranty',
               justification: 'The model made up warranty terms',
             },
@@ -69,7 +68,6 @@ describe('AxialCodeCard', () => {
 
     expect(screen.getByText('Why these traces fit')).toBeInTheDocument();
     const justification = screen.getByTestId('axial-code-justification');
-    expect(justification).toHaveTextContent('Invented warranty terms');
     expect(justification).toHaveTextContent('“Invented warranty”');
     expect(justification).toHaveTextContent('The model made up warranty terms');
     // The plain open-code badges are replaced by the justifications.

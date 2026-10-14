@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { convertApiCodesToSnapshot } from './convertApiCodesToSnapshot';
 
 describe('convertApiCodesToSnapshot', () => {
-  it('maps inclusion criteria and per-trace justifications with their open code text', () => {
+  it('maps inclusion criteria and per-trace justifications', () => {
     const snapshot = convertApiCodesToSnapshot(
       [
         {
@@ -29,7 +29,6 @@ describe('convertApiCodesToSnapshot', () => {
     expect(code.justifications).toEqual([
       {
         traceId: 'trace-1',
-        openCode: 'User could not find the button',
         quote: 'could not find the button',
         justification: 'The user struggled to locate a feature',
       },

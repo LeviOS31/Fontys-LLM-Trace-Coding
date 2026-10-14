@@ -568,7 +568,6 @@ describe('axial code', () => {
         cy.contains('Why these traces fit').should('be.visible');
         cy.get('[data-testid="axial-code-justification"]')
           .should('have.length', 1)
-          .and('contain.text', 'User struggled to find the settings menu')
           .and('contain.text', 'struggled to find the settings menu')
           .and('contain.text', 'The user could not locate a feature in the interface');
       });

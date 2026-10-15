@@ -49,8 +49,8 @@ export function convertApiCodesToSnapshot(
       id: `code_${i}_${label}`,
       name: apiCode.label,
       description: apiCode.description,
-      inclusionCriteria: apiCode.inclusionCriteria ?? null,
-      justifications: (apiCode.traceJustifications ?? []).map((j) => ({
+      judgeGuidelines: apiCode.judgeGuidelines ?? null,
+      justifications: (apiCode.openCodeJustifications ?? []).map((j) => ({
         traceId: j.traceId,
         quote: j.quote,
         justification: j.justification,

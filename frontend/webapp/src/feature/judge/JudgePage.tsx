@@ -35,7 +35,6 @@ export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
-  const [templateId] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [raw, setRaw] = useState<string | null>(null);

@@ -35,6 +35,7 @@ export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [raw, setRaw] = useState<string | null>(null);
@@ -91,11 +92,9 @@ export default function JudgePage() {
   const templateIdwatch = methods.watch('templateId');
   const axialCodeId = templates.find((t) => t.id === templateIdwatch)?.axialCodeId ?? '';
 
-  const canRun = !loading && axialCodeId.trim().length > 0;
+  const canRun = !loading && selectedTemplateIds.length > 0;
   const canFormat = parsed !== null;
   const showFormatted = canFormat && view === 'formatted';
-
-
 
   return (
     <main className={styles.root}>
@@ -127,6 +126,7 @@ export default function JudgePage() {
             <div className={styles.row}>
               <JudgePageTemplateSelect
                 templates={templates}
+                onChange={(updatedIds) => setSelectedTemplateIds(updatedIds)}
               />
             </div>
             <button className={styles.submit} type="submit" disabled={!canRun}>

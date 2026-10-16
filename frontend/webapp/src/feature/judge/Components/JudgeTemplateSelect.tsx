@@ -1,19 +1,50 @@
 import type { JudgeTemplate } from '../../../shared/types/judgeTemplate';
-import { useFormContext } from 'react-hook-form';
 import { Flex, Text } from '@radix-ui/themes';
 
 type Props = {
     templates: JudgeTemplate[];
+    onChange: (updatedIds: string[]) => void;
 } 
 
+
 export default function JudgeTemplateSelect({
-    templates
+    templates,
+    onChange,
 }: Props) {
 
-    //const [templates] = useState<JudgeTemplateparams['templates']>([]);
 
-    const {register} = useFormContext<{templateIds: string[]}>();
+    const selectedTemplateIds : string[] = [];
+    const allSelected = templates.length > 0 && templates.every(t => selectedTemplateIds.includes(t.id));
 
+    function selecttemplates(checked: boolean, templateId: string) {
+        if(checked){
+            selectedTemplateIds.push(templateId);
+            onChange(selectedTemplateIds);
+        }
+        else{
+            const index = selectedTemplateIds.indexOf(templateId);
+            if (index !== -1){
+                selectedTemplateIds.splice(index, 1);
+                onChange(selectedTemplateIds);
+            }
+        }
+
+        const allCheckbox = document.querySelectorAll<HTMLInputElement>('.allTemplates');
+        allCheckbox?.forEach((checkbox) => {
+            checkbox.checked = allSelected;
+        });
+    }
+    
+    function selectAllTemplates(checked: boolean) {
+        const allCheckboxes = document.querySelectorAll<HTMLInputElement>('.templateCheckbox');
+        allCheckboxes.forEach((checkbox) => {
+            if(checkbox.checked !== checked){
+                checkbox.checked = checked;
+                selecttemplates(checked, checkbox.value);
+            }
+        });
+    }
+    
     return (
     <Flex 
         align="end" 
@@ -36,7 +67,6 @@ export default function JudgeTemplateSelect({
                 width: '50%',
                 background: 'var(--color-background)',
                 borderRadius: 'var(--radius-6)',
-                overflow: 'hidden',
             }}
         >
             <div 
@@ -47,23 +77,30 @@ export default function JudgeTemplateSelect({
                 }}
             >
                 <p style={{margin: 0, paddingRight: 'var(--space-2)'}}>Select all</p>
-                <input disabled type="checkbox" {...register('templateIds')} value="all" style={{flexGrow: 0, minWidth: '16px', minHeight: '16px'}} />
+                <input className="allTemplates" type="checkbox" value="all" style={{flexGrow: 0, minWidth: '16px', minHeight: '16px'}} onChange={(e) => selectAllTemplates(e.target.checked)} />
             </div>
-            {templates.map((t, index) => (
-                <div
-                    style={{
-                        padding: 'var(--space-2)',
-                        background: index % 2 === 0 ? '#CBD5E1' : 'var(--color-background)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                    }}
-                >
-                    <p style={{margin: 0, flexGrow: 0}}>
-                        {t.name}
-                    </p>
-                    <input type="checkbox" {...register('templateIds')} value={t.id} style={{flexGrow: 0, minWidth: '16px'}} />
-                </div>
-            ))}
+            <div
+                style={{
+                    overflow: 'scroll',
+                    maxHeight: '100px',
+                }}
+            >
+                {templates.map((t, index) => (
+                    <div
+                        style={{
+                            padding: 'var(--space-2)',
+                            background: index % 2 === 0 ? '#eaeaea' : 'var(--color-background)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                        }}
+                    >
+                        <p style={{margin: 0, flexGrow: 0}}>
+                            {t.name}
+                        </p>
+                        <input className="templateCheckbox" type="checkbox" value={t.id} style={{flexGrow: 0, minWidth: '16px'}} onChange={(e) => selecttemplates(e.target.checked, t.id)} />
+                    </div>
+                ))}
+            </div>
         </div>
     </Flex>
     );

@@ -51,7 +51,7 @@ function ChangeDetails({ code }: { readonly code: AxialCodeSnapshotCode }) {
   );
 }
 
-/** Per-trace explanation of why each open code was placed in this axial code. */
+/** Why each grouped open code belongs to this axial code. */
 function JustificationList({
   justifications,
 }: {
@@ -116,17 +116,6 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
             {code.description}
           </Text>
 
-          {code.inclusionCriteria && (
-            <Box className={styles.criteria} data-testid="axial-code-inclusion-criteria">
-              <Text as="p" size="1" color="gray" className={styles.sectionLabel}>
-                Fits when
-              </Text>
-              <Text as="p" size="2">
-                {code.inclusionCriteria}
-              </Text>
-            </Box>
-          )}
-
           <Flex gap="4">
             <Text size="1" color="gray">
               <Text as="span" size="1" weight="bold" highContrast>
@@ -160,10 +149,24 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
               pt="3"
               style={{ borderTop: '1px dashed var(--gray-5)' }}
             >
+              {code.judgeGuidelines && (
+                <Box className={styles.guidelines} data-testid="axial-code-judge-guidelines">
+                  <Text as="p" size="1" color="gray" className={styles.sectionLabel}>
+                    Judge guidelines
+                  </Text>
+                  <Text as="p" size="1" color="gray">
+                    Derived from the open codes in this group
+                  </Text>
+                  <Text as="p" size="2" className={styles.guidelinesText}>
+                    {code.judgeGuidelines}
+                  </Text>
+                </Box>
+              )}
+
               {justifications.length > 0 ? (
                 <>
                   <Text size="1" color="gray" className={styles.sectionLabel}>
-                    Why these traces fit
+                    Why these open codes belong here
                   </Text>
                   <JustificationList justifications={justifications} />
                 </>

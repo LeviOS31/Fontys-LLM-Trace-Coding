@@ -63,9 +63,9 @@ public class InternalGetAxialCodeByIdHandler
                     Label = a.Label,
                     Description = a.Description,
                     TraceIds = a.TraceIds,
-                    InclusionCriteria = a.InclusionCriteria,
-                    TraceJustifications = a
-                        .TraceJustifications.Select(j => new TraceJustificationViewModel
+                    JudgeGuidelines = a.JudgeGuidelines,
+                    OpenCodeJustifications = a
+                        .OpenCodeJustifications.Select(j => new OpenCodeJustificationViewModel
                         {
                             TraceId = j.TraceId,
                             Quote = j.Quote,

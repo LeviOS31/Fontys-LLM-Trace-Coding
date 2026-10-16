@@ -40,9 +40,9 @@ namespace AxialCodes.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("InclusionCriteria")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<string>("JudgeGuidelines")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("Label")
                         .IsRequired()
@@ -60,7 +60,7 @@ namespace AxialCodes.Migrations
                     b.ToTable("AxialCode");
                 });
 
-            modelBuilder.Entity("AxialCodes.Data.Models.AxialCodeTraceJustification", b =>
+            modelBuilder.Entity("AxialCodes.Data.Models.AxialCodeOpenCodeJustification", b =>
                 {
                     b.Property<Guid>("AxialCodeId")
                         .HasColumnType("uuid");
@@ -80,7 +80,7 @@ namespace AxialCodes.Migrations
 
                     b.HasKey("AxialCodeId", "TraceId");
 
-                    b.ToTable("AxialCodeTraceJustification");
+                    b.ToTable("AxialCodeOpenCodeJustification");
                 });
 
             modelBuilder.Entity("AxialCodes.Data.Models.AxialCodingResult", b =>
@@ -118,10 +118,10 @@ namespace AxialCodes.Migrations
                     b.Navigation("AxialCodingResult");
                 });
 
-            modelBuilder.Entity("AxialCodes.Data.Models.AxialCodeTraceJustification", b =>
+            modelBuilder.Entity("AxialCodes.Data.Models.AxialCodeOpenCodeJustification", b =>
                 {
                     b.HasOne("AxialCodes.Data.Models.AxialCode", "AxialCode")
-                        .WithMany("TraceJustifications")
+                        .WithMany("OpenCodeJustifications")
                         .HasForeignKey("AxialCodeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -131,7 +131,7 @@ namespace AxialCodes.Migrations
 
             modelBuilder.Entity("AxialCodes.Data.Models.AxialCode", b =>
                 {
-                    b.Navigation("TraceJustifications");
+                    b.Navigation("OpenCodeJustifications");
                 });
 
             modelBuilder.Entity("AxialCodes.Data.Models.AxialCodingResult", b =>

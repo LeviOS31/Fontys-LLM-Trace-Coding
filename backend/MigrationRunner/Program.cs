@@ -1,4 +1,5 @@
 ﻿using AxialCodes.Data;
+using Judge.Data;
 using JudgeTemplates.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,7 @@ builder.Services.AddDbContext<AxialCodeDbContext>(options => options.UseNpgsql(c
 builder.Services.AddDbContext<SettingsDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<JudgeTemplatesDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<RawLLMOutputDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<JudgeDbContext>(options => options.UseNpgsql(connectionString));
 
 // Migration runner
 builder.Services.AddScoped<MigrationRunner.MigrationRunner>();

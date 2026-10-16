@@ -8,7 +8,7 @@ public class AxialCode
     public const int MaxLabelLength = 255;
     public const int MaxDescriptionLength = 255;
     public const int MaxFeedbackLength = 1000;
-    public const int MaxInclusionCriteriaLength = 500;
+    public const int MaxJudgeGuidelinesLength = 2000;
 
     public required Guid AxialCodingResultId { get; init; }
     public required AxialCodingResult? AxialCodingResult { get; init; }
@@ -18,11 +18,12 @@ public class AxialCode
     public required string Description { get; init; }
     public required ICollection<Guid> TraceIds { get; init; }
 
-    // When a trace belongs to this axial code. Null for results generated before justifications existed.
-    public string? InclusionCriteria { get; init; }
+    // Guidelines a judge can apply to an unseen trace to decide whether it shows this behaviour,
+    // derived from the grouped open codes. Null for results generated before they existed.
+    public string? JudgeGuidelines { get; init; }
 
-    // Why each trace in TraceIds belongs to this axial code.
-    public ICollection<AxialCodeTraceJustification> TraceJustifications { get; init; } = [];
+    // Why each grouped open code belongs to this axial code.
+    public ICollection<AxialCodeOpenCodeJustification> OpenCodeJustifications { get; init; } = [];
 
     public string? Feedback { get; set; }
 }
@@ -36,12 +37,12 @@ internal sealed class AxialCodeEntityConfiguration : IEntityTypeConfiguration<Ax
         builder.Property(x => x.Label).HasMaxLength(AxialCode.MaxLabelLength);
         builder.Property(x => x.Description).HasMaxLength(AxialCode.MaxDescriptionLength);
         builder.Property(x => x.Feedback).HasMaxLength(AxialCode.MaxFeedbackLength);
-        builder.Property(x => x.InclusionCriteria).HasMaxLength(AxialCode.MaxInclusionCriteriaLength);
+        builder.Property(x => x.JudgeGuidelines).HasMaxLength(AxialCode.MaxJudgeGuidelinesLength);
 
         builder.PrimitiveCollection(x => x.TraceIds);
 
         builder
-            .HasMany(x => x.TraceJustifications)
+            .HasMany(x => x.OpenCodeJustifications)
             .WithOne(x => x.AxialCode)
             .HasForeignKey(x => x.AxialCodeId)
             .OnDelete(DeleteBehavior.Cascade);

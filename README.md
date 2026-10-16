@@ -14,7 +14,7 @@ The platform supports a qualitative-research workflow over LLM traces:
 
 1. **Import traces** — upload OTLP/JSONL trace files into a project version.
 2. **Open coding** — annotate individual traces / trace groups with codes.
-3. **Axial coding** — group open codes into higher-level categories (AI-assisted, non-iterative generation). Each axial code states its inclusion criteria (when a trace fits) and, per trace, a quote from its open code plus a justification (why it fits).
+3. **Axial coding** — group open codes into higher-level categories (AI-assisted, non-iterative generation). Each axial code includes judge guidelines (how to recognise the behaviour in an unseen trace) and, for every grouped open code, a quote plus a justification of why it belongs.
 4. **Assessment & Judge templates** — define evaluation criteria and generate LLM-judge templates from coded data.
 5. **Statistics / Overview** — view aggregate analytics per project version.
 
@@ -116,7 +116,7 @@ Each domain module follows the same internal layout (`Data/`, `Features/`, `Exte
 | `Projects`           | Project management (note: the `DbContext` lives under the `Project/` project)     |
 | `ProjectVersions`    | Versioning within projects                                                        |
 | `Traces`             | Trace import (OTLP/JSONL), querying, **and open-coding features**                 |
-| `AxialCodes`         | Axial code generation / interpretation, incl. per-trace justifications            |
+| `AxialCodes`         | Axial code generation / interpretation, incl. judge guidelines and justifications |
 | `AssessmentCriteria` | Evaluation criteria definitions                                                   |
 | `JudgeTemplates`     | LLM-judge template generation (uses Scriban)                                      |
 | `Statistics`         | Aggregate analytics per version                                                   |

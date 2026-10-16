@@ -321,7 +321,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"A trace fits when its open code mentions A or B\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ])
             );
@@ -402,7 +402,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"A trace fits when its open code mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"inclusionCriteria\":\"A trace fits when it is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -488,7 +488,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"A trace fits when its open code mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"inclusionCriteria\":\"A trace fits when it is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -577,7 +577,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"A trace fits when its open code mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"inclusionCriteria\":\"A trace fits when it is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -609,8 +609,8 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.Equal("L1", axialCode.Label);
         Assert.Equal("D1", axialCode.Description);
         Assert.Equal([traceId1, traceId2], axialCode.TraceIds);
-        Assert.Equal("A trace fits when its open code mentions A or B", axialCode.InclusionCriteria);
-        var justifications = axialCode.TraceJustifications!.ToList();
+        Assert.Equal("Mark true when the assistant mentions A or B", axialCode.JudgeGuidelines);
+        var justifications = axialCode.OpenCodeJustifications!.ToList();
         Assert.Equal(2, justifications.Count);
         Assert.Contains(
             justifications,
@@ -629,7 +629,7 @@ public class GenerateAxialCodingResultHandlerTests
     {
         // Arrange
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"A trace fits when it mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\" \"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\" \"}]}]"
         );
 
         // Act
@@ -642,11 +642,11 @@ public class GenerateAxialCodingResultHandlerTests
     }
 
     [Fact]
-    public async Task WhenLlmOmitsInclusionCriteria_ReturnLlmError()
+    public async Task WhenLlmOmitsJudgeGuidelines_ReturnLlmError()
     {
         // Arrange
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
         );
 
         // Act
@@ -659,12 +659,12 @@ public class GenerateAxialCodingResultHandlerTests
     }
 
     [Fact]
-    public async Task WhenInclusionCriteriaTooLong_ReturnLlmError()
+    public async Task WhenJudgeGuidelinesTooLong_ReturnLlmError()
     {
         // Arrange
-        var tooLongCriteria = new string('x', AxialCode.MaxInclusionCriteriaLength + 1);
+        var tooLongCriteria = new string('x', AxialCode.MaxJudgeGuidelinesLength + 1);
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\""
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\""
                 + tooLongCriteria
                 + "\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
         );
@@ -799,7 +799,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"inclusionCriteria\":\"A trace fits when its open code mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"inclusionCriteria\":\"A trace fits when it is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -824,7 +824,7 @@ public class GenerateAxialCodingResultHandlerTests
                 {
                     Label = "Old",
                     Description = "Old Desc",
-                    InclusionCriteria = "Old criteria",
+                    JudgeGuidelines = "Old guidelines",
                     TraceIds = [traceId1],
                 },
             ],
@@ -837,13 +837,13 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value.AxialCodes);
         await mockContext.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-        // The previous inclusion criteria are sent to the LLM so they can be revised.
+        // The previous judge guidelines are sent to the LLM so they can be revised.
         await chatClient
             .Received()
             .GetResponseAsync(
                 Arg.Is<IEnumerable<ChatMessage>>(messages =>
                     messages.Any(m =>
-                        m.Role == ChatRole.User && m.Text.Contains("\"inclusionCriteria\":\"Old criteria\"")
+                        m.Role == ChatRole.User && m.Text.Contains("\"judgeGuidelines\":\"Old guidelines\"")
                     )
                 ),
                 Arg.Any<ChatOptions>(),

@@ -517,20 +517,20 @@ describe('axial code', () => {
     });
   });
 
-  // Scenario 4: Axial codes that explain when and why traces fit
-  context('given an approved snapshot with justifications', () => {
-    const seededResultWithJustifications = {
+  // Scenario 4: Axial codes with judge guidelines and open code justifications
+  context('given an approved snapshot with judge guidelines', () => {
+    const seededResultWithGuidelines = {
       ...seededAxialResultA,
       axialCodes: [
         {
           ...seededAxialResultA.axialCodes[0],
-          inclusionCriteria:
-            'A trace fits when the user cannot navigate or understand the interface',
-          traceJustifications: [
+          judgeGuidelines:
+            'Mark true when: the user cannot navigate or understand the interface.\nMark false when: the user navigates without trouble.\nBorderline cases: a single hesitation counts as false.',
+          openCodeJustifications: [
             {
               traceId: openCodes[0].traceId,
               quote: 'struggled to find the settings menu',
-              justification: 'The user could not locate a feature in the interface',
+              justification: 'The open code describes a user who could not locate a feature',
             },
           ],
         },
@@ -543,40 +543,37 @@ describe('axial code', () => {
       cy.task('seedVersions', [version]);
       cy.task('seedTraces', [traceCollection]);
       cy.task('seedOpenCodes', openCodes);
-      cy.task('seedAxialCodingResults', [seededResultWithJustifications]);
+      cy.task('seedAxialCodingResults', [seededResultWithGuidelines]);
 
       visitAxialCodePage();
 
       cy.contains('Usability Issues', { timeout: 8000 }).should('be.visible');
     });
 
-    it('shows when a trace fits the axial code on its card', () => {
-      getAxialCodeCard('Usability Issues').within(() => {
-        cy.get('[data-testid="axial-code-inclusion-criteria"]')
-          .should('be.visible')
-          .and('contain.text', 'Fits when')
-          .and(
-            'contain.text',
-            'A trace fits when the user cannot navigate or understand the interface'
-          );
-      });
-    });
-
-    it('expands a card to show why each trace fits', () => {
+    it('expands a card to show the judge guidelines and why each open code belongs', () => {
       getAxialCodeCard('Usability Issues').within(() => {
         cy.contains('button', 'Expand details ↓').click();
-        cy.contains('Why these traces fit').should('be.visible');
+        cy.get('[data-testid="axial-code-judge-guidelines"]')
+          .should('be.visible')
+          .and('contain.text', 'Judge guidelines')
+          .and(
+            'contain.text',
+            'Mark true when: the user cannot navigate or understand the interface.'
+          )
+          .and('contain.text', 'Borderline cases: a single hesitation counts as false.');
+        cy.contains('Why these open codes belong here').should('be.visible');
         cy.get('[data-testid="axial-code-justification"]')
           .should('have.length', 1)
           .and('contain.text', 'struggled to find the settings menu')
-          .and('contain.text', 'The user could not locate a feature in the interface');
+          .and('contain.text', 'The open code describes a user who could not locate a feature');
       });
     });
 
-    it('does not show inclusion criteria for codes generated without them', () => {
-      getAxialCodeCard('Performance Concerns')
-        .find('[data-testid="axial-code-inclusion-criteria"]')
-        .should('not.exist');
+    it('does not show judge guidelines for codes generated without them', () => {
+      getAxialCodeCard('Performance Concerns').within(() => {
+        cy.contains('button', 'Expand details ↓').click();
+        cy.get('[data-testid="axial-code-judge-guidelines"]').should('not.exist');
+      });
     });
   });
 });

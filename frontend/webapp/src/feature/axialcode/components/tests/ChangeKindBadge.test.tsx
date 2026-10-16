@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import ChangeKindBadge from './ChangeKindBadge';
+import ChangeKindBadge from '../ChangeKindBadge';
 
 describe('ChangeKindBadge', () => {
   it('shows a change label and optional count', () => {

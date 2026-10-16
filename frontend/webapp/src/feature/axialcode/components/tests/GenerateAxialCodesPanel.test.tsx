@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { AxialCode } from '../../../shared/types/axialCode';
-import { GenerateAxialCodesPanel } from './GenerateAxailCodesPanal/GenerateAxialCodesPanel';
+import type { AxialCode } from '../../../../shared/types/axialCode';
+import { GenerateAxialCodesPanel } from '../GenerateAxailCodesPanal/GenerateAxialCodesPanel';
 
 const { mutate, useGenerate, useOpenCodes } = vi.hoisted(() => ({
   mutate: vi.fn(),

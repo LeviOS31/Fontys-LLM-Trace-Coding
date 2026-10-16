@@ -1,46 +1,33 @@
-import { useParams } from 'react-router';
 import { useEffect, useState } from 'react';
+import { Navigate, useParams } from 'react-router';
+import { Box, Flex, Text } from '@radix-ui/themes';
+import { Gavel } from 'lucide-react';
 import { BASE_URL } from '../../shared/api/api';
-import styles from './JudgePage.module.css';
+import JudgeOverview from './components/JudgeOverview';
+import JudgeRunDetails from './components/JudgeRunDetails';
+import RunJudgePanel from './components/JudgeRunPanel';
+import {
+  isJudgeResponse,
+  type JudgeRun,
+  type JudgeTemplate,
+  type RunError,
+} from './hooks/judgeUtils';
 
 type PageParams = { id: string; versionId: string };
-type Status = 'idle' | 'success' | 'error';
-type View = 'formatted' | 'raw';
-
-type JudgeTemplate = {
-  id: string;
-  axialCodeId: string;
-  name: string;
-  isDeprecated: boolean;
-};
-
-type JudgeResult = {
-  traceId: string;
-  status: string;
-  verdict: string;
-  reasoning: string;
-  error: string | null;
-};
-type JudgeResponse = { judgeRunId: string; results: JudgeResult[] };
-
-const isJudgeResponse = (value: unknown): value is JudgeResponse => {
-  const obj = value as JudgeResponse | null;
-  return !!obj && typeof obj === 'object' && Array.isArray(obj.results);
-};
 
 export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
-  const axialCodeId = templates.find((t) => t.id === templateId)?.axialCodeId ?? '';
+
+  // The backend does not store judge runs, so they only live in this state
+  // and are lost on reload.
+  const [runs, setRuns] = useState<JudgeRun[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [raw, setRaw] = useState<string | null>(null);
-  const [parsed, setParsed] = useState<JudgeResponse | null>(null);
-  const [status, setStatus] = useState<Status>('idle');
-  const [view, setView] = useState<View>('formatted');
-  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<RunError | null>(null);
 
   useEffect(() => {
     if (!projectId || !versionId) return;
@@ -51,185 +38,79 @@ export default function JudgePage() {
       );
   }, [projectId, versionId]);
 
+  const selectedTemplate = templates.find((t) => t.id === templateId);
+  const selectedRun = runs.find((r) => r.judgeRunId === selectedRunId) ?? null;
+
+  if (!projectId || !versionId) return <Navigate to="/404" replace />;
+
   const runJudge = async () => {
+    if (!selectedTemplate) return;
     setLoading(true);
-    setRaw(null);
-    setParsed(null);
-    setStatus('idle');
-    setView('formatted');
+    setError(null);
     try {
       const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`,
+        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${selectedTemplate.axialCodeId}/judge`,
         BASE_URL
       );
       const res = await fetch(url.toString(), { method: 'POST' });
       const data = await res.json();
-      setRaw(JSON.stringify(data, null, 2));
-      setParsed(res.ok && isJudgeResponse(data) ? data : null);
-      setStatus(res.ok ? 'success' : 'error');
+
+      if (res.ok && isJudgeResponse(data)) {
+        const run: JudgeRun = {
+          ...data,
+          axialCodeId: selectedTemplate.axialCodeId,
+          templateName: selectedTemplate.name,
+          createdAt: new Date().toISOString(),
+        };
+        setRuns((prev) => [run, ...prev]);
+        setSelectedRunId(run.judgeRunId);
+      } else {
+        setError({
+          message: res.ok
+            ? 'The judge returned an unexpected response.'
+            : `Request failed (${res.status}).`,
+          raw: JSON.stringify(data, null, 2),
+        });
+      }
     } catch (err) {
-      setRaw(String(err));
-      setStatus('error');
+      setError({ message: 'Request failed.', raw: String(err) });
     } finally {
       setLoading(false);
     }
   };
 
-  const copyResult = async () => {
-    if (!raw) return;
-    try {
-      await navigator.clipboard.writeText(raw);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Ignore clipboard unavailable error
-    }
-  };
-
-  const canRun = !loading && axialCodeId.trim().length > 0;
-  const canFormat = parsed !== null;
-  const showFormatted = canFormat && view === 'formatted';
-
   return (
-    <main className={styles.root}>
-      <header className={styles.header}>
-        <h1>Judge</h1>
-        <p>Run the judge on a single axial code and inspect the raw response.</p>
-      </header>
+    <Flex direction="column" gap="4">
+      {/* Page header */}
+      <Flex align="start" justify="between">
+        <Box>
+          <Flex align="center" gap="2">
+            <Gavel size={20} />
+            <Text size="6" weight="bold">
+              Judge
+            </Text>
+          </Flex>
+          <Text as="p" size="2" mt="1" color="gray" ml="6" style={{ maxWidth: 720 }}>
+            Run the judge on an axial code and review the results of runs from this session.
+          </Text>
+        </Box>
+      </Flex>
 
-      <section className={styles.card}>
-        <dl className={styles.context}>
-          <div>
-            <dt>Project</dt>
-            <dd>{projectId ?? '–'}</dd>
-          </div>
-          <div>
-            <dt>Version</dt>
-            <dd>{versionId ?? '–'}</dd>
-          </div>
-        </dl>
+      <RunJudgePanel
+        templates={templates}
+        templateId={templateId}
+        onTemplateChange={setTemplateId}
+        onRun={runJudge}
+        canRun={!loading && Boolean(selectedTemplate)}
+        loading={loading}
+        error={error}
+      />
 
-        <form
-          className={styles.form}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (canRun) runJudge();
-          }}
-        >
-          <label htmlFor="judge-template">Judge template</label>
-          <div className={styles.row}>
-            <select
-              id="judge-template"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              <option value="">Select a judge template</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <button type="submit" disabled={!canRun}>
-              {loading && <span className={styles.spinner} aria-hidden />}
-              {loading ? 'Running judge' : 'Run judge'}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section aria-live="polite">
-        {raw && (
-          <div
-            className={`${styles.result} ${status === 'error' ? styles.resultError : ''}`}
-          >
-            <div className={styles.resultBar}>
-              <span>{status === 'error' ? 'Request failed' : 'Response'}</span>
-              <div className={styles.actions}>
-                {canFormat && (
-                  <div className={styles.toggle} role="group" aria-label="Response view">
-                    <button
-                      type="button"
-                      aria-pressed={view === 'formatted'}
-                      className={view === 'formatted' ? styles.toggleActive : ''}
-                      onClick={() => setView('formatted')}
-                    >
-                      Formatted
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={view === 'raw'}
-                      className={view === 'raw' ? styles.toggleActive : ''}
-                      onClick={() => setView('raw')}
-                    >
-                      JSON
-                    </button>
-                  </div>
-                )}
-                <button type="button" className={styles.copyButton} onClick={copyResult}>
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            {showFormatted && parsed ? (
-              <>
-                <div className={styles.runMeta}>
-                  <div>
-                    <span className={styles.metaLabel}>Run ID</span>
-                    <code>{parsed.judgeRunId}</code>
-                  </div>
-                  <span className={styles.metaCount}>
-                    {parsed.results.length}{' '}
-                    {parsed.results.length === 1 ? 'result' : 'results'}
-                  </span>
-                </div>
-
-                {parsed.results.length === 0 ? (
-                  <p className={styles.empty}>The judge returned no results for this axial code.</p>
-                ) : (
-                  <ul className={styles.items}>
-                    {parsed.results.map((r) => {
-                      const verdictTrue = String(r.verdict).toLowerCase() === 'true';
-                      const ok = String(r.status).toLowerCase() === 'success';
-                      return (
-                        <li key={r.traceId} className={styles.item}>
-                          <div className={styles.itemHead}>
-                            <div>
-                              <span className={styles.metaLabel}>Trace</span>
-                              <code>{r.traceId}</code>
-                            </div>
-                            <div className={styles.badges}>
-                              <span
-                                className={`${styles.badge} ${
-                                  verdictTrue ? styles.badgeTrue : styles.badgeFalse
-                                }`}
-                              >
-                                Verdict: {String(r.verdict)}
-                              </span>
-                              <span
-                                className={`${styles.badge} ${
-                                  ok ? styles.badgeOk : styles.badgeFail
-                                }`}
-                              >
-                                {r.status}
-                              </span>
-                            </div>
-                          </div>
-                          <p className={styles.reasoning}>{r.reasoning}</p>
-                          {r.error && <p className={styles.itemError}>{r.error}</p>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </>
-            ) : (
-              <pre>{raw}</pre>
-            )}
-          </div>
-        )}
-      </section>
-    </main>
+      {selectedRun ? (
+        <JudgeRunDetails run={selectedRun} onBack={() => setSelectedRunId(null)} />
+      ) : (
+        <JudgeOverview runs={runs} onSelect={setSelectedRunId} />
+      )}
+    </Flex>
   );
 }

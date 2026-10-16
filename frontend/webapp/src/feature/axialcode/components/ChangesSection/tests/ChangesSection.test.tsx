@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { AxialCode } from '../../../../shared/types/axialCode';
-import { compareAxialCodes } from '../../../../shared/util/compareAxialCodes';
-import ChangesSection from './ChangesSection';
+import type { AxialCode } from '../../../../../shared/types/axialCode';
+import { compareAxialCodes } from '../../../../../shared/util/compareAxialCodes';
+import ChangesSection from '../ChangesSection';
 
 const previousCodes: AxialCode[] = [
   {

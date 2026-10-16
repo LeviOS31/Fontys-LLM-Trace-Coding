@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { AxialCode } from '../../../shared/types/axialCode';
-import type { Snapshot } from '../../../shared/types/snapshot';
-import type { AxialCodeComparison } from '../../../shared/util/compareAxialCodes';
-import InterpretationPanel from './InterpretationPanel/InterpretationPanel';
+import type { AxialCode } from '../../../../shared/types/axialCode';
+import type { Snapshot } from '../../../../shared/types/snapshot';
+import type { AxialCodeComparison } from '../../../../shared/util/compareAxialCodes';
+import InterpretationPanel from '../InterpretationPanel/InterpretationPanel';
 
 const { mutate, useGenerate } = vi.hoisted(() => ({
   mutate: vi.fn(),

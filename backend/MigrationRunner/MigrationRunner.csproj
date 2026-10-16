@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AxialCodes\AxialCodes.csproj" />
+    <ProjectReference Include="..\Judge\Judge.csproj" />
     <ProjectReference Include="..\JudgeTemplates\JudgeTemplates.csproj" />
     <ProjectReference Include="..\Projects\Projects.csproj" />
     <ProjectReference Include="..\RawLLMOutputs\RawLLMOutputs.csproj" />

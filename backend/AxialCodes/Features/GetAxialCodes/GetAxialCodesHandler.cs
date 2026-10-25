@@ -53,6 +53,7 @@ public class GetAxialCodesHandler : IRequestHandler<GetAxialCodesQuery, Result<G
             axialCodingResult = await _dbContext
                 .AxialCodingResults.AsNoTracking()
                 .Include(a => a.AxialCodes)
+                    .ThenInclude(c => c.OpenCodeJustifications)
                 .FirstOrDefaultAsync(
                     a => a.ProjectVersionId == query.ProjectVersionId && a.IsActive,
                     cancellationToken
@@ -79,6 +80,13 @@ public class GetAxialCodesHandler : IRequestHandler<GetAxialCodesQuery, Result<G
                 Label = a.Label,
                 Description = a.Description,
                 TraceIds = a.TraceIds,
+                JudgeGuidelines = a.JudgeGuidelines,
+                OpenCodeJustifications = a.OpenCodeJustifications.Select(j => new OpenCodeJustificationViewModel
+                {
+                    TraceId = j.TraceId,
+                    Quote = j.Quote,
+                    Justification = j.Justification,
+                }),
             }),
         };
     }

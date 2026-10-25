@@ -3,14 +3,25 @@ import { useTraceGroup } from '../../traces/hooks/useTraceGroup';
 import { useParams, useSearchParams } from 'react-router';
 import { Group as ResizableGroup, Panel as ResizablePanel } from 'react-resizable-panels';
 import CustomResizeHandle from '../../../shared/components/CustomResizeHandle';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { isTyping } from '../../../shared/util/shortcutHelpers';
 import { useUpdateSearchParam } from '../hooks/useUpdateSearchParam';
-import { LlmContent } from './LLM/LlmContent';
 import { TraceTreeNav } from './trace/TraceTreeNav';
-import { TraceContentOverview } from './trace/TraceContentOverview';
 import { extractSpanMessages } from './trace/GenAIMessages';
 import { getRetrievedSourcesForUserSpan, type RetrievedSource } from './trace/retrievalSources';
+
+const LlmContent = lazy(() => import('./LLM/LlmContent').then((m) => ({ default: m.LlmContent })));
+const TraceContentOverview = lazy(() =>
+  import('./trace/TraceContentOverview').then((m) => ({ default: m.TraceContentOverview }))
+);
+
+function PanelFallback() {
+  return (
+    <Flex align="center" justify="center" style={{ height: '100%' }}>
+      <Text>Loading...</Text>
+    </Flex>
+  );
+}
 
 export type PageParams = {
   id: string;
@@ -145,9 +156,7 @@ export default function TraceGroupPage() {
     () =>
       llmMessages.filter(
         (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
-          message.role === 'user' ||
-          message.role === 'assistant' ||
-          message.role === 'system'
+          message.role === 'user' || message.role === 'assistant' || message.role === 'system'
       ),
     [llmMessages]
   );
@@ -259,25 +268,27 @@ export default function TraceGroupPage() {
             <CustomResizeHandle />
 
             <ResizablePanel defaultSize={78} minSize={40}>
-              <LlmContent
-                llmMessages={llmMessages}
-                selectedTraceId={effectiveSelectedTrace}
-                setSelectedTrace={setSelectedTrace}
-                scrollRequest={chatScrollRequest}
-                selectedSpanId={scrollSpanIndex}
-                selectedMessageRole={scrollMessageRole}
-                selectedSourceFile={selectedSourceFile}
-                onScrollChange={(_traceId, spanId, role) => {
-                  if (selectedSourceFile && spanId === scrollSpanIndex && role === 'user') {
-                    setSelectedNodeKey(
-                      `${spanId}-source-${encodeURIComponent(selectedSourceFile)}`
-                    );
-                    return;
-                  }
-                  setSelectedSourceFile(null);
-                  setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
-                }}
-              />
+              <Suspense fallback={<PanelFallback />}>
+                <LlmContent
+                  llmMessages={llmMessages}
+                  selectedTraceId={effectiveSelectedTrace}
+                  setSelectedTrace={setSelectedTrace}
+                  scrollRequest={chatScrollRequest}
+                  selectedSpanId={scrollSpanIndex}
+                  selectedMessageRole={scrollMessageRole}
+                  selectedSourceFile={selectedSourceFile}
+                  onScrollChange={(_traceId, spanId, role) => {
+                    if (selectedSourceFile && spanId === scrollSpanIndex && role === 'user') {
+                      setSelectedNodeKey(
+                        `${spanId}-source-${encodeURIComponent(selectedSourceFile)}`
+                      );
+                      return;
+                    }
+                    setSelectedSourceFile(null);
+                    setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
+                  }}
+                />
+              </Suspense>
             </ResizablePanel>
 
             {effectiveSelectedTrace && (
@@ -285,12 +296,14 @@ export default function TraceGroupPage() {
                 <CustomResizeHandle />
 
                 <ResizablePanel defaultSize={30} minSize={25} style={{ overflow: 'visible' }}>
-                  <TraceContentOverview
-                    trace={selectedTraceObject!}
-                    setScrollSpanIndex={setScrollSpanIndex}
-                    projectId={id!}
-                    versionId={versionId!}
-                  />
+                  <Suspense fallback={<PanelFallback />}>
+                    <TraceContentOverview
+                      trace={selectedTraceObject!}
+                      setScrollSpanIndex={setScrollSpanIndex}
+                      projectId={id!}
+                      versionId={versionId!}
+                    />
+                  </Suspense>
                 </ResizablePanel>
               </>
             )}
@@ -323,12 +336,14 @@ export default function TraceGroupPage() {
             <CustomResizeHandle />
 
             <ResizablePanel defaultSize={25} minSize={25} style={{ overflow: 'visible' }}>
-              <TraceContentOverview
-                trace={selectedTraceObject!}
-                setScrollSpanIndex={setScrollSpanIndex}
-                projectId={id!}
-                versionId={versionId!}
-              />
+              <Suspense fallback={<PanelFallback />}>
+                <TraceContentOverview
+                  trace={selectedTraceObject!}
+                  setScrollSpanIndex={setScrollSpanIndex}
+                  projectId={id!}
+                  versionId={versionId!}
+                />
+              </Suspense>
             </ResizablePanel>
           </>
         )}

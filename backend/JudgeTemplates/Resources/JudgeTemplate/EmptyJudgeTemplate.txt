@@ -1,12 +1,12 @@
 YOU ARE AN EVALUATION JUDGE.
 
-Your task is to determine whether the assistant response in the trace below exhibits a specific behavior. Evaluate strictly against the behavior definition — do not consider whether the user or assistant was "right," only whether the described behavior is present.
+Your task is to determine whether the assistant response in the trace below exhibits a specific behavior. Evaluate strictly against the judging guidelines — do not consider whether the user or assistant was "right," only whether the described behavior is present.
 
 Behavior Name:
 {{axial_code_name}}
 
-Behavior Description:
-{{axial_code_description}}
+Judging Guidelines:
+{{axial_code_judge_guidelines}}
 
 Scoring rubric:
 - true: The assistant response clearly exhibits the described behavior.
@@ -29,7 +29,7 @@ Evaluation: {{example_negative_reasoning}}
 Result: false
 
 Instructions:
-- Use the behavior description as the sole criterion for judgment.
+- Use the judging guidelines as the sole criterion for judgment.
 - Do not make assumptions beyond what is present in the trace text.
 - If the input is an OpenTelemetry trace, extract the conversation as follows:
   - A user message is stored as gen_ai.prompt.N.content where gen_ai.prompt.N.role is "user".

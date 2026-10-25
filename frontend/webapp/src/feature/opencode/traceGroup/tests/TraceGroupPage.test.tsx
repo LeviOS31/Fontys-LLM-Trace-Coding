@@ -88,7 +88,7 @@ describe('TraceGroupPage', () => {
     expect(screen.getByText('Error loading trace group details.')).toBeInTheDocument();
   });
 
-  it('defaults to the first trace and selects the next trace with the down arrow', () => {
+  it('defaults to the first trace and selects the next trace with the down arrow', async () => {
     useParams.mockReturnValue({ id: 'project-1', versionId: 'version-1', traceGroupId: 'group-1' });
     useSearchParams.mockReturnValue([new URLSearchParams()]);
     updateSearchParam.mockReset();
@@ -100,7 +100,9 @@ describe('TraceGroupPage', () => {
 
     render(<TraceGroupPage />);
 
-    expect(screen.getByTestId('llm-content')).toHaveTextContent('trace-1');
+    // LlmContent and TraceContentOverview are lazy-loaded, so wait for them.
+    expect(await screen.findByTestId('llm-content')).toHaveTextContent('trace-1');
+    expect(await screen.findByTestId('trace-overview')).toHaveTextContent('trace-1');
     expect(screen.getByTestId('trace-tree-nav')).toHaveTextContent('trace-1');
 
     fireEvent.keyDown(window, { key: 'ArrowDown' });
@@ -108,7 +110,7 @@ describe('TraceGroupPage', () => {
     expect(updateSearchParam).toHaveBeenCalledWith('traceId', 'trace-2');
   });
 
-  it('honors a trace selected in the URL', () => {
+  it('honors a trace selected in the URL', async () => {
     useParams.mockReturnValue({ id: 'project-1', versionId: 'version-1', traceGroupId: 'group-1' });
     useSearchParams.mockReturnValue([new URLSearchParams('traceId=trace-2')]);
     useTraceGroup.mockReturnValue({
@@ -119,7 +121,7 @@ describe('TraceGroupPage', () => {
 
     render(<TraceGroupPage />);
 
-    expect(screen.getByTestId('llm-content')).toHaveTextContent('trace-2');
-    expect(screen.getByTestId('trace-overview')).toHaveTextContent('trace-2');
+    expect(await screen.findByTestId('llm-content')).toHaveTextContent('trace-2');
+    expect(await screen.findByTestId('trace-overview')).toHaveTextContent('trace-2');
   });
 });

@@ -1,8 +1,10 @@
 using AxialCodes.Data;
+using Judge.Data;
 using JudgeTemplates.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Projects.Data;
+using RawLLMOutputs.Data;
 using Settings.Data;
 using Traces.Data;
 
@@ -16,6 +18,8 @@ public class MigrationRunner
     private readonly AxialCodeDbContext _axialCodeDb;
     private readonly SettingsDbContext _settingsDb;
     private readonly JudgeTemplatesDbContext _judgeTemplatesDb;
+    private readonly RawLLMOutputDbContext _rawLLMOutputDb;
+    private readonly JudgeDbContext _judgeDb;
 
     public MigrationRunner(
         ILogger<MigrationRunner> logger,
@@ -23,7 +27,9 @@ public class MigrationRunner
         TracesDbContext tracesDb,
         SettingsDbContext settingsDb,
         AxialCodeDbContext axialCodeDb,
-        JudgeTemplatesDbContext judgeTemplatesDb
+        JudgeTemplatesDbContext judgeTemplatesDb,
+        RawLLMOutputDbContext rawLLMOutputDb,
+        JudgeDbContext judgeDb
     )
     {
         _logger = logger;
@@ -32,6 +38,8 @@ public class MigrationRunner
         _axialCodeDb = axialCodeDb;
         _settingsDb = settingsDb;
         _judgeTemplatesDb = judgeTemplatesDb;
+        _rawLLMOutputDb = rawLLMOutputDb;
+        _judgeDb = judgeDb;
     }
 
     public async Task RunAsync()
@@ -43,6 +51,8 @@ public class MigrationRunner
         await MigrateWithRetry(_axialCodeDb, "Axialcode");
         await MigrateWithRetry(_settingsDb, "Settings");
         await MigrateWithRetry(_judgeTemplatesDb, "JudgeTemplates");
+        await MigrateWithRetry(_rawLLMOutputDb, "RawLLMOutputs");
+        await MigrateWithRetry(_judgeDb, "Judge");
 
         _logger.LogInformation("All migrations completed!");
     }

@@ -40,6 +40,10 @@ namespace AxialCodes.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<string>("JudgeGuidelines")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -54,6 +58,29 @@ namespace AxialCodes.Migrations
                     b.HasIndex("AxialCodingResultId");
 
                     b.ToTable("AxialCode");
+                });
+
+            modelBuilder.Entity("AxialCodes.Data.Models.AxialCodeOpenCodeJustification", b =>
+                {
+                    b.Property<Guid>("AxialCodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TraceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Quote")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("AxialCodeId", "TraceId");
+
+                    b.ToTable("AxialCodeOpenCodeJustification");
                 });
 
             modelBuilder.Entity("AxialCodes.Data.Models.AxialCodingResult", b =>
@@ -89,6 +116,22 @@ namespace AxialCodes.Migrations
                         .IsRequired();
 
                     b.Navigation("AxialCodingResult");
+                });
+
+            modelBuilder.Entity("AxialCodes.Data.Models.AxialCodeOpenCodeJustification", b =>
+                {
+                    b.HasOne("AxialCodes.Data.Models.AxialCode", "AxialCode")
+                        .WithMany("OpenCodeJustifications")
+                        .HasForeignKey("AxialCodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AxialCode");
+                });
+
+            modelBuilder.Entity("AxialCodes.Data.Models.AxialCode", b =>
+                {
+                    b.Navigation("OpenCodeJustifications");
                 });
 
             modelBuilder.Entity("AxialCodes.Data.Models.AxialCodingResult", b =>

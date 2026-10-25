@@ -8,8 +8,8 @@ using MockQueryable.NSubstitute;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Projects.Contracts.Features.GetAllProjectVersions;
-using Projects.Contracts.Features.GetProject;
 using Projects.Contracts.Features.GetAllProjectVersions;
+using Projects.Contracts.Features.GetProject;
 using Shared;
 using Shouldly;
 
@@ -156,6 +156,72 @@ public class GetAxialCodesHandlerTests
         Assert.Equal(axialCodes[0].Label, returnedCodes[0].Label);
         Assert.Equal(axialCodes[0].Description, returnedCodes[0].Description);
         Assert.Equal(axialCodes[0].TraceIds, returnedCodes[0].TraceIds);
+        // Results generated before this feature have no judge guidelines or justifications.
+        Assert.Null(returnedCodes[0].JudgeGuidelines);
+        Assert.Empty(returnedCodes[0].OpenCodeJustifications);
+    }
+
+    [Fact]
+    public async Task WhenActiveResultHasJustifications_ReturnsJudgeGuidelinesAndJustifications()
+    {
+        // Arrange
+        var query = CreateQuery();
+        var resultId = Guid.NewGuid();
+        var axialCodeId = Guid.NewGuid();
+        var traceId = Guid.NewGuid();
+        var result = new AxialCodingResult
+        {
+            AxialCodingResultId = resultId,
+            ProjectVersionId = query.ProjectVersionId,
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+            AxialCodes =
+            [
+                new AxialCode
+                {
+                    AxialCodingResultId = resultId,
+                    AxialCodingResult = null,
+                    AxialCodeId = axialCodeId,
+                    Label = "UX",
+                    Description = "User experience related",
+                    JudgeGuidelines = "Mark true when the user complains about the interface",
+                    TraceIds = [traceId],
+                    OpenCodeJustifications =
+                    [
+                        new AxialCodeOpenCodeJustification
+                        {
+                            AxialCodeId = axialCodeId,
+                            TraceId = traceId,
+                            Quote = "button is hard to find",
+                            Justification = "The user struggles with the interface",
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var mockSet = new List<AxialCodingResult> { result }.BuildMockDbSet();
+        var mockContext = CreateMockContext();
+        mockContext.AxialCodingResults.Returns(mockSet);
+
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetProjectQuery>(), Arg.Any<CancellationToken>())
+            .Returns(CreateProjectResponse(query.ProjectVersionId));
+
+        var handler = new GetAxialCodesHandler(mockContext, mediator);
+
+        // Act
+        var response = await handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        Assert.True(response.IsSuccess);
+        var returnedCode = Assert.Single(response.Value.AxialCodes!);
+        Assert.Equal("Mark true when the user complains about the interface", returnedCode.JudgeGuidelines);
+        var justification = Assert.Single(returnedCode.OpenCodeJustifications);
+        Assert.Equal(traceId, justification.TraceId);
+        Assert.Equal("button is hard to find", justification.Quote);
+        Assert.Equal("The user struggles with the interface", justification.Justification);
     }
 
     private static GetAxialCodesQuery CreateQuery()

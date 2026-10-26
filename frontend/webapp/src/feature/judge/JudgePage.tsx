@@ -59,9 +59,12 @@ export default function JudgePage() {
     setParsed(null);
     setStatus('idle');
     setView('formatted');
+
+    const axialCodeIdlink = templates.find((t) => t.id === selectedTemplateIds[0])?.axialCodeId ?? '';
+
     try {
       const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`,
+        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeIdlink}/judge`,
         BASE_URL
       );
       const res = await fetch(url.toString(), { method: 'POST' });
@@ -88,9 +91,6 @@ export default function JudgePage() {
     }
   };
   const methods = useForm({ defaultValues: { templateId: '' } });
-
-  const templateIdwatch = methods.watch('templateId');
-  const axialCodeId = templates.find((t) => t.id === templateIdwatch)?.axialCodeId ?? '';
 
   const canRun = !loading && selectedTemplateIds.length > 0;
   const canFormat = parsed !== null;

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AxialCode } from '../../../../shared/types/axialCode';
 import { GenerateAxialCodesPanel } from '../GenerateAxailCodesPanal/GenerateAxialCodesPanel';
 
@@ -17,23 +17,33 @@ vi.mock('../../hooks/useGetOpenCodesByVersion.ts', () => ({
   useGetOpenCodesByVersion: useOpenCodes,
 }));
 
-function mockHooks(pending = false) {
+const currentCode: AxialCode = {
+  label: 'Reliability',
+  description: 'Failure patterns',
+  traceIds: ['trace-1'],
+};
+
+const generatedCode: AxialCode = {
+  label: 'Clarity',
+  description: 'Unclear responses',
+  traceIds: ['trace-2'],
+};
+
+function mockHooks(pending = false, axialCodes: AxialCode[] = [generatedCode]) {
   mutate.mockReset();
   mutate.mockImplementation((_payload, callbacks) => {
     callbacks?.onSuccess?.({
       axialCodingResultId: 'result-1',
-      axialCodes: [],
+      axialCodes,
     });
   });
   useGenerate.mockReturnValue({ mutate, isPending: pending });
   useOpenCodes.mockReturnValue({ data: [{ traceId: 'trace-1' }, { traceId: 'trace-2' }] });
 }
 
-const currentCode: AxialCode = {
-  label: 'Reliability',
-  description: 'Failure patterns',
-  traceIds: ['trace-1'],
-};
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('GenerateAxialCodesPanel', () => {
   it('generates the first axial code set and reports the result', () => {
@@ -56,7 +66,7 @@ describe('GenerateAxialCodesPanel', () => {
     );
     expect(onGenerated).toHaveBeenCalledWith({
       axialCodingResultId: 'result-1',
-      axialCodes: [],
+      axialCodes: [generatedCode],
       feedback: null,
     });
   });
@@ -85,9 +95,31 @@ describe('GenerateAxialCodesPanel', () => {
     );
     expect(onGenerated).toHaveBeenCalledWith({
       axialCodingResultId: 'result-1',
-      axialCodes: [],
+      axialCodes: [generatedCode],
       feedback: 'Keep the categories distinct',
     });
+  });
+
+  it('does not report an unusable (empty) generate response', () => {
+    mockHooks(false, []);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onGenerated = vi.fn();
+    render(
+      <GenerateAxialCodesPanel
+        projectId="project-1"
+        projectVersionId="version-1"
+        onGenerated={onGenerated}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Generate Axial Codes/ }));
+
+    expect(mutate).toHaveBeenCalled();
+    expect(onGenerated).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      'Unusable generate response',
+      expect.objectContaining({ count: 0 })
+    );
   });
 
   it('disables generation while a request is pending', () => {

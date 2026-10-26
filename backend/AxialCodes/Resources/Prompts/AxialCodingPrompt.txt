@@ -10,17 +10,22 @@ Task:
 - Each axial code must reference the open codes it groups via openCodeIds.
 - Base every label and description only on the cited open-code text. Do not add facts, causes, context, or interpretations that are not supported by those open codes.
 - For every openCodeId in an axial code, provide one short exact quote copied from that open code as evidence.
-- Use the same language as the open codes for all labels and descriptions.
+- For every axial code, write judge guidelines: instructions a judge can apply to a new, unseen trace (which has no open code) to decide whether it exhibits the behaviour this axial code describes. Derive them only from the grouped open codes. Cover when to mark true, when to mark false (the absence of the behaviour or a similar behaviour that does not qualify) and borderline cases.
+- For every piece of evidence, write a short justification explaining why that specific open code belongs to the axial code.
+- Use the same language as the open codes for all labels, descriptions, judge guidelines and justifications.
 
 Output requirements (strict):
 - Return ONLY a JSON array.
 - Each element must have:
   - label: string, <= 255 chars.
   - description: string, <= 255 chars.
+  - judgeGuidelines: string, <= 2000 chars. Three lines separated by "
+", starting with "Mark true when:", "Mark false when:" and "Borderline cases:". Write them as instructions for judging a trace, not as an explanation of the grouping.
   - openCodeIds: array of integer IDs (openCodeId values from input).
   - evidence: array of objects, one per openCodeId, each with:
     - openCodeId: integer ID from openCodeIds.
-    - quote: a short exact excerpt copied verbatim from that open code.
+    - quote: a short exact excerpt copied verbatim from that open code, <= 500 chars.
+    - justification: string, <= 1000 chars. Explains why this open code belongs to the axial code, without adding facts that are not in the open code.
 - An input openCodeId may appear in multiple axial codes when it legitimately spans multiple themes; avoid unnecessary duplication.
 - Use each input openCodeId at most once unless it genuinely fits multiple axial codes.
 - Ignore items with null/empty openCode unless they are required for grouping context.

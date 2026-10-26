@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       environment: 'happy-dom',
+      build: { sourcemap: true },
     },
   };
 });

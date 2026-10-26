@@ -40,6 +40,54 @@ describe('AxialCodeCard', () => {
     expect(screen.queryByText('Invented warranty terms')).not.toBeInTheDocument();
   });
 
+  it('shows the judge guidelines and why each open code belongs when expanded', () => {
+    render(
+      <AxialCodeCard
+        code={{
+          ...code,
+          judgeGuidelines:
+            'Mark true when: the model states a policy that does not exist.\nMark false when: the model quotes a real policy.\nBorderline cases: hedged statements count as false.',
+          justifications: [
+            {
+              traceId: 'trace-1',
+              quote: 'Invented warranty',
+              justification: 'The open code describes made-up warranty terms',
+            },
+          ],
+        }}
+        snap="A"
+      />
+    );
+
+    expect(screen.queryByTestId('axial-code-judge-guidelines')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand details ↓' }));
+
+    const guidelines = screen.getByTestId('axial-code-judge-guidelines');
+    expect(guidelines).toHaveTextContent('Judge guidelines');
+    expect(guidelines).toHaveTextContent('Derived from the open codes in this group');
+    expect(guidelines).toHaveTextContent(
+      'Mark true when: the model states a policy that does not exist.'
+    );
+    expect(guidelines).toHaveTextContent('Borderline cases: hedged statements count as false.');
+
+    expect(screen.getByText('Why these open codes belong here')).toBeInTheDocument();
+    const justification = screen.getByTestId('axial-code-justification');
+    expect(justification).toHaveTextContent('“Invented warranty”');
+    expect(justification).toHaveTextContent('The open code describes made-up warranty terms');
+    // The plain open-code badges are replaced by the justifications.
+    expect(screen.queryByText('Made-up refund rule')).not.toBeInTheDocument();
+  });
+
+  it('shows no judge guidelines for codes generated before they existed', () => {
+    render(<AxialCodeCard code={code} snap="A" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand details ↓' }));
+
+    expect(screen.queryByTestId('axial-code-judge-guidelines')).not.toBeInTheDocument();
+    expect(screen.getByText('Open codes')).toBeInTheDocument();
+  });
+
   it('reports hover and leave with the snapshot identity', () => {
     const onHover = vi.fn();
     render(<AxialCodeCard code={code} snap="A" onHover={onHover} />);

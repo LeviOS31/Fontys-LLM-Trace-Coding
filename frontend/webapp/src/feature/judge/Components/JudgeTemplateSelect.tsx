@@ -17,18 +17,16 @@ export default function JudgeTemplateSelect({
     const allSelected = templates.length > 0 && templates.every(t => selectedTemplateIds.includes(t.id));
 
     function selecttemplates(checked: boolean, templateId: string) {
-        if(checked){
-            selectedTemplateIds.push(templateId);
-            onChange(selectedTemplateIds);
+        if (checked) {
+                // Create a new array by copying existing elements and adding the new templateId
+                const updatedIds = [...selectedTemplateIds, templateId];
+                onChange(updatedIds);
+        } else {
+            // Create a new array by filtering out the unchecked templateId
+            const updatedIds = selectedTemplateIds.filter(id => id !== templateId);
+            onChange(updatedIds);
         }
-        else{
-            const index = selectedTemplateIds.indexOf(templateId);
-            if (index !== -1){
-                selectedTemplateIds.splice(index, 1);
-                onChange(selectedTemplateIds);
-            }
-        }
-
+        
         const allCheckbox = document.querySelectorAll<HTMLInputElement>('.allTemplates');
         allCheckbox?.forEach((checkbox) => {
             checkbox.checked = allSelected;

@@ -1,5 +1,5 @@
-import { useParams } from 'react-router';
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router';
 import { BASE_URL } from '../../shared/api/api';
 import styles from './JudgePage.module.css';
 
@@ -21,6 +21,7 @@ type JudgeResult = {
   reasoning: string;
   error: string | null;
 };
+
 type JudgeResponse = { judgeRunId: string; results: JudgeResult[] };
 
 const isJudgeResponse = (value: unknown): value is JudgeResponse => {
@@ -44,11 +45,16 @@ export default function JudgePage() {
 
   useEffect(() => {
     if (!projectId || !versionId) return;
-    fetch(new URL(`/v1/projects/${projectId}/versions/${versionId}/judge-templates`, BASE_URL))
+
+    // Fixed: Construct endpoint using BASE_URL directly to prevent new URL invalid URL errors in Vitest/Happy-DOM
+    const endpoint = `${BASE_URL.replace(/\/$/, '')}/v1/projects/${projectId}/versions/${versionId}/judge-templates`;
+
+    fetch(endpoint)
       .then((r) => r.json())
       .then((d: { judgeTemplates: JudgeTemplate[] }) =>
         setTemplates(d.judgeTemplates.filter((t) => !t.isDeprecated))
-      );
+      )
+      .catch((err) => console.error('Failed to load judge templates', err));
   }, [projectId, versionId]);
 
   const runJudge = async () => {
@@ -58,11 +64,10 @@ export default function JudgePage() {
     setStatus('idle');
     setView('formatted');
     try {
-      const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`,
-        BASE_URL
-      );
-      const res = await fetch(url.toString(), { method: 'POST' });
+      // Fixed: Construct endpoint using BASE_URL directly
+      const endpoint = `${BASE_URL.replace(/\/$/, '')}/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`;
+
+      const res = await fetch(endpoint, { method: 'POST' });
       const data = await res.json();
       setRaw(JSON.stringify(data, null, 2));
       setParsed(res.ok && isJudgeResponse(data) ? data : null);

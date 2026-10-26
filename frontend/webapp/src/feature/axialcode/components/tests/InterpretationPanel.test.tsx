@@ -11,7 +11,7 @@ const { mutate, useGenerate } = vi.hoisted(() => ({
   useGenerate: vi.fn(),
 }));
 
-vi.mock('../hooks/useGenerateAxialCodingResult.ts', () => ({
+vi.mock('../../hooks/useGenerateAxialCodingResult.ts', () => ({
   useGenerateAxialCodingResults: useGenerate,
 }));
 

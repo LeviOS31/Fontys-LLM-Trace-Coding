@@ -10,10 +10,10 @@ const { mutate, useGenerate, useOpenCodes } = vi.hoisted(() => ({
   useOpenCodes: vi.fn(),
 }));
 
-vi.mock('../hooks/useGenerateAxialCodingResult.ts', () => ({
+vi.mock('../../hooks/useGenerateAxialCodingResult.ts', () => ({
   useGenerateAxialCodingResults: useGenerate,
 }));
-vi.mock('../hooks/useGetOpenCodesByVersion.ts', () => ({
+vi.mock('../../hooks/useGetOpenCodesByVersion.ts', () => ({
   useGetOpenCodesByVersion: useOpenCodes,
 }));
 

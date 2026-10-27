@@ -2,6 +2,7 @@ using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
 using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
 using JudgeTemplates.Data;
 using JudgeTemplates.Data.Models;
+using JudgeTemplates.Feature.InternalGetJudgeTemplateByAxialCodeId;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;

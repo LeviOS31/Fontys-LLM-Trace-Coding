@@ -1,14 +1,14 @@
 import { Badge, Box, Card, Code, Flex, Text } from '@radix-ui/themes';
 import { ChevronRight } from 'lucide-react';
-import { formatDate, summarize, type JudgeRun } from '../hooks/judgeUtils';
+import { formatDate, statsFromCounts, type JudgeRunListItem } from '../hooks/judgeUtils';
 
 type Props = {
-  readonly run: JudgeRun;
+  readonly run: JudgeRunListItem;
   readonly onSelect: (judgeRunId: string) => void;
 };
 
 export default function JudgeRunCard({ run, onSelect }: Props) {
-  const stats = summarize(run.results);
+  const stats = statsFromCounts(run);
 
   return (
     <Card asChild>

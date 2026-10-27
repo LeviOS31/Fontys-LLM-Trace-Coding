@@ -1,28 +1,43 @@
-import { useMemo } from 'react';
-import { Box, Card, Flex, Grid, Text } from '@radix-ui/themes';
-import { formatPercent, summarize, type JudgeRun } from '../hooks/judgeUtils';
+import { Box, Button, Card, Flex, Grid, Text } from '@radix-ui/themes';
+import {
+  formatPercent,
+  statsFromCounts,
+  type JudgeRunListItem,
+  type JudgeRunTotals,
+} from '../hooks/judgeUtils';
 import JudgeRunCard from './JudgeRunCard';
 import { SectionHead, SummaryStat } from './Primitives';
 
 type Props = {
-  readonly runs: JudgeRun[];
+  readonly runs: JudgeRunListItem[];
+  readonly totals: JudgeRunTotals;
+  readonly hasMore: boolean;
+  readonly loading: boolean;
+  readonly onLoadMore: () => void;
   readonly onSelect: (judgeRunId: string) => void;
 };
 
-export default function JudgeOverview({ runs, onSelect }: Props) {
-  // General statistics across every run in this session.
-  const overall = useMemo(() => summarize(runs.flatMap((run) => run.results)), [runs]);
+export default function JudgeOverview({
+  runs,
+  totals,
+  hasMore,
+  loading,
+  onLoadMore,
+  onSelect,
+}: Props) {
+  // Statistics are aggregated by the backend over every run, not just the loaded page.
+  const overall = statsFromCounts(totals);
 
   return (
     <>
       <Box>
         <SectionHead
           title="Overview"
-          subtitle="Statistics across all judge runs in this session."
+          subtitle="Statistics across all judge runs for this version."
         />
         <Card>
           <Grid columns={{ initial: '2', sm: '5' }} gap="4">
-            <SummaryStat label="Judge runs" value={runs.length} />
+            <SummaryStat label="Judge runs" value={totals.runs} />
             <SummaryStat label="Traces judged" value={overall.total} />
             <SummaryStat
               label="Verdict true"
@@ -41,13 +56,20 @@ export default function JudgeOverview({ runs, onSelect }: Props) {
         <SectionHead title="Judge runs" subtitle="Select a run to see its results." />
         {runs.length === 0 ? (
           <Text as="p" size="2" color="gray">
-            No judge runs yet. Select a template above and run the judge.
+            {loading
+              ? 'Loading judge runs…'
+              : 'No judge runs yet. Select a template above and run the judge.'}
           </Text>
         ) : (
           <Flex direction="column" gap="3">
             {runs.map((run) => (
               <JudgeRunCard key={run.judgeRunId} run={run} onSelect={onSelect} />
             ))}
+            {hasMore && (
+              <Button variant="soft" color="gray" onClick={onLoadMore} disabled={loading}>
+                {loading ? 'Loading…' : `Load more (${runs.length} of ${totals.runs})`}
+              </Button>
+            )}
           </Flex>
         )}
       </Box>

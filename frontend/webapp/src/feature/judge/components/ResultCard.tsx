@@ -15,7 +15,7 @@ export default function ResultCard({ result }: { readonly result: JudgeResult })
           </Box>
           <Flex gap="2">
             <Badge color={isTrue(result) ? 'green' : 'red'} variant="soft" size="2">
-              Verdict: {String(result.verdict)}
+              Verdict: {result.verdict ?? '–'}
             </Badge>
             <Badge color={isOk(result) ? 'green' : 'red'} variant="soft" size="2">
               {result.status}
@@ -23,9 +23,11 @@ export default function ResultCard({ result }: { readonly result: JudgeResult })
           </Flex>
         </Flex>
 
-        <Text as="p" size="2" style={{ maxWidth: 720, whiteSpace: 'pre-wrap' }}>
-          {result.reasoning}
-        </Text>
+        {result.reasoning && (
+          <Text as="p" size="2" style={{ maxWidth: 720, whiteSpace: 'pre-wrap' }}>
+            {result.reasoning}
+          </Text>
+        )}
 
         {result.error && (
           <Callout.Root color="red" size="1">

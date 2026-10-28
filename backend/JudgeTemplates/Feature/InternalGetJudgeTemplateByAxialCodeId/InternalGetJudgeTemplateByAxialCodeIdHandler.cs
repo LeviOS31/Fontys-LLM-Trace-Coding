@@ -1,11 +1,14 @@
 using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
+using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
 using JudgeTemplates.Data;
+using JudgeTemplates.Data.Models;
 using JudgeTemplates.Feature.Shared;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Shared;
+using static AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion.InternalGetAllAxialCodesByVersionResponse;
 
-namespace JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
+namespace JudgeTemplates.Feature.InternalGetJudgeTemplateByAxialCodeId;
 
 public class InternalGetJudgeTemplateByAxialCodeIdHandler
     : IRequestHandler<InternalGetJudgeTemplateByAxialCodeIdRequest, Result<InternalGetJudgeTemplateByAxialCodeIdResponse>>
@@ -37,30 +40,31 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandler
             return axialCodesResponse.ErrorCode!.Value;
         }
 
-        var axialCode = axialCodesResponse.Value!.AxialCodes
-            .FirstOrDefault(a => a.AxialCodeId == request.AxialCodeId);
+        var axialCodes = axialCodesResponse.Value.AxialCodes.Where(a => request.AxialCodeIds.Contains(a.AxialCodeId)).ToArray();
 
-        if (axialCode is null)
+        if (axialCodes is null || axialCodes.Length == 0)
         {
             return ErrorCode.EntityNotFound;
         }
 
-        var judgeTemplate = await _dbContext.JudgeTemplates
-            .FirstOrDefaultAsync(jt => jt.AxialCodeId == request.AxialCodeId, cancellationToken);
+        var judgeTemplates = await _dbContext.JudgeTemplates
+            .Where(jt => request.AxialCodeIds.Contains(jt.AxialCodeId))
+            .ToListAsync(cancellationToken);
 
-        if (judgeTemplate is null)
+        if (judgeTemplates is null || judgeTemplates.Count == 0)
         {
             return ErrorCode.EntityNotFound;
         }
 
-        var content = judgeTemplate.CustomJudgeTemplateContent
-            ?? DefaultJudgeTemplate.Render(axialCode);
-
-        return new InternalGetJudgeTemplateByAxialCodeIdResponse
+        var response = new InternalGetJudgeTemplateByAxialCodeIdResponse
         {
-            JudgeTemplateId = judgeTemplate.JudgeTemplateId,
-            Content = content,
-            IsDeprecated = judgeTemplate.IsDeprecated,
+            JudgeTemplates = judgeTemplates.Select(jt => new JudgeTemplateViewModel
+            {
+                JudgeTemplateId = jt.JudgeTemplateId,
+                Content = jt.CustomJudgeTemplateContent ?? DefaultJudgeTemplate.Render(axialCodes.First(a => a.AxialCodeId == jt.AxialCodeId)),
+                IsDeprecated = jt.IsDeprecated
+            }).ToArray()
         };
+        return response;
     }
 }

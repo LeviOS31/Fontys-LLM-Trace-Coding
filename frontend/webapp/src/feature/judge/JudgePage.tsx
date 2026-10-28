@@ -2,17 +2,20 @@ import { useParams } from 'react-router';
 import { useEffect, useState } from 'react';
 import { BASE_URL } from '../../shared/api/api';
 import styles from './JudgePage.module.css';
+import JudgePageTemplateSelect from './Components/JudgeTemplateSelect';
+import type { JudgeTemplate } from '../../shared/types/judgeTemplate';
+import { useForm, FormProvider } from 'react-hook-form';
 
 type PageParams = { id: string; versionId: string };
 type Status = 'idle' | 'success' | 'error';
 type View = 'formatted' | 'raw';
 
-type JudgeTemplate = {
-  id: string;
-  axialCodeId: string;
-  name: string;
-  isDeprecated: boolean;
-};
+// type JudgeTemplate = {
+//   id: string;
+//   axialCodeId: string;
+//   name: string;
+//   isDeprecated: boolean;
+// };
 
 type JudgeResult = {
   traceId: string;
@@ -32,8 +35,7 @@ export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
-  const [templateId, setTemplateId] = useState('');
-  const axialCodeId = templates.find((t) => t.id === templateId)?.axialCodeId ?? '';
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [raw, setRaw] = useState<string | null>(null);
@@ -57,12 +59,27 @@ export default function JudgePage() {
     setParsed(null);
     setStatus('idle');
     setView('formatted');
+
+    const axialCodeIds : string[] = [];
+
+    templates.forEach((template) => {
+      if (selectedTemplateIds.includes(template.id)) {
+        axialCodeIds.push(template.axialCodeId);
+      }
+    })
+
     try {
       const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`,
+        `/v1/projects/${projectId}/versions/${versionId}/judge`,
         BASE_URL
       );
-      const res = await fetch(url.toString(), { method: 'POST' });
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ axialCodeIds }) 
+      });
+
       const data = await res.json();
       setRaw(JSON.stringify(data, null, 2));
       setParsed(res.ok && isJudgeResponse(data) ? data : null);
@@ -85,8 +102,9 @@ export default function JudgePage() {
       // Ignore clipboard unavailable error
     }
   };
+  const methods = useForm({ defaultValues: { templateId: '' } });
 
-  const canRun = !loading && axialCodeId.trim().length > 0;
+  const canRun = !loading && selectedTemplateIds.length > 0;
   const canFormat = parsed !== null;
   const showFormatted = canFormat && view === 'formatted';
 
@@ -109,33 +127,26 @@ export default function JudgePage() {
           </div>
         </dl>
 
-        <form
-          className={styles.form}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (canRun) runJudge();
-          }}
-        >
-          <label htmlFor="judge-template">Judge template</label>
-          <div className={styles.row}>
-            <select
-              id="judge-template"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-            >
-              <option value="">Select a judge template</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <button type="submit" disabled={!canRun}>
+        <FormProvider {...methods}>
+          <form
+            className={styles.form}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (canRun) runJudge();
+            }}
+          >
+            <div className={styles.row}>
+              <JudgePageTemplateSelect
+                templates={templates}
+                onChange={(updatedIds) => setSelectedTemplateIds(updatedIds)}
+              />
+            </div>
+            <button className={styles.submit} type="submit" disabled={!canRun}>
               {loading && <span className={styles.spinner} aria-hidden />}
               {loading ? 'Running judge' : 'Run judge'}
             </button>
-          </div>
-        </form>
+          </form>
+        </FormProvider>
       </section>
 
       <section aria-live="polite">

@@ -4,8 +4,6 @@ import styles from '../judge/JudgePage.module.css';
 import { useGetRawLLMOutputById } from './hooks/useGetRawLLMOutputById.ts';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 
-
-
 type rawllmoutputparams = {
     id: string;
     versionId: string;

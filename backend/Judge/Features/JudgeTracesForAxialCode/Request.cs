@@ -8,7 +8,7 @@ public record JudgeTracesForAxialCodeRequest : IRequest<Result<JudgeTracesForAxi
 {
     public required Guid ProjectId { get; init; }
     public required Guid ProjectVersionId { get; init; }
-    public required Guid AxialCodeId { get; init; }
+    public required Guid[] AxialCodeIds { get; init; }
     public required Guid UserId { get; init; }
     public Guid? TraceCollectionId { get; init; }
     public Guid? TraceId { get; init; }
@@ -20,7 +20,7 @@ public sealed class JudgeTracesForAxialCodeRequestValidator : AbstractValidator<
     {
         RuleFor(x => x.ProjectId).NotEmpty();
         RuleFor(x => x.ProjectVersionId).NotEmpty();
-        RuleFor(x => x.AxialCodeId).NotEmpty();
+        RuleFor(x => x.AxialCodeIds).NotEmpty();
         RuleFor(x => x.UserId).NotEmpty();
     }
 }

@@ -16,7 +16,10 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
 {
     private static readonly Guid _projectId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000001");
     private static readonly Guid _projectVersionId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000002");
-    private static readonly Guid _axialCodeId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000003");
+    private static readonly Guid[] _axialCodeIds = new[]
+    {
+        new Guid("2B1F0D44-6C2E-4D5A-9B8E-000000000003"),
+    };
     private static readonly Guid _userId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000004");
 
     private static InternalGetJudgeTemplateByAxialCodeIdHandler CreateHandler(
@@ -31,7 +34,7 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
                 JudgeTemplateId = Guid.NewGuid(),
                 JudgeTemplateName = "Template",
                 JudgeTemplateDescription = "Description",
-                AxialCodeId = _axialCodeId,
+                AxialCodeId = _axialCodeIds[0],
                 ProjectId = _projectId,
                 ProjectVersionId = _projectVersionId,
                 CustomJudgeTemplateContent = customContent,
@@ -49,7 +52,7 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
             [
                 new InternalGetAllAxialCodesByVersionResponse.AxialCodeEntry
                 {
-                    AxialCodeId = _axialCodeId,
+                    AxialCodeId = _axialCodeIds[0],
                     Label = "Fabricated policies",
                     Description = "Agent states policies that do not exist",
                     IsActive = true,
@@ -71,7 +74,7 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
         {
             ProjectId = _projectId,
             ProjectVersionId = _projectVersionId,
-            AxialCodeId = _axialCodeId,
+            AxialCodeIds = _axialCodeIds,
             UserId = _userId,
         };
 
@@ -88,11 +91,11 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Content.ShouldContain("Fabricated policies");
-        result.Value.Content.ShouldContain("Judging Guidelines:");
-        result.Value.Content.ShouldContain("Mark true when: a policy is invented.");
-        result.Value.Content.ShouldNotContain("Agent states policies that do not exist");
-        result.Value.Content.ShouldNotContain("{{axial_code_judge_guidelines}}");
+        result.Value.JudgeTemplates[0].Content.ShouldContain("Fabricated policies");
+        result.Value.JudgeTemplates[0].Content.ShouldContain("Judging Guidelines:");
+        result.Value.JudgeTemplates[0].Content.ShouldContain("Mark true when: a policy is invented.");
+        result.Value.JudgeTemplates[0].Content.ShouldNotContain("Agent states policies that do not exist");
+        result.Value.JudgeTemplates[0].Content.ShouldNotContain("{{axial_code_judge_guidelines}}");
     }
 
     [Fact]
@@ -106,8 +109,8 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Content.ShouldContain("Agent states policies that do not exist");
-        result.Value.Content.ShouldNotContain("{{axial_code_judge_guidelines}}");
+        result.Value.JudgeTemplates[0].Content.ShouldContain("Agent states policies that do not exist");
+        result.Value.JudgeTemplates[0].Content.ShouldNotContain("{{axial_code_judge_guidelines}}");
     }
 
     [Fact]
@@ -121,6 +124,6 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Content.ShouldBe("My own judge prompt");
+        result.Value.JudgeTemplates[0].Content.ShouldBe("My own judge prompt");
     }
 }

@@ -1,11 +1,11 @@
-import { Box, Button, Callout, Card, Flex, Select, Spinner, Text } from '@radix-ui/themes';
-import { AlertCircle } from 'lucide-react';
+import { Box, Button, Callout, Card, Flex, Spinner } from '@radix-ui/themes';import { AlertCircle } from 'lucide-react';
 import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
+import JudgeTemplateSelect from './JudgeTemplateSelect';
 
 type Props = {
   readonly templates: JudgeTemplate[];
-  readonly templateId: string;
-  readonly onTemplateChange: (id: string) => void;
+  readonly templateIds: string[];
+  readonly onTemplateChange: (ids: string[]) => void;
   readonly onRun: () => void;
   readonly canRun: boolean;
   readonly loading: boolean;
@@ -14,45 +14,32 @@ type Props = {
 
 export default function RunJudgePanel({
   templates,
-  templateId,
   onTemplateChange,
   onRun,
   canRun,
   loading,
   error,
 }: Props) {
+
   return (
     <Card>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (canRun) onRun();
+          if (canRun) onRun()
         }}
       >
         <Flex direction="column" gap="3">
-          <Text as="label" size="2" weight="medium" htmlFor="judge-template">
-            Judge template
-          </Text>
-          <Flex gap="3" align="center">
-            <Select.Root value={templateId} onValueChange={onTemplateChange}>
-              <Select.Trigger
-                id="judge-template"
-                placeholder="Select a judge template"
-                style={{ minWidth: 280 }}
-              />
-              <Select.Content>
-                {templates.map((t) => (
-                  <Select.Item key={t.id} value={t.id}>
-                    {t.name}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
+
+          <JudgeTemplateSelect
+            templates={templates}
+            onChange={(updatedIds) => onTemplateChange(updatedIds)}
+          />
+
             <Button type="submit" disabled={!canRun}>
               <Spinner loading={loading} />
               {loading ? 'Running judge' : 'Run judge'}
             </Button>
-          </Flex>
 
           {error && (
             <Callout.Root color="red" size="1">

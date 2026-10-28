@@ -19,7 +19,10 @@ public class JudgeTracesForAxialCodeHandlerTests
 {
     private static readonly Guid _projectId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
     private static readonly Guid _projectVersionId = new("68DF6625-60EA-4E0A-8F29-29DE14197025");
-    private static readonly Guid _axialCodeId = new("68DF6625-60EA-4E0A-8F29-29DE14197026");
+    private static readonly Guid[] _axialCodeIds =
+    {
+        new("68DF6625-60EA-4E0A-8F29-29DE14197026")
+    };
     private static readonly Guid _userId = new("CE97539F-4189-44FC-A87F-CFA3EDB177ED");
     private static readonly Guid _traceId1 = new("11111111-1111-1111-1111-111111111111");
     private static readonly Guid _traceId2 = new("22222222-2222-2222-2222-222222222222");
@@ -36,7 +39,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         {
             ProjectId = _projectId,
             ProjectVersionId = _projectVersionId,
-            AxialCodeId = _axialCodeId,
+            AxialCodeIds = _axialCodeIds,
             UserId = _userId,
             TraceId = traceId,
             TraceCollectionId = traceCollectionId,
@@ -49,7 +52,7 @@ public class JudgeTracesForAxialCodeHandlerTests
             [
                 new()
                 {
-                    AxialCodeId = _axialCodeId,
+                    AxialCodeId = _axialCodeIds[0],
                     Label = "Test Label",
                     Description = "Test Description",
                     IsActive = true,
@@ -97,9 +100,15 @@ public class JudgeTracesForAxialCodeHandlerTests
                 template
                     ?? new InternalGetJudgeTemplateByAxialCodeIdResponse
                     {
-                        JudgeTemplateId = Guid.NewGuid(),
-                        Content = TemplateContent,
-                        IsDeprecated = false,
+                        JudgeTemplates =
+                        [
+                            new()
+                            {
+                                JudgeTemplateId = Guid.NewGuid(),
+                                Content = TemplateContent,
+                                IsDeprecated = false,
+                            },
+                        ],
                     }
             );
 
@@ -235,7 +244,6 @@ public class JudgeTracesForAxialCodeHandlerTests
         run.JudgeRunId.ShouldBe(result.Value!.JudgeRunId);
         run.ProjectId.ShouldBe(_projectId);
         run.ProjectVersionId.ShouldBe(_projectVersionId);
-        run.AxialCodeId.ShouldBe(_axialCodeId);
         run.TotalCount.ShouldBe(2);
         run.TrueCount.ShouldBe(1);
         run.FalseCount.ShouldBe(1);

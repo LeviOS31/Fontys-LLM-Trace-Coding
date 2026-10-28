@@ -43,7 +43,6 @@ public class ListJudgeRunsHandlerTests
             JudgeRunId = judgeRunId ?? Guid.NewGuid(),
             ProjectId = projectId ?? _projectId,
             ProjectVersionId = projectVersionId ?? _projectVersionId,
-            AxialCodeId = axialCodeId ?? Guid.NewGuid(),
             ResultsJson = "[]",
             CreatedAt = createdAt ?? _baseTime,
             TotalCount = total,
@@ -98,7 +97,6 @@ public class ListJudgeRunsHandlerTests
         result.IsSuccess.ShouldBeTrue();
         var run = result.Value!.JudgeRuns.Single();
         run.JudgeRunId.ShouldBe(runId);
-        run.AxialCodeId.ShouldBe(axialCodeId);
         run.CreatedAt.ShouldBe(_baseTime);
         run.TotalCount.ShouldBe(5);
         run.TrueCount.ShouldBe(2);

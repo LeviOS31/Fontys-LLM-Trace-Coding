@@ -49,7 +49,6 @@ public class ListJudgeRunsHandler : IRequestHandler<ListJudgeRunsRequest, Result
                 .Select(r => new JudgeRunSummaryViewModel
                 {
                     JudgeRunId = r.JudgeRunId,
-                    AxialCodeId = r.AxialCodeId,
                     CreatedAt = r.CreatedAt,
                     TotalCount = r.TotalCount,
                     TrueCount = r.TrueCount,

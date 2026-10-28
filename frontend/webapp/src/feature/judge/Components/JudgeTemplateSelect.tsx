@@ -1,4 +1,4 @@
-import type { JudgeTemplate } from '../../../shared/types/judgeTemplate';
+import type { JudgeTemplate } from '../hooks/judgeUtils';
 import { Flex, Text } from '@radix-ui/themes';
 
 type Props = {

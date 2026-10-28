@@ -9,7 +9,6 @@ public record ListJudgeRunsResponse
 public record JudgeRunSummaryViewModel
 {
     public required Guid JudgeRunId { get; init; }
-    public required Guid AxialCodeId { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required int TotalCount { get; init; }
     public required int TrueCount { get; init; }

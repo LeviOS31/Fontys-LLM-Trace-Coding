@@ -38,7 +38,6 @@ public class DeleteJudgeRunHandlerTests
             JudgeRunId = judgeRunId ?? _judgeRunId,
             ProjectId = projectId ?? _projectId,
             ProjectVersionId = projectVersionId ?? _projectVersionId,
-            AxialCodeId = Guid.NewGuid(),
             ResultsJson = "[]",
             CreatedAt = DateTimeOffset.UtcNow,
             TotalCount = 0,

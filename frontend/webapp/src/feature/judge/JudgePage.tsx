@@ -26,34 +26,6 @@ const EMPTY_TOTALS: JudgeRunTotals = {
   trueCount: 0,
   falseCount: 0,
   failedCount: 0,
-import styles from './JudgePage.module.css';
-import JudgePageTemplateSelect from './Components/JudgeTemplateSelect';
-import type { JudgeTemplate } from '../../shared/types/judgeTemplate';
-import { useForm, FormProvider } from 'react-hook-form';
-
-type PageParams = { id: string; versionId: string };
-type Status = 'idle' | 'success' | 'error';
-type View = 'formatted' | 'raw';
-
-// type JudgeTemplate = {
-//   id: string;
-//   axialCodeId: string;
-//   name: string;
-//   isDeprecated: boolean;
-// };
-
-type JudgeResult = {
-  traceId: string;
-  status: string;
-  verdict: string;
-  reasoning: string;
-  error: string | null;
-};
-type JudgeResponse = { judgeRunId: string; results: JudgeResult[] };
-
-const isJudgeResponse = (value: unknown): value is JudgeResponse => {
-  const obj = value as JudgeResponse | null;
-  return !!obj && typeof obj === 'object' && Array.isArray(obj.results);
 };
 
 export default function JudgePage() {
@@ -61,8 +33,7 @@ export default function JudgePage() {
 
   // All templates, including deprecated ones, so older runs can still show a name.
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
-  const [templateId, setTemplateId] = useState('');
-  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [templateId, setTemplateId] = useState<string[]>([]);
 
   const [summaries, setSummaries] = useState<JudgeRunSummary[]>([]);
   const [totals, setTotals] = useState<JudgeRunTotals>(EMPTY_TOTALS);
@@ -160,7 +131,7 @@ export default function JudgePage() {
     [summaries, templates]
   );
 
-  const selectedTemplate = activeTemplates.find((t) => t.id === templateId);
+  const selectedTemplates = activeTemplates.find((t) => t.id === templateId);
   const selectedRun = runs.find((r) => r.judgeRunId === selectedRunId) ?? null;
   const hasMore = summaries.length < totals.runs;
 
@@ -173,32 +144,9 @@ export default function JudgePage() {
     try {
       const url = new URL(
         `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${selectedTemplate.axialCodeId}/judge`,
-    setLoading(true);
-    setRaw(null);
-    setParsed(null);
-    setStatus('idle');
-    setView('formatted');
-
-    const axialCodeIds : string[] = [];
-
-    templates.forEach((template) => {
-      if (selectedTemplateIds.includes(template.id)) {
-        axialCodeIds.push(template.axialCodeId);
-      }
-    })
-
-    try {
-      const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/judge`,
         BASE_URL
       );
-      
-      const res = await fetch(url.toString(), {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ axialCodeIds }) 
-      });
-
+      const res = await fetch(url.toString(), { method: 'POST' });
       const data = await res.json();
 
       if (res.ok && isJudgeResponse(data)) {
@@ -233,7 +181,6 @@ export default function JudgePage() {
       setError({ message: 'Could not delete run.', raw: String(err) });
     }
   };
-  const methods = useForm({ defaultValues: { templateId: '' } });
 
   return (
     <Flex direction="column" gap="4">
@@ -253,7 +200,6 @@ export default function JudgePage() {
 
       <RunJudgePanel
         templates={activeTemplates}
-        templateId={templateId}
         onTemplateChange={setTemplateId}
         onRun={runJudge}
         canRun={!running && Boolean(selectedTemplate)}
@@ -280,143 +226,5 @@ export default function JudgePage() {
         />
       )}
     </Flex>
-  const canRun = !loading && selectedTemplateIds.length > 0;
-  const canFormat = parsed !== null;
-  const showFormatted = canFormat && view === 'formatted';
-
-  return (
-    <main className={styles.root}>
-      <header className={styles.header}>
-        <h1>Judge</h1>
-        <p>Run the judge on a single axial code and inspect the raw response.</p>
-      </header>
-
-      <section className={styles.card}>
-        <dl className={styles.context}>
-          <div>
-            <dt>Project</dt>
-            <dd>{projectId ?? '–'}</dd>
-          </div>
-          <div>
-            <dt>Version</dt>
-            <dd>{versionId ?? '–'}</dd>
-          </div>
-        </dl>
-
-        <FormProvider {...methods}>
-          <form
-            className={styles.form}
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (canRun) runJudge();
-            }}
-          >
-            <div className={styles.row}>
-              <JudgePageTemplateSelect
-                templates={templates}
-                onChange={(updatedIds) => setSelectedTemplateIds(updatedIds)}
-              />
-            </div>
-            <button className={styles.submit} type="submit" disabled={!canRun}>
-              {loading && <span className={styles.spinner} aria-hidden />}
-              {loading ? 'Running judge' : 'Run judge'}
-            </button>
-          </form>
-        </FormProvider>
-      </section>
-
-      <section aria-live="polite">
-        {raw && (
-          <div
-            className={`${styles.result} ${status === 'error' ? styles.resultError : ''}`}
-          >
-            <div className={styles.resultBar}>
-              <span>{status === 'error' ? 'Request failed' : 'Response'}</span>
-              <div className={styles.actions}>
-                {canFormat && (
-                  <div className={styles.toggle} role="group" aria-label="Response view">
-                    <button
-                      type="button"
-                      aria-pressed={view === 'formatted'}
-                      className={view === 'formatted' ? styles.toggleActive : ''}
-                      onClick={() => setView('formatted')}
-                    >
-                      Formatted
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed={view === 'raw'}
-                      className={view === 'raw' ? styles.toggleActive : ''}
-                      onClick={() => setView('raw')}
-                    >
-                      JSON
-                    </button>
-                  </div>
-                )}
-                <button type="button" className={styles.copyButton} onClick={copyResult}>
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            {showFormatted && parsed ? (
-              <>
-                <div className={styles.runMeta}>
-                  <div>
-                    <span className={styles.metaLabel}>Run ID</span>
-                    <code>{parsed.judgeRunId}</code>
-                  </div>
-                  <span className={styles.metaCount}>
-                    {parsed.results.length}{' '}
-                    {parsed.results.length === 1 ? 'result' : 'results'}
-                  </span>
-                </div>
-
-                {parsed.results.length === 0 ? (
-                  <p className={styles.empty}>The judge returned no results for this axial code.</p>
-                ) : (
-                  <ul className={styles.items}>
-                    {parsed.results.map((r) => {
-                      const verdictTrue = String(r.verdict).toLowerCase() === 'true';
-                      const ok = String(r.status).toLowerCase() === 'success';
-                      return (
-                        <li key={r.traceId} className={styles.item}>
-                          <div className={styles.itemHead}>
-                            <div>
-                              <span className={styles.metaLabel}>Trace</span>
-                              <code>{r.traceId}</code>
-                            </div>
-                            <div className={styles.badges}>
-                              <span
-                                className={`${styles.badge} ${
-                                  verdictTrue ? styles.badgeTrue : styles.badgeFalse
-                                }`}
-                              >
-                                Verdict: {String(r.verdict)}
-                              </span>
-                              <span
-                                className={`${styles.badge} ${
-                                  ok ? styles.badgeOk : styles.badgeFail
-                                }`}
-                              >
-                                {r.status}
-                              </span>
-                            </div>
-                          </div>
-                          <p className={styles.reasoning}>{r.reasoning}</p>
-                          {r.error && <p className={styles.itemError}>{r.error}</p>}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </>
-            ) : (
-              <pre>{raw}</pre>
-            )}
-          </div>
-        )}
-      </section>
-    </main>
   );
 }

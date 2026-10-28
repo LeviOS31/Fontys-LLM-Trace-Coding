@@ -34,7 +34,6 @@ public class GetJudgeRunHandlerTests
             JudgeRunId = _judgeRunId,
             ProjectId = projectId ?? _projectId,
             ProjectVersionId = projectVersionId ?? _projectVersionId,
-            AxialCodeId = Guid.NewGuid(),
             ResultsJson = resultsJson,
             CreatedAt = DateTimeOffset.UtcNow,
             TotalCount = 0,
@@ -61,6 +60,7 @@ public class GetJudgeRunHandlerTests
             {
                 new()
                 {
+                    JudgeTemplateId = Guid.NewGuid(),
                     TraceId = traceId,
                     Status = "Success",
                     Verdict = "True",
@@ -95,6 +95,7 @@ public class GetJudgeRunHandlerTests
             {
                 new()
                 {
+                    JudgeTemplateId = Guid.NewGuid(),
                     TraceId = Guid.NewGuid(),
                     Status = "Error",
                     Verdict = null,

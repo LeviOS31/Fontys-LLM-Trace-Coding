@@ -215,7 +215,7 @@ export default function JudgePage() {
 
       <RunJudgePanel
         templates={activeTemplates}
-        onTemplateChange={ (updatedIds) => setTemplateIds(updatedIds)}
+        onTemplateChange={ (updatedIds : string[]) => setTemplateIds(updatedIds)}
         onRun={runJudge}
         canRun={!running && Boolean(selectedTemplates.length > 0)}
         loading={running}

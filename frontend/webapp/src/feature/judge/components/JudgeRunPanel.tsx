@@ -40,7 +40,7 @@ export default function RunJudgePanel({
 
           <JudgeTemplateSelect
             templates={templates}
-            onChange={(updatedIds) => onTemplateChange(updatedIds)}
+            onChange={(updatedIds : string[]) => onTemplateChange(updatedIds)}
           />
 
             <Button type="submit" disabled={!canRun}>

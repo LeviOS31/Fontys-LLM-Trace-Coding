@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
 using Judge.Data;
 using Judge.Data.Models;
@@ -8,6 +10,7 @@ using Serilog;
 using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
 using Shared.Interfaces;
+using Traces.Contracts.Features.InternalGetTraceTranscripts;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
@@ -20,8 +23,14 @@ public class JudgeTracesForAxialCodeHandler
     : IRequestHandler<JudgeTracesForAxialCodeRequest, Result<JudgeTracesForAxialCodeResponse>>
 {
     private static readonly ILogger Logger = Log.ForContext<JudgeTracesForAxialCodeHandler>();
-    
+
     private static readonly JsonSerializerOptions LlmJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    private const string OutputFormatInstruction = """
+
+        Finish your response with exactly one JSON object and nothing after it:
+        {"reasoning": "<your non-empty explanation of the verdict>", "result": true or false}
+        """;
 
     private readonly JudgeDbContext _dbContext;
     private readonly IMediator _mediator;
@@ -96,7 +105,6 @@ public class JudgeTracesForAxialCodeHandler
             return transcriptsResult.ErrorCode!.Value;
         }
 
-        
         var transcripts = transcriptsResult.Value.Transcripts.ToList();
 
         var traceIdSet = axialCode.SelectMany(a => a.TraceIds).ToHashSet();
@@ -115,7 +123,6 @@ public class JudgeTracesForAxialCodeHandler
         {
             return ErrorCode.EntityNotFound;
         }
-
 
         // 4. Judge each trace
         var results = new List<TraceJudgeResultViewModel>();
@@ -151,6 +158,10 @@ public class JudgeTracesForAxialCodeHandler
             ProjectVersionId = request.ProjectVersionId,
             ResultsJson = JsonSerializer.Serialize(results),
             CreatedAt = DateTimeOffset.UtcNow,
+            TotalCount = results.Count,
+            TrueCount = results.Count(r => r.Status == "Success" && r.Verdict == "True"),
+            FalseCount = results.Count(r => r.Status == "Success" && r.Verdict == "False"),
+            FailedCount = results.Count(r => r.Status == "Error"),
         };
 
         try
@@ -168,42 +179,66 @@ public class JudgeTracesForAxialCodeHandler
     }
 
     private sealed record JudgeVerdict
-{
-    public required bool Result { get; init; }
-    public string? Reasoning { get; init; }
-}
-
-private static JudgeVerdict ParseJudgeResponse(string responseText)
-{
-    // The template asks for free-text "Evaluation: ... Result: true/false"
-    // followed by a trailing JSON object — pull the LAST { ... } block for the verdict,
-    // and separately extract the "Evaluation:" prose as the reasoning.
-    var jsonStart = responseText.LastIndexOf('{');
-    var jsonEnd = responseText.LastIndexOf('}');
-    if (jsonStart < 0 || jsonEnd < jsonStart)
     {
-        throw new JsonException("No JSON object found in judge response.");
+        public required bool Result { get; init; }
+        public required string Reasoning { get; init; }
     }
 
-    var jsonPart = responseText[jsonStart..(jsonEnd + 1)];
-    var jsonResult = JsonSerializer.Deserialize<JudgeResultJson>(jsonPart, LlmJsonOptions)
-        ?? throw new JsonException("Judge response JSON deserialized to null.");
+    private sealed record JudgeResultJson
+    {
+        [JsonPropertyName("reasoning")]
+        public required string Reasoning { get; init; }
 
-    var reasoningMatch = Regex.Match(
-        responseText,
-        @"Evaluation:\s*(.*?)\s*Result:",
-        RegexOptions.Singleline | RegexOptions.IgnoreCase
-    );
-    var reasoning = reasoningMatch.Success ? reasoningMatch.Groups[1].Value.Trim() : null;
+        [JsonPropertyName("result")]
+        public required bool Result { get; init; }
+    }
 
-    return new JudgeVerdict { Result = jsonResult.Result, Reasoning = reasoning };
-}
+    private static JudgeVerdict ParseJudgeResponse(string responseText)
+    {
+        var jsonEnd = responseText.LastIndexOf('}');
+        if (jsonEnd < 0)
+        {
+            throw new JsonException("No JSON object found in judge response.");
+        }
 
-private sealed record JudgeResultJson
-{
-    [JsonPropertyName("result")]
-    public required bool Result { get; init; }
-}
+        // A '{' inside the reasoning text makes the slice invalid JSON, so walk back
+        // over '{' positions until one deserializes into a complete object.
+        JudgeResultJson? parsed = null;
+        for (
+            var i = responseText.LastIndexOf('{', jsonEnd);
+            i >= 0;
+            i = i == 0 ? -1 : responseText.LastIndexOf('{', i - 1)
+        )
+        {
+            try
+            {
+                parsed = JsonSerializer.Deserialize<JudgeResultJson>(
+                    responseText[i..(jsonEnd + 1)],
+                    LlmJsonOptions
+                );
+                if (parsed is not null)
+                {
+                    break;
+                }
+            }
+            catch (JsonException)
+            {
+                // Missing required property or invalid JSON: try an earlier '{'.
+            }
+        }
+
+        if (parsed is null)
+        {
+            throw new JsonException("No valid JSON object with reasoning and result found in judge response.");
+        }
+
+        if (string.IsNullOrWhiteSpace(parsed.Reasoning))
+        {
+            throw new JsonException("Judge response contained no reasoning.");
+        }
+
+        return new JudgeVerdict { Result = parsed.Result, Reasoning = parsed.Reasoning.Trim() };
+    }
 
     private async Task<Result<JudgeVerdict>> JudgeSingleTraceAsync(
         Guid userId,
@@ -220,13 +255,19 @@ private sealed record JudgeResultJson
 
         var messages = new List<ChatMessage>
         {
-            new(ChatRole.User, $"{judgeInstructions}\n\nTrace to evaluate:\n{traceContent}"),
+            new(ChatRole.User, $"{judgeInstructions}\n\nTrace to evaluate:\n{traceContent}\n{OutputFormatInstruction}"),
+        };
+
+        // Constrains the model to {"reasoning": string, "result": bool}, both required.
+        var options = new ChatOptions
+        {
+            ResponseFormat = ChatResponseFormat.ForJsonSchema<JudgeResultJson>(LlmJsonOptions),
         };
 
         string responseText;
         try
         {
-            var response = await chatClientResult.Value.GetResponseAsync(messages, cancellationToken: cancellationToken);
+            var response = await chatClientResult.Value.GetResponseAsync(messages, options, cancellationToken);
             responseText = response.Text;
         }
         catch (Exception ex)
@@ -246,7 +287,6 @@ private sealed record JudgeResultJson
         }
     }
 
-
     private async Task<Result<IChatClient>> GetChatClientAsync(Guid userId, CancellationToken cancellationToken)
     {
         var llmConfigResult = await _mediator.Send(new GetLlmConfigQuery { UserId = userId }, cancellationToken);
@@ -260,5 +300,4 @@ private sealed record JudgeResultJson
             .WithModel(llmConfigResult.Value.ModelName)
             .Build();
     }
-
 }

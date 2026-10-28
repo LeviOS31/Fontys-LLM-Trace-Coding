@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Box, Flex, Grid, Heading, Text } from '@radix-ui/themes';
-import { LayoutDashboard } from 'lucide-react';
-import { Navigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import type { CurrentAxialCodesResponse } from '../../shared/api/axialCode.ts';
 import { QUERY_KEYS } from '../../shared/api/queryKeys.ts';
+import { LayoutDashboard } from 'lucide-react';
+import { Navigate, useParams } from 'react-router';
 import type { AxialCode as ApiAxialCode } from '../../shared/types/axialCode.ts';
 import type { Snapshot } from '../../shared/types/snapshot.ts';
 import { GenerateAxialCodesPanel } from './components/GenerateAxailCodesPanal/GenerateAxialCodesPanel.tsx';
@@ -53,13 +53,14 @@ function SectionHead({ title, subtitle }: { readonly title: string; readonly sub
 
 export default function AxialCodePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
-  const queryClient = useQueryClient();
 
   const [draftAxialCodes, setDraftAxialCodes] = useState<ApiAxialCode[] | null>(null);
   const [draftAxialCodingResultId, setDraftAxialCodingResultId] = useState<string | null>(null);
   const [snapshotAGeneratedAt, setSnapshotAGeneratedAt] = useState<string>('');
   const [snapshotBGeneratedAt, setSnapshotBGeneratedAt] = useState<string>('');
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
+
+  const queryClient = useQueryClient();
 
   const isReady = Boolean(projectId && versionId);
 
@@ -140,10 +141,7 @@ export default function AxialCodePage() {
         onSuccess: () => {
           queryClient.setQueryData<CurrentAxialCodesResponse>(
             QUERY_KEYS.axialCoding.currentAxialCodesOfVersion(versionId),
-            {
-              axialCodes,
-              createdAt: new Date().toISOString(),
-            }
+            { axialCodes, createdAt: new Date().toISOString() }
           );
         },
       });
@@ -159,16 +157,8 @@ export default function AxialCodePage() {
   const handleApproveB = () => {
     if (!draftAxialCodingResultId || !draftAxialCodes) return;
     const timestamp = snapshotBGeneratedAt;
-    const approvedDraftCodes = draftAxialCodes;
     saveAxialCodes(draftAxialCodingResultId, {
       onSuccess: () => {
-        queryClient.setQueryData<CurrentAxialCodesResponse>(
-          QUERY_KEYS.axialCoding.currentAxialCodesOfVersion(versionId),
-          {
-            axialCodes: approvedDraftCodes,
-            createdAt: new Date().toISOString(),
-          }
-        );
         setSnapshotAGeneratedAt(timestamp);
         setDraftAxialCodes(null);
         setDraftAxialCodingResultId(null);

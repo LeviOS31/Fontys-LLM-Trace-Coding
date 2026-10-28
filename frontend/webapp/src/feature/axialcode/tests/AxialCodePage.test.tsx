@@ -3,10 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { CurrentAxialCodesResponse } from '../../shared/api/axialCode';
-import { QUERY_KEYS } from '../../shared/api/queryKeys';
-import type { AxialCode } from '../../shared/types/axialCode';
-import AxialCodePage from './AxialCodePage';
+import type { CurrentAxialCodesResponse } from '../../../shared/api/axialCode';
+import { QUERY_KEYS } from '../../../shared/api/queryKeys';
+import type { AxialCode } from '../../../shared/types/axialCode';
+import AxialCodePage from '../AxialCodePage';
 
 const { useCurrentCodes, useOpenCodes, useSaveCodes, codes } = vi.hoisted(() => ({
   useCurrentCodes: vi.fn(),
@@ -15,16 +15,16 @@ const { useCurrentCodes, useOpenCodes, useSaveCodes, codes } = vi.hoisted(() => 
   codes: [{ label: 'Reliability', description: 'Failures', traceIds: ['trace-1'] }],
 }));
 
-vi.mock('./hooks/useGetCurrentAxialCodesOfVersion.ts', () => ({
+vi.mock('../hooks/useGetCurrentAxialCodesOfVersion.ts', () => ({
   useGetCurrentAxialCodesOfVersion: useCurrentCodes,
 }));
-vi.mock('./hooks/useGetOpenCodesByVersion.ts', () => ({
+vi.mock('../hooks/useGetOpenCodesByVersion.ts', () => ({
   useGetOpenCodesByVersion: useOpenCodes,
 }));
-vi.mock('./hooks/useSaveAxialCodingResults.ts', () => ({
+vi.mock('../hooks/useSaveAxialCodingResults.ts', () => ({
   useSaveAxialCodingResults: useSaveCodes,
 }));
-vi.mock('./components/GenerateAxailCodesPanal/GenerateAxialCodesPanel.tsx', () => ({
+vi.mock('../components/GenerateAxailCodesPanal/GenerateAxialCodesPanel.tsx', () => ({
   GenerateAxialCodesPanel: ({
     onGenerated,
   }: {
@@ -47,23 +47,23 @@ vi.mock('./components/GenerateAxailCodesPanal/GenerateAxialCodesPanel.tsx', () =
     </button>
   ),
 }));
-vi.mock('./components/SnapshotSummaryCard.tsx', () => ({
+vi.mock('../components/SnapshotSummaryCard.tsx', () => ({
   default: ({ snapshot }: { snapshot: { label: string } }) => (
     <div data-testid="snapshot-summary">{snapshot.label}</div>
   ),
 }));
-vi.mock('../../shared/components/SnapshotTreemap.tsx', () => ({
+vi.mock('../../../shared/components/SnapshotTreemap.tsx', () => ({
   default: () => <div data-testid="snapshot-treemap" />,
 }));
-vi.mock('./components/AxialCodeList.tsx', () => ({
+vi.mock('../components/AxialCodeList.tsx', () => ({
   default: ({ snapshot }: { snapshot: { label: string } }) => (
     <div data-testid="axial-code-list">{snapshot.label}</div>
   ),
 }));
-vi.mock('./components/InterpretationPanel/InterpretationPanel.tsx', () => ({
+vi.mock('../components/InterpretationPanel/InterpretationPanel.tsx', () => ({
   default: () => <div data-testid="interpretation-panel" />,
 }));
-vi.mock('./components/ChangesSection/ChangesSection.tsx', () => ({
+vi.mock('../components/ChangesSection/ChangesSection.tsx', () => ({
   default: () => <div data-testid="changes-section" />,
 }));
 

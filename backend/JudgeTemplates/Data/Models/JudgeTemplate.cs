@@ -15,7 +15,7 @@ public class JudgeTemplate
 
     [MaxLength(MaxDescriptionLength)]
     public required string JudgeTemplateDescription { get; set; }
-    public Guid AxialCodeId { get; set; }
+    public required Guid AxialCodeId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid ProjectVersionId { get; set; }
     public bool IsDeprecated { get; set; }

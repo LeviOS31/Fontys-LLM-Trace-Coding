@@ -1,3 +1,4 @@
+using Api.Endpoints.Judge.Dtos;
 using Api.Extensions;
 using Judge.Features.JudgeTracesForAxialCode;
 using Judge.Features.ListJudgeRuns;
@@ -12,11 +13,11 @@ public static class JudgeEndpoints
     public static void MapJudgeEndpoint(this WebApplication app)
     {
         app.MapPost(
-                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/axial-codes/{axialCodeId:guid}/judge",
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge",
                 async (
                     Guid projectId,
                     Guid projectVersionId,
-                    Guid axialCodeId,
+                    JudgeBodyDto body,
                     IMediator mediator
                 ) =>
                 {
@@ -25,7 +26,7 @@ public static class JudgeEndpoints
                         UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
                         ProjectId = projectId,
                         ProjectVersionId = projectVersionId,
-                        AxialCodeId = axialCodeId,
+                        AxialCodeIds = body.AxialCodeIds,
                     };
                     var result = await mediator.Send(request);
 

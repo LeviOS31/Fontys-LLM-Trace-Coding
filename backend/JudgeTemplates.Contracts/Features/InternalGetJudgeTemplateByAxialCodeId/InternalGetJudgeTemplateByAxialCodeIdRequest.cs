@@ -7,6 +7,6 @@ public record InternalGetJudgeTemplateByAxialCodeIdRequest : IRequest<Result<Int
 {
     public required Guid ProjectId { get; init; }
     public required Guid ProjectVersionId { get; init; }
-    public required Guid AxialCodeId { get; init; }
+    public required Guid[] AxialCodeIds { get; init; }
     public required Guid UserId { get; init; }
 }

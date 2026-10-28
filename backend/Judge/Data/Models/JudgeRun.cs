@@ -8,7 +8,6 @@ public class JudgeRun
     public required Guid JudgeRunId { get; init; }
     public required Guid ProjectId { get; init; }
     public required Guid ProjectVersionId { get; init; }
-    public required Guid AxialCodeId { get; init; }
     public required string ResultsJson { get; set; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required int TotalCount { get; init; }

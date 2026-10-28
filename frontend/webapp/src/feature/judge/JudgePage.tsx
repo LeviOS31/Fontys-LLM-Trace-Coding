@@ -59,12 +59,27 @@ export default function JudgePage() {
     setParsed(null);
     setStatus('idle');
     setView('formatted');
+
+    const axialCodeIds : string[] = [];
+
+    templates.forEach((template) => {
+      if (selectedTemplateIds.includes(template.id)) {
+        axialCodeIds.push(template.axialCodeId);
+      }
+    })
+
     try {
       const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${axialCodeId}/judge`,
+        `/v1/projects/${projectId}/versions/${versionId}/judge`,
         BASE_URL
       );
-      const res = await fetch(url.toString(), { method: 'POST' });
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ axialCodeIds }) 
+      });
+
       const data = await res.json();
       setRaw(JSON.stringify(data, null, 2));
       setParsed(res.ok && isJudgeResponse(data) ? data : null);
@@ -88,9 +103,6 @@ export default function JudgePage() {
     }
   };
   const methods = useForm({ defaultValues: { templateId: '' } });
-
-  const templateIdwatch = methods.watch('templateId');
-  const axialCodeId = templates.find((t) => t.id === templateIdwatch)?.axialCodeId ?? '';
 
   const canRun = !loading && selectedTemplateIds.length > 0;
   const canFormat = parsed !== null;

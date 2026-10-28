@@ -1,6 +1,3 @@
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
 using Judge.Data;
 using Judge.Data.Models;
@@ -10,10 +7,12 @@ using Microsoft.Extensions.AI;
 using Serilog;
 using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
-using Shared.Builders;
 using Shared.Interfaces;
-using Traces.Contracts.Features.InternalGetTraceTranscripts;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Traces.Contracts.Features.InternalGetTraceTranscripts;
+using static AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion.InternalGetAllAxialCodesByVersionResponse;
 
 namespace Judge.Features.JudgeTracesForAxialCode;
 
@@ -58,8 +57,8 @@ public class JudgeTracesForAxialCodeHandler
         {
             return axialCodesResult.ErrorCode!.Value;
         }
-        var axialCode = axialCodesResult.Value.AxialCodes.FirstOrDefault(a => a.AxialCodeId == request.AxialCodeId);
-        if (axialCode is null)
+        AxialCodeEntry[] axialCode = axialCodesResult.Value.AxialCodes.Where(a => request.AxialCodeIds.Contains(a.AxialCodeId)).ToArray();
+        if (axialCode is null || axialCode.Length == 0)
         {
             return ErrorCode.EntityNotFound;
         }
@@ -70,7 +69,7 @@ public class JudgeTracesForAxialCodeHandler
             {
                 ProjectId = request.ProjectId,
                 ProjectVersionId = request.ProjectVersionId,
-                AxialCodeId = request.AxialCodeId,
+                AxialCodeIds = request.AxialCodeIds,
                 UserId = request.UserId,
             },
             cancellationToken
@@ -100,7 +99,7 @@ public class JudgeTracesForAxialCodeHandler
         
         var transcripts = transcriptsResult.Value.Transcripts.ToList();
 
-        var traceIdSet = axialCode.TraceIds.ToHashSet();
+        var traceIdSet = axialCode.SelectMany(a => a.TraceIds).ToHashSet();
 
         var tracesToJudge = request.TraceId.HasValue
             ? transcripts
@@ -122,22 +121,26 @@ public class JudgeTracesForAxialCodeHandler
         var results = new List<TraceJudgeResultViewModel>();
         foreach (var trace in tracesToJudge)
         {
-            var result = await JudgeSingleTraceAsync(
-                request.UserId,
-                templateResult.Value.Content,
-                trace.Transcript,
-                cancellationToken
-            );
-            results.Add(
-                new TraceJudgeResultViewModel
-                {
-                    TraceId = trace.TraceId,
-                    Status = result.IsError ? "Error" : "Success",
-                    Verdict = result.IsError ? null : (result.Value.Result ? "True" : "False"),
-                    Reasoning = result.IsError ? null : result.Value.Reasoning,
-                    Error = result.IsError ? result.ErrorCode!.Value.ToString() : null,
-                }
-            );
+            foreach (var judge in templateResult.Value.JudgeTemplates)
+            {
+                var result = await JudgeSingleTraceAsync(
+                    request.UserId,
+                    judge.Content,
+                    trace.Transcript,
+                    cancellationToken
+                );
+                results.Add(
+                    new TraceJudgeResultViewModel
+                    {
+                        TraceId = trace.TraceId,
+                        JudgeTemplateId = judge.JudgeTemplateId,
+                        Status = result.IsError ? "Error" : "Success",
+                        Verdict = result.IsError ? null : (result.Value.Result ? "True" : "False"),
+                        Reasoning = result.IsError ? null : result.Value.Reasoning,
+                        Error = result.IsError ? result.ErrorCode!.Value.ToString() : null,
+                    }
+                );
+            }
         }
 
         // 5. Persist the run
@@ -146,7 +149,6 @@ public class JudgeTracesForAxialCodeHandler
             JudgeRunId = Guid.NewGuid(),
             ProjectId = request.ProjectId,
             ProjectVersionId = request.ProjectVersionId,
-            AxialCodeId = request.AxialCodeId,
             ResultsJson = JsonSerializer.Serialize(results),
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -158,7 +160,7 @@ public class JudgeTracesForAxialCodeHandler
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Error saving judge run for axial code {AxialCodeId}", request.AxialCodeId);
+            Logger.Error(ex, "Error saving judge run for axial code {AxialCodeId}", request.AxialCodeIds);
             return ErrorCode.DatabaseError;
         }
 

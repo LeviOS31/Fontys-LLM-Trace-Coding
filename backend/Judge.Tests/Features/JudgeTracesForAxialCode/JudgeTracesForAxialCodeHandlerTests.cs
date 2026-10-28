@@ -151,12 +151,14 @@ public class JudgeTracesForAxialCodeHandlerTests
         return (CreateBuilder(client), client);
     }
 
+    private sealed class StubChatClient(IChatClient inner) : DelegatingChatClient(inner);
+
     private sealed class FakeChatClientBuilder(IChatClient client) : IChatClientBuilder
     {
         public IChatClientBuilder WithProvider(string? provider) => this;
         public IChatClientBuilder WithEndpoint(Uri? endpoint) => this;
         public IChatClientBuilder WithModel(string? model) => this;
-        public Result<IChatClient> Build() => (Result<IChatClient>)client;
+        public Result<IChatClient> Build() => new StubChatClient(client);
     }
 
     private static IChatClientBuilder CreateBuilder(IChatClient client) => new FakeChatClientBuilder(client);

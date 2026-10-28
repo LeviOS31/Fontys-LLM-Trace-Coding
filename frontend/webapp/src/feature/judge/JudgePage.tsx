@@ -33,7 +33,7 @@ export default function JudgePage() {
 
   // All templates, including deprecated ones, so older runs can still show a name.
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
-  const [templateId, setTemplateId] = useState<string[]>([]);
+  const [templateIds, setTemplateIds] = useState<string[]>([]);
 
   const [summaries, setSummaries] = useState<JudgeRunSummary[]>([]);
   const [totals, setTotals] = useState<JudgeRunTotals>(EMPTY_TOTALS);
@@ -131,22 +131,37 @@ export default function JudgePage() {
     [summaries, templates]
   );
 
-  const selectedTemplates = activeTemplates.find((t) => t.id === templateId);
   const selectedRun = runs.find((r) => r.judgeRunId === selectedRunId) ?? null;
   const hasMore = summaries.length < totals.runs;
+  let selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
   const runJudge = async () => {
-    if (!selectedTemplate) return;
+
+    selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
+
+    if (!selectedTemplates || selectedTemplates.length === 0) return;
     setRunning(true);
     setError(null);
+
+    const axialCodeIds : string[] = [];
+
+    selectedTemplates.forEach((template) => {
+        axialCodeIds.push(template.axialCodeId);
+    })
+
     try {
       const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/axial-codes/${selectedTemplate.axialCodeId}/judge`,
+        `/v1/projects/${projectId}/versions/${versionId}/judge`,
         BASE_URL
       );
-      const res = await fetch(url.toString(), { method: 'POST' });
+      
+      const res = await fetch(url.toString(), {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ axialCodeIds }) 
+      });
       const data = await res.json();
 
       if (res.ok && isJudgeResponse(data)) {
@@ -200,9 +215,9 @@ export default function JudgePage() {
 
       <RunJudgePanel
         templates={activeTemplates}
-        onTemplateChange={setTemplateId}
+        onTemplateChange={ (updatedIds) => setTemplateIds(updatedIds)}
         onRun={runJudge}
-        canRun={!running && Boolean(selectedTemplate)}
+        canRun={!running && Boolean(selectedTemplates.length > 0)}
         loading={running}
         error={error}
       />

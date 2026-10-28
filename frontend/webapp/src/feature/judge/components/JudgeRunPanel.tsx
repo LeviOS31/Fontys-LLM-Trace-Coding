@@ -1,10 +1,10 @@
-import { Box, Button, Callout, Card, Flex, Spinner } from '@radix-ui/themes';import { AlertCircle } from 'lucide-react';
+import { Box, Button, Callout, Flex, Spinner } from '@radix-ui/themes';import { AlertCircle } from 'lucide-react';
 import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
 import JudgeTemplateSelect from './JudgeTemplateSelect';
+import { colors } from '../../../shared/styling/colors';
 
 type Props = {
   readonly templates: JudgeTemplate[];
-  readonly templateIds: string[];
   readonly onTemplateChange: (ids: string[]) => void;
   readonly onRun: () => void;
   readonly canRun: boolean;
@@ -22,7 +22,14 @@ export default function RunJudgePanel({
 }: Props) {
 
   return (
-    <Card>
+    <Box
+      style={{
+        background: `var(--${colors.theme.radix.primary}-2)`,
+        border: `1px solid var(--${colors.theme.radix.primary}-6)`,
+        borderRadius: 'var(--radius-3)',
+        padding: '14px 18px',
+      }}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -58,6 +65,6 @@ export default function RunJudgePanel({
           )}
         </Flex>
       </form>
-    </Card>
+    </Box>
   );
 }

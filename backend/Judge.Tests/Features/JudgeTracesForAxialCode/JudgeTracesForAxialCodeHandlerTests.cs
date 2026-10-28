@@ -151,19 +151,15 @@ public class JudgeTracesForAxialCodeHandlerTests
         return (CreateBuilder(client), client);
     }
 
-    private static IChatClientBuilder CreateBuilder(IChatClient client)
+    private sealed class FakeChatClientBuilder(IChatClient client) : IChatClientBuilder
     {
-        var builder = Substitute.For<IChatClientBuilder>();
-        builder.WithProvider(Arg.Any<string?>()).Returns(builder);
-        builder.WithEndpoint(Arg.Any<Uri?>()).Returns(builder);
-        builder.WithModel(Arg.Any<string?>()).Returns(builder);
-
-        var built = (Result<IChatClient>)client;
-        builder.Build().Returns(_ => built);
-
-        return builder;
+        public IChatClientBuilder WithProvider(string? provider) => this;
+        public IChatClientBuilder WithEndpoint(Uri? endpoint) => this;
+        public IChatClientBuilder WithModel(string? model) => this;
+        public Result<IChatClient> Build() => (Result<IChatClient>)client;
     }
 
+    private static IChatClientBuilder CreateBuilder(IChatClient client) => new FakeChatClientBuilder(client);
     private static async Task AssertLlmNotCalled(IChatClient client) =>
         await client
             .DidNotReceive()

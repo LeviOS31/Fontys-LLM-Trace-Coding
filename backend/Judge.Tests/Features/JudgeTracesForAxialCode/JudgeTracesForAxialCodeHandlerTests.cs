@@ -158,7 +158,8 @@ public class JudgeTracesForAxialCodeHandlerTests
         builder.WithEndpoint(Arg.Any<Uri?>()).Returns(builder);
         builder.WithModel(Arg.Any<string?>()).Returns(builder);
 
-        builder.Build().Returns((Result<IChatClient>)client);
+        var built = (Result<IChatClient>)client;
+        builder.Build().Returns(_ => built);
 
         return builder;
     }

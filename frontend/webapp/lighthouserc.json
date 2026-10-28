@@ -1,0 +1,36 @@
+{
+  "ci": {
+    "collect": {
+      "numberOfRuns": 1,
+      "settings": {
+        "chromeFlags": "--no-sandbox --disable-dev-shm-usage"
+      },
+      "startServerCommand": "npm run build -- --mode lighthouse && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
+      "startServerReadyPattern": "127.0.0.1:4173",
+      "startServerReadyTimeout": 120000,
+      "url": [
+        "http://127.0.0.1:4173/",
+        "http://127.0.0.1:4173/traces",
+        "http://127.0.0.1:4173/projects/visual-project",
+        "http://127.0.0.1:4173/projects/visual-project/versions/visual-version/overview",
+        "http://127.0.0.1:4173/projects/visual-project/versions/visual-version/open-code",
+        "http://127.0.0.1:4173/projects/visual-project/versions/visual-version/open-code/visual-trace-group",
+        "http://127.0.0.1:4173/projects/visual-project/versions/visual-version/axial-code",
+        "http://127.0.0.1:4173/projects/visual-project/versions/visual-version/judge-template",
+        "http://127.0.0.1:4173/lighthouse-not-found"
+      ]
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.75 }],
+        "categories:accessibility": ["error", { "minScore": 0.9 }],
+        "categories:best-practices": ["error", { "minScore": 0.9 }],
+        "categories:seo": "off"
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "./.lighthouseci"
+    }
+  }
+}

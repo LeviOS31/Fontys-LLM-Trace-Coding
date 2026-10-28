@@ -35,6 +35,7 @@ export default function CollectionList({
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
   }, []);
+
   return (
     <Box
       p="4"

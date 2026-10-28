@@ -753,6 +753,8 @@ healthchecksdb
 # Backup folder for Package Reference Convert tool in Visual Studio 2017
 MigrationBackup/
 frontend/webapp/cypress/screenshots
+frontend/webapp/cypress/visual-diffs
+frontend/webapp/.lighthouseci
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/

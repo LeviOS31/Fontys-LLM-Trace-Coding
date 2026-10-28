@@ -406,5 +406,174 @@ describe('axial code', () => {
         });
       });
     });
+
+    // Differences between the approved codes (A) and the regenerated ones (B)
+    context('when the regenerated codes differ from the approved ones', () => {
+      // Renames "Usability Issues", adds an open code to "Performance Concerns"
+      // and adds a code that did not exist before.
+      const mockAxialCodesWithChanges = [
+        {
+          label: 'Navigation Problems',
+          description: 'Users struggle to find their way around',
+          traceIds: [traceId1, traceId2, traceId3],
+        },
+        {
+          label: 'Performance Concerns',
+          description: 'Slow response times and crashes',
+          traceIds: [traceId4, traceId5, traceId6],
+        },
+        {
+          label: 'Trust Signals',
+          description: 'User concerns about security and reliability',
+          traceIds: [traceId7],
+        },
+      ];
+
+      // Version B is listed after version A, so its card is the last one with that label.
+      const getVersionBCard = (title: string) =>
+        cy.get('[data-testid="axial-code-card"]').filter(`:contains("${title}")`).last();
+
+      beforeEach(() => {
+        interceptGenerate(mockAxialCodesWithChanges, resultIdB);
+        interceptSave();
+
+        regenerateWithFeedback('Rename usability and look for trust issues');
+      });
+
+      it('summarises what changed in the interpretation panel', () => {
+        cy.get('[data-testid="axial-code-change-summary"]').within(() => {
+          cy.contains('1 new').should('be.visible');
+          cy.contains('1 renamed').should('be.visible');
+          cy.contains('1 changed').should('be.visible');
+        });
+      });
+
+      it('marks a code that groups the same open codes under a new label as renamed', () => {
+        getVersionBCard('Navigation Problems').within(() => {
+          cy.contains('Renamed').should('be.visible');
+          cy.contains('Was Usability Issues').should('be.visible');
+        });
+      });
+
+      it('marks a code that gained open codes as changed', () => {
+        getVersionBCard('Performance Concerns').within(() => {
+          cy.contains('Changed').should('be.visible');
+          cy.contains('+1 open code').should('be.visible');
+        });
+      });
+
+      it('marks a code without counterpart in version A as new', () => {
+        getVersionBCard('Trust Signals').within(() => {
+          cy.contains('New').should('be.visible');
+        });
+      });
+
+      it('lists every difference in the changes section', () => {
+        cy.get('[data-testid="axial-code-changes"]').within(() => {
+          cy.get('[data-testid="axial-code-change-row"]').should('have.length', 3);
+
+          cy.contains('[data-testid="axial-code-change-row"]', 'Renamed').within(() => {
+            cy.contains('Usability Issues').should('be.visible');
+            cy.contains('Navigation Problems').should('be.visible');
+          });
+          cy.contains('[data-testid="axial-code-change-row"]', 'Changed')
+            .should('contain.text', 'Performance Concerns')
+            .and('contain.text', '+1');
+          cy.contains('[data-testid="axial-code-change-row"]', 'New').should(
+            'contain.text',
+            'Trust Signals'
+          );
+        });
+      });
+
+      it('opens a change to show the open codes it kept and gained', () => {
+        cy.contains('[data-testid="axial-code-change-row"]', 'Changed').within(() => {
+          cy.contains('kept its name; 1 open code joined it').should('be.visible');
+          cy.get('[data-testid="axial-code-change-details"]').should('not.exist');
+
+          cy.get('[role="button"]').click();
+
+          cy.get('[data-testid="axial-code-change-kept"]')
+            .should('contain.text', 'Search results were very slow')
+            .and('contain.text', 'App crashed during checkout');
+          cy.get('[data-testid="axial-code-change-added"]').should(
+            'contain.text',
+            'Back button did not work as expected'
+          );
+        });
+      });
+
+      it('scrolls to the card of a code clicked in the changes section', () => {
+        cy.get('[data-testid="axial-code-changes"]').contains('button', 'Trust Signals').click();
+
+        getVersionBCard('Trust Signals').should('be.visible');
+      });
+
+      it('does not mark the cards of the approved version', () => {
+        getAxialCodeCard('Usability Issues')
+          .find('[data-testid="axial-code-change"]')
+          .should('not.exist');
+      });
+    });
+  });
+
+  // Scenario 4: Axial codes with judge guidelines and open code justifications
+  context('given an approved snapshot with judge guidelines', () => {
+    const seededResultWithGuidelines = {
+      ...seededAxialResultA,
+      axialCodes: [
+        {
+          ...seededAxialResultA.axialCodes[0],
+          judgeGuidelines:
+            'Mark true when: the user cannot navigate or understand the interface.\nMark false when: the user navigates without trouble.\nBorderline cases: a single hesitation counts as false.',
+          openCodeJustifications: [
+            {
+              traceId: openCodes[0].traceId,
+              quote: 'struggled to find the settings menu',
+              justification: 'The open code describes a user who could not locate a feature',
+            },
+          ],
+        },
+        seededAxialResultA.axialCodes[1],
+      ],
+    };
+
+    beforeEach(() => {
+      cy.task('seedProjects', [project]);
+      cy.task('seedVersions', [version]);
+      cy.task('seedTraces', [traceCollection]);
+      cy.task('seedOpenCodes', openCodes);
+      cy.task('seedAxialCodingResults', [seededResultWithGuidelines]);
+
+      visitAxialCodePage();
+
+      cy.contains('Usability Issues', { timeout: 8000 }).should('be.visible');
+    });
+
+    it('expands a card to show the judge guidelines and why each open code belongs', () => {
+      getAxialCodeCard('Usability Issues').within(() => {
+        cy.contains('button', 'Expand details ↓').click();
+        cy.get('[data-testid="axial-code-judge-guidelines"]')
+          .should('be.visible')
+          .and('contain.text', 'Judge guidelines')
+          .and(
+            'contain.text',
+            'Mark true when: the user cannot navigate or understand the interface.'
+          )
+          .and('contain.text', 'Borderline cases: a single hesitation counts as false.');
+        cy.contains('Why these open codes belong here').should('be.visible');
+        cy.get('[data-testid="axial-code-justification"]')
+          .should('have.length', 1)
+          .and('contain.text', 'struggled to find the settings menu')
+          .and('contain.text', 'The open code describes a user who could not locate a feature');
+      });
+    });
+
+    it('does not show judge guidelines for codes generated without them', () => {
+      getAxialCodeCard('Performance Concerns').within(() => {
+        cy.contains('button', 'Expand details ↓').click();
+        cy.get('[data-testid="axial-code-judge-guidelines"]').should('not.exist');
+      });
+    });
   });
 });

@@ -37,6 +37,7 @@ public class GetAllJudgeTemplateHandlerTests
                             Label = "Test Label",
                             Description = "Test Description",
                             IsActive = true,
+                            TraceIds = [],
                         },
                     ],
             }
@@ -57,7 +58,7 @@ public class GetAllJudgeTemplateHandlerTests
         };
 
     [Fact]
-    public async Task WhenRequestIsValid_ReturnTemplatesWithFilledInText()
+    public async Task WhenAxialCodeHasNoJudgeGuidelines_FillTemplateWithDescription()
     {
         // Arrange
         var templates = new List<JudgeTemplate>
@@ -97,7 +98,58 @@ public class GetAllJudgeTemplateHandlerTests
         vm.Template.ShouldContain("Test Label");
         vm.Template.ShouldContain("Test Description");
         vm.Template.ShouldNotContain("{{axial_code_name}}");
-        vm.Template.ShouldNotContain("{{axial_code_description}}");
+        vm.Template.ShouldNotContain("{{axial_code_judge_guidelines}}");
+    }
+
+    [Fact]
+    public async Task WhenAxialCodeHasJudgeGuidelines_FillTemplateWithGuidelinesInsteadOfDescription()
+    {
+        // Arrange
+        var templates = new List<JudgeTemplate>
+        {
+            new()
+            {
+                JudgeTemplateId = Guid.NewGuid(),
+                JudgeTemplateName = "My Template",
+                JudgeTemplateDescription = "A description",
+                AxialCodeId = _axialCodeId,
+                ProjectId = _projectId,
+                ProjectVersionId = _projectVersionId,
+                IsDeprecated = false,
+            },
+        };
+
+        var mockSet = templates.BuildMockDbSet();
+        var mockContext = Substitute.For<JudgeTemplatesDbContext>(
+            new DbContextOptionsBuilder<JudgeTemplatesDbContext>().Options
+        );
+        mockContext.JudgeTemplates.Returns(mockSet);
+
+        var mediator = CreateMediatorMock(
+            axialCodes:
+            [
+                new InternalGetAllAxialCodesByVersionResponse.AxialCodeEntry
+                {
+                    AxialCodeId = _axialCodeId,
+                    Label = "Test Label",
+                    Description = "Test Description",
+                    IsActive = true,
+                    TraceIds = [],
+                    JudgeGuidelines = "Mark true when: test guideline.",
+                },
+            ]
+        );
+        var handler = new GetAllJudgeTemplateHandler(mockContext, mediator);
+
+        // Act
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        var vm = result.Value!.JudgeTemplates.Single();
+        vm.Template.ShouldContain("Judging Guidelines:");
+        vm.Template.ShouldContain("Mark true when: test guideline.");
+        vm.Template.ShouldNotContain("Test Description");
     }
 
     [Fact]
@@ -151,6 +203,7 @@ public class GetAllJudgeTemplateHandlerTests
                 Label = "Label A",
                 Description = "Desc A",
                 IsActive = true,
+                TraceIds = [],
             },
             new()
             {
@@ -158,6 +211,7 @@ public class GetAllJudgeTemplateHandlerTests
                 Label = "Label B",
                 Description = "Desc B",
                 IsActive = true,
+                TraceIds = [],
             },
         };
 

@@ -6,6 +6,8 @@ import { useGetTraceCollections } from '../opencode/hooks/useGetTraceCollections
 import CollectionList from './components/CollectionList.tsx';
 import StatisticsOverviewCard from './components/StatisticsOverviewCard.tsx';
 import DetailsOverviewCard from './components/DetailsOverviewCard.tsx';
+import RawLLMOutputList from './components/RawLLMOutputList.tsx';
+import { useGetRawLLMOutputs } from './hooks/useGetRawLLMOutputs.ts';
 
 type OverviewPageParams = {
   id: string;
@@ -16,6 +18,11 @@ export default function OverviewPage() {
   const { id, versionId } = useParams<OverviewPageParams>();
 
   const { data: collections, isLoading: isCollectionsLoading } = useGetTraceCollections(
+    id,
+    versionId
+  );
+
+  const { data: rawLLMOutputs, isLoading: isRawLLMOutputsLoading } = useGetRawLLMOutputs(
     id,
     versionId
   );
@@ -36,6 +43,13 @@ export default function OverviewPage() {
         projectId={id}
         projectVersionId={versionId}
         isLoading={isCollectionsLoading}
+      />
+
+      <RawLLMOutputList
+        rawLLMOutputs={rawLLMOutputs}
+        projectId={id}
+        projectVersionId={versionId}
+        isLoading={isRawLLMOutputsLoading}
       />
     </Flex>
   );

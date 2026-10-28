@@ -1,6 +1,6 @@
-using System.Reflection;
 using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
 using JudgeTemplates.Data;
+using JudgeTemplates.Feature.Shared;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -12,9 +12,6 @@ public class GetAllJudgeTemplateHandler
     : IRequestHandler<GetAllJudgeTemplateRequest, Result<GetAllJudgeTemplateResponse>>
 {
     private static readonly ILogger Logger = Log.ForContext<GetAllJudgeTemplateHandler>();
-    private static readonly Lazy<string> _judgeTemplateText = new(() =>
-        LoadTemplate("JudgeTemplates.Resources.JudgeTemplate.EmptyJudgeTemplate.txt")
-    );
 
     private readonly JudgeTemplatesDbContext _dbContext;
     private readonly IMediator _mediator;
@@ -61,9 +58,7 @@ public class GetAllJudgeTemplateHandler
                 var axialCode = axialCodeMap[jt.AxialCodeId];
 
                 var template = jt.CustomJudgeTemplateContent
-                    ?? _judgeTemplateText.Value
-                        .Replace("{{axial_code_name}}", axialCode.Label)
-                        .Replace("{{axial_code_description}}", axialCode.Description);
+                    ?? DefaultJudgeTemplate.Render(axialCode);
 
                 return new GetAllJudgeTemplateResponse.JudgeTemplateViewModel
                 {
@@ -77,16 +72,5 @@ public class GetAllJudgeTemplateHandler
                 };
             }),
         };
-    }
-
-    private static string LoadTemplate(string resourceName)
-    {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-        if (stream == null)
-        {
-            throw new InvalidOperationException($"Template resource not found: {resourceName}");
-        }
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
     }
 }

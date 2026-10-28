@@ -13,6 +13,8 @@ const AxialCodePage = React.lazy(() => import('./feature/axialcode/AxialCodePage
 const JudgeTemplatePage = React.lazy(() => import('./feature/judgeTemplate/JudgeTemplatePage.tsx'));
 const TraceGroupPage = React.lazy(() => import('./feature/opencode/traceGroup/TraceGroupPage.tsx'));
 const NotFoundPage = React.lazy(() => import('./shared/components/NotFoundPage.tsx'));
+const JudgePage = React.lazy(() => import('./feature/judge/JudgePage.tsx'));
+const RawLLMOutputPage = React.lazy(() => import('./feature/rawllmoutput/rawllmoutput.tsx'));
 
 function App() {
   return (
@@ -99,7 +101,26 @@ function App() {
             </Suspense>
           }
         />
+
+        <Route
+          path="/projects/:id/versions/:versionId/judge"
+          element={
+            <Suspense fallback={null}>
+              <JudgePage />
+            </Suspense>
+          }
+        />
+
+        <Route
+          path="/projects/:id/versions/:versionId/raw-llm-output/:rawllmoutputId"
+          element={
+            <Suspense fallback={null}>
+              <RawLLMOutputPage />
+            </Suspense>
+          }
+        />
       </Route>
+      
     </Routes>
   );
 }

@@ -1,5 +1,5 @@
 import { Badge, Button, Dialog, Flex, IconButton, Separator, Text, TextArea, TextField, Tooltip } from '@radix-ui/themes';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Download, History, RotateCcw, Save, Scale, Trash2, TriangleAlert, X } from 'lucide-react';
 import type { JudgeTemplate } from '../../../shared/types/judgeTemplate.ts';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog.tsx';
@@ -43,11 +43,12 @@ export function EditJudgeTemplateModal({
   );
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [content, setContent] = useState(template.template);
-
-  useEffect(() => {
-    setContent(template.template);
-  }, [template.template]);
+  const [contentDraft, setContentDraft] = useState({
+    template: template.template,
+    content: template.template,
+  });
+  const content =
+    contentDraft.template === template.template ? contentDraft.content : template.template;
 
   const isDirty = content !== template.template;
 
@@ -132,7 +133,9 @@ export function EditJudgeTemplateModal({
             </Text>
             <TextArea
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) =>
+                setContentDraft({ template: template.template, content: e.target.value })
+              }
               rows={14}
               style={{
                 resize: 'vertical',

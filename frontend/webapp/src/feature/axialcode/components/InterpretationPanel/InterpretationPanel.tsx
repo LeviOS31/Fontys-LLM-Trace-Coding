@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, Flex, Grid, Kbd, Text } from '@radix-ui/themes';
+import { Badge, Box, Button, Flex, Grid, Kbd, Text } from '@radix-ui/themes';
 import { RefreshCw, Sparkles, TrendingUpDown } from 'lucide-react';
 import type { AxialCode as ApiAxialCode } from '../../../../shared/types/axialCode.ts';
 import type { Snapshot } from '../../../../shared/types/snapshot.ts';
 import { useGenerateAxialCodingResults } from '../../hooks/useGenerateAxialCodingResult.ts';
 import RegenerateFeedbackModal from '../RegenerateFeedbackModal.tsx';
+import ChangeKindBadge from '../ChangeKindBadge.tsx';
+import type { AxialCodeComparison } from '../../../../shared/util/compareAxialCodes.ts';
 import { colors } from '../../../../shared/styling/colors.ts';
 import styles from './InterpretationPanel.module.css';
 
@@ -23,6 +25,46 @@ interface InterpretationPanelProps {
   readonly onApprove: () => void;
   readonly onDiscard: () => void;
   readonly isSaving: boolean;
+  readonly comparison: AxialCodeComparison | null;
+}
+
+// Order in which the kinds of change are listed in the summary.
+const SUMMARY_KINDS = ['new', 'removed', 'renamed', 'changed', 'merged', 'split'] as const;
+
+function ChangeSummary({ comparison }: { readonly comparison: AxialCodeComparison }) {
+  const kinds = SUMMARY_KINDS.filter((kind) => comparison.counts[kind] > 0);
+  const movedCount = comparison.moved.length;
+
+  return (
+    <Flex
+      align="center"
+      gap="2"
+      wrap="wrap"
+      pt="3"
+      data-testid="axial-code-change-summary"
+      style={{ borderTop: `1px solid var(--${colors.theme.radix.primary}-5)` }}
+    >
+      <Text size="1" color="gray">
+        What changed
+      </Text>
+      {kinds.length === 0 && movedCount === 0 ? (
+        <Text size="1" weight="bold">
+          The axial codes did not change
+        </Text>
+      ) : (
+        <>
+          {kinds.map((kind) => (
+            <ChangeKindBadge key={kind} kind={kind} count={comparison.counts[kind]} />
+          ))}
+          {movedCount > 0 && (
+            <Badge color="gray" variant="soft" radius="full" size="1">
+              {movedCount} open code{movedCount > 1 ? 's' : ''} moved
+            </Badge>
+          )}
+        </>
+      )}
+    </Flex>
+  );
 }
 
 export default function InterpretationPanel({
@@ -36,6 +78,7 @@ export default function InterpretationPanel({
   onApprove,
   onDiscard,
   isSaving,
+  comparison,
 }: InterpretationPanelProps) {
   const [expanded, setExpanded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -209,6 +252,8 @@ export default function InterpretationPanel({
               })}
             </Grid>
           </Box>
+
+          {comparison && <ChangeSummary comparison={comparison} />}
         </Flex>
 
         <Box

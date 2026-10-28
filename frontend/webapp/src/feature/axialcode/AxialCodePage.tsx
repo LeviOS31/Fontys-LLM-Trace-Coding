@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Box, Flex, Grid, Heading, Text } from '@radix-ui/themes';
-import { LayoutDashboard } from 'lucide-react';
-import { Navigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import type { CurrentAxialCodesResponse } from '../../shared/api/axialCode.ts';
 import { QUERY_KEYS } from '../../shared/api/queryKeys.ts';
+import { LayoutDashboard } from 'lucide-react';
+import { Navigate, useParams } from 'react-router';
 import type { AxialCode as ApiAxialCode } from '../../shared/types/axialCode.ts';
 import type { Snapshot } from '../../shared/types/snapshot.ts';
 import { GenerateAxialCodesPanel } from './components/GenerateAxailCodesPanal/GenerateAxialCodesPanel.tsx';
@@ -16,6 +16,9 @@ import SnapshotSummaryCard from './components/SnapshotSummaryCard.tsx';
 import SnapshotTreemapSection from '../../shared/components/SnapshotTreemap.tsx';
 import AxialCodeList from './components/AxialCodeList.tsx';
 import { convertApiCodesToSnapshot } from '../../shared/util/convertApiCodesToSnapshot.ts';
+import { compareAxialCodes } from '../../shared/util/compareAxialCodes.ts';
+import buildComparisonColors from '../../shared/util/buildComparisonColors.ts';
+import ChangesSection from './components/ChangesSection/ChangesSection.tsx';
 import './AxialCodePage.module.css';
 
 function formatDate(iso: string): string {
@@ -50,13 +53,14 @@ function SectionHead({ title, subtitle }: { readonly title: string; readonly sub
 
 export default function AxialCodePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
-  const queryClient = useQueryClient();
 
   const [draftAxialCodes, setDraftAxialCodes] = useState<ApiAxialCode[] | null>(null);
   const [draftAxialCodingResultId, setDraftAxialCodingResultId] = useState<string | null>(null);
   const [snapshotAGeneratedAt, setSnapshotAGeneratedAt] = useState<string>('');
   const [snapshotBGeneratedAt, setSnapshotBGeneratedAt] = useState<string>('');
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
+
+  const queryClient = useQueryClient();
 
   const isReady = Boolean(projectId && versionId);
 
@@ -81,6 +85,18 @@ export default function AxialCodePage() {
     [openCodes]
   );
 
+  // What changed between the approved codes (A) and the regenerated draft (B).
+  const comparison = useMemo(() => {
+    const approvedCodes = savedAxialCodes?.axialCodes ?? [];
+    if (!approvedCodes.length || !draftAxialCodes?.length) return null;
+    const result = compareAxialCodes(approvedCodes, draftAxialCodes);
+    return {
+      result,
+      colorOf: buildComparisonColors(approvedCodes, result),
+      changeOf: new Map(result.changes.map((change) => [change.code, change])),
+    };
+  }, [savedAxialCodes, draftAxialCodes]);
+
   const snapshotA = useMemo<Snapshot | null>(() => {
     const codes = savedAxialCodes?.axialCodes ?? [];
     if (!codes.length) return null;
@@ -89,9 +105,10 @@ export default function AxialCodePage() {
       codes,
       'Version A',
       snapshotAGeneratedAt || apiCreatedAt || 'Approved',
-      openCodeTextById
+      openCodeTextById,
+      { colorOf: comparison?.colorOf }
     );
-  }, [savedAxialCodes, snapshotAGeneratedAt, openCodeTextById]);
+  }, [savedAxialCodes, snapshotAGeneratedAt, openCodeTextById, comparison]);
 
   const snapshotB = useMemo<Snapshot | null>(() => {
     if (!draftAxialCodes?.length) return null;
@@ -99,9 +116,10 @@ export default function AxialCodePage() {
       draftAxialCodes,
       'Version B',
       snapshotBGeneratedAt,
-      openCodeTextById
+      openCodeTextById,
+      comparison ?? undefined
     );
-  }, [draftAxialCodes, snapshotBGeneratedAt, openCodeTextById]);
+  }, [draftAxialCodes, snapshotBGeneratedAt, openCodeTextById, comparison]);
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
@@ -123,10 +141,7 @@ export default function AxialCodePage() {
         onSuccess: () => {
           queryClient.setQueryData<CurrentAxialCodesResponse>(
             QUERY_KEYS.axialCoding.currentAxialCodesOfVersion(versionId),
-            {
-              axialCodes,
-              createdAt: new Date().toISOString(),
-            }
+            { axialCodes, createdAt: new Date().toISOString() }
           );
         },
       });
@@ -142,16 +157,8 @@ export default function AxialCodePage() {
   const handleApproveB = () => {
     if (!draftAxialCodingResultId || !draftAxialCodes) return;
     const timestamp = snapshotBGeneratedAt;
-    const approvedDraftCodes = draftAxialCodes;
     saveAxialCodes(draftAxialCodingResultId, {
       onSuccess: () => {
-        queryClient.setQueryData<CurrentAxialCodesResponse>(
-          QUERY_KEYS.axialCoding.currentAxialCodesOfVersion(versionId),
-          {
-            axialCodes: approvedDraftCodes,
-            createdAt: new Date().toISOString(),
-          }
-        );
         setSnapshotAGeneratedAt(timestamp);
         setDraftAxialCodes(null);
         setDraftAxialCodingResultId(null);
@@ -230,7 +237,20 @@ export default function AxialCodePage() {
             onApprove={handleApproveB}
             onDiscard={handleDiscardB}
             isSaving={isSaving}
+            comparison={comparison?.result ?? null}
           />
+
+          {comparison && (
+            <Box mt="2">
+              <ChangesSection
+                comparison={comparison.result}
+                previousCodes={savedCodes}
+                nextCodes={draftAxialCodes ?? []}
+                colorOf={comparison.colorOf}
+                openCodeTextById={openCodeTextById}
+              />
+            </Box>
+          )}
 
           <Box mt="2">
             <SectionHead title="Version summary" />

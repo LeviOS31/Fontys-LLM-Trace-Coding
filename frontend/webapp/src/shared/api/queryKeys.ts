@@ -37,4 +37,5 @@ export const QUERY_KEYS = {
   judgeTemplates: {
     byVersion: (projectVersionId: string) => ['judge-templates', projectVersionId],
   },
+  rawLLMOutputs: (projectVersionId: string) => ['raw-llm-outputs', projectVersionId],
 };

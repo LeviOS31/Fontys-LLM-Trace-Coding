@@ -69,6 +69,7 @@ export function ProjectSelector({
                   variant="soft"
                   color="gray"
                   className="project-selector-collapsed-trigger"
+                  aria-label={isLoading ? 'Loading projects' : (currentProject?.name ?? 'Select a project')}
                 >
                   <Folder size={20} />
                 </IconButton>

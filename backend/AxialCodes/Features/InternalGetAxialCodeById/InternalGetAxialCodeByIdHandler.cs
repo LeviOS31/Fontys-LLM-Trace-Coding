@@ -1,4 +1,5 @@
 using System.Data.Common;
+using AxialCodes.Contracts.Features.GetAxialCodes;
 using AxialCodes.Contracts.Features.InternalGetAxialCodeById;
 using AxialCodes.Data;
 using Mediator;
@@ -62,6 +63,15 @@ public class InternalGetAxialCodeByIdHandler
                     Label = a.Label,
                     Description = a.Description,
                     TraceIds = a.TraceIds,
+                    JudgeGuidelines = a.JudgeGuidelines,
+                    OpenCodeJustifications = a
+                        .OpenCodeJustifications.Select(j => new OpenCodeJustificationViewModel
+                        {
+                            TraceId = j.TraceId,
+                            Quote = j.Quote,
+                            Justification = j.Justification,
+                        })
+                        .ToList(),
                 })
                 .FirstOrDefaultAsync(cancellationToken);
         }

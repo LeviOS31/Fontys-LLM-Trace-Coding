@@ -3,13 +3,25 @@ import { useTraceGroup } from '../../traces/hooks/useTraceGroup';
 import { useParams, useSearchParams } from 'react-router';
 import { Group as ResizableGroup, Panel as ResizablePanel } from 'react-resizable-panels';
 import CustomResizeHandle from '../../../shared/components/CustomResizeHandle';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { isTyping } from '../../../shared/util/shortcutHelpers';
 import { useUpdateSearchParam } from '../hooks/useUpdateSearchParam';
-import { LlmContent } from './LLM/LlmContent';
 import { TraceTreeNav } from './trace/TraceTreeNav';
-import { TraceContentOverview } from './trace/TraceContentOverview';
 import { extractSpanMessages } from './trace/GenAIMessages';
+import { getRetrievedSourcesForUserSpan, type RetrievedSource } from './trace/retrievalSources';
+
+const LlmContent = lazy(() => import('./LLM/LlmContent').then((m) => ({ default: m.LlmContent })));
+const TraceContentOverview = lazy(() =>
+  import('./trace/TraceContentOverview').then((m) => ({ default: m.TraceContentOverview }))
+);
+
+function PanelFallback() {
+  return (
+    <Flex align="center" justify="center" style={{ height: '100%' }}>
+      <Text>Loading...</Text>
+    </Flex>
+  );
+}
 
 export type PageParams = {
   id: string;
@@ -26,7 +38,41 @@ export type LlmMessage = {
   relatedSpanId: string;
   modelName?: string;
   amountOfSpans?: number;
+  retrievedSources?: RetrievedSource[];
 };
+
+function mergeRetrievedSources(
+  current: RetrievedSource[] = [],
+  added: RetrievedSource[] = []
+): RetrievedSource[] {
+  const sources = new Map(current.map((source) => [source.sourceFile, source]));
+  for (const source of added) {
+    const existing = sources.get(source.sourceFile);
+    if (!existing) {
+      sources.set(source.sourceFile, source);
+      continue;
+    }
+    existing.retrievalSpanIds = [
+      ...new Set([...existing.retrievalSpanIds, ...source.retrievalSpanIds]),
+    ];
+    for (const chunk of source.chunks) {
+      if (!chunk.id || !existing.chunks.some((currentChunk) => currentChunk.id === chunk.id)) {
+        existing.chunks.push(chunk);
+      }
+    }
+  }
+  return [...sources.values()];
+}
+
+function scrollToRetrievedSource(traceId: string, spanId: string, sourceFile: string): void {
+  requestAnimationFrame(() => {
+    const target = document.querySelector(
+      `[data-trace-id="${CSS.escape(traceId)}"][data-span-id="${CSS.escape(spanId)}"]` +
+        `[data-message-role="user"] details[data-source-file="${CSS.escape(sourceFile)}"]`
+    );
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
 
 function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): LlmMessage[] {
   const msgs: LlmMessage[] = [];
@@ -34,6 +80,7 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
     attributes.find((a) => a.key === key)?.value;
 
   for (const trace of traceGroup?.traces ?? []) {
+    const spans = trace.traceScopes.flatMap((scope) => scope.spans);
     const amountOfSpans = trace.traceScopes.reduce((acc, s) => acc + s.spans.length, 0);
     const outputOnly: LlmMessage[] = [];
 
@@ -54,6 +101,15 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
             relatedSpanId: span.traceScopeSpanId,
             modelName,
             amountOfSpans,
+            ...(message.role === 'user'
+              ? {
+                  retrievedSources: getRetrievedSourcesForUserSpan(
+                    spans,
+                    span.traceScopeSpanId,
+                    message.content
+                  ),
+                }
+              : {}),
           };
           // Spans without input messages have no reliable index; handled after this loop.
           if (!extracted.hasInput) {
@@ -61,10 +117,17 @@ function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): L
             return;
           }
           // Dedupe: an earlier trace/span already owns this message at this position.
-          const duplicate = msgs.some(
+          const duplicate = msgs.find(
             (m) => m.content === entry.content && m.role === entry.role && m.index === entry.index
           );
-          if (!duplicate) msgs.push(entry);
+          if (duplicate) {
+            duplicate.retrievedSources = mergeRetrievedSources(
+              duplicate.retrievedSources,
+              entry.retrievedSources
+            );
+          } else {
+            msgs.push(entry);
+          }
         });
       }
     }
@@ -89,6 +152,14 @@ export default function TraceGroupPage() {
   } = useTraceGroup(id!, traceGroupId!, versionId!);
 
   const llmMessages = useMemo(() => getLlmMessages(selectedTraceGroup), [selectedTraceGroup]);
+  const messageAnchors = useMemo(
+    () =>
+      llmMessages.filter(
+        (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
+          message.role === 'user' || message.role === 'assistant' || message.role === 'system'
+      ),
+    [llmMessages]
+  );
 
   // A group counts as an LLM group when the backend says so, or when its spans carry messages.
   const isLlmGroup = useMemo(
@@ -102,6 +173,7 @@ export default function TraceGroupPage() {
   >(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
   const [selectedNodeKey, setSelectedNodeKey] = useState<string | null>(null);
+  const [selectedSourceFile, setSelectedSourceFile] = useState<string | null>(null);
 
   // The selected trace lives in the URL so the sidebar can drive it and a trace
   // can be linked to directly.
@@ -178,17 +250,16 @@ export default function TraceGroupPage() {
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
-                requestChatScroll={(spanId, role) => {
+                requestChatScroll={(spanId, role, sourceFile) => {
                   setChatScrollRequest((request) => request + 1);
                   setScrollSpanIndex(spanId);
                   setScrollMessageRole(role);
+                  setSelectedSourceFile(sourceFile ?? null);
+                  if (sourceFile && effectiveSelectedTrace) {
+                    scrollToRetrievedSource(effectiveSelectedTrace, spanId, sourceFile);
+                  }
                 }}
-                messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
-                    message.role === 'user' ||
-                    message.role === 'assistant' ||
-                    message.role === 'system'
-                )}
+                messageAnchors={messageAnchors}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}
               />
@@ -197,17 +268,27 @@ export default function TraceGroupPage() {
             <CustomResizeHandle />
 
             <ResizablePanel defaultSize={78} minSize={40}>
-              <LlmContent
-                llmMessages={llmMessages}
-                selectedTraceId={effectiveSelectedTrace}
-                setSelectedTrace={setSelectedTrace}
-                scrollRequest={chatScrollRequest}
-                selectedSpanId={scrollSpanIndex}
-                selectedMessageRole={scrollMessageRole}
-                onScrollChange={(_traceId, spanId, role) => {
-                  setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
-                }}
-              />
+              <Suspense fallback={<PanelFallback />}>
+                <LlmContent
+                  llmMessages={llmMessages}
+                  selectedTraceId={effectiveSelectedTrace}
+                  setSelectedTrace={setSelectedTrace}
+                  scrollRequest={chatScrollRequest}
+                  selectedSpanId={scrollSpanIndex}
+                  selectedMessageRole={scrollMessageRole}
+                  selectedSourceFile={selectedSourceFile}
+                  onScrollChange={(_traceId, spanId, role) => {
+                    if (selectedSourceFile && spanId === scrollSpanIndex && role === 'user') {
+                      setSelectedNodeKey(
+                        `${spanId}-source-${encodeURIComponent(selectedSourceFile)}`
+                      );
+                      return;
+                    }
+                    setSelectedSourceFile(null);
+                    setSelectedNodeKey(spanId && role ? `${spanId}-${role}` : spanId);
+                  }}
+                />
+              </Suspense>
             </ResizablePanel>
 
             {effectiveSelectedTrace && (
@@ -215,12 +296,14 @@ export default function TraceGroupPage() {
                 <CustomResizeHandle />
 
                 <ResizablePanel defaultSize={30} minSize={25} style={{ overflow: 'visible' }}>
-                  <TraceContentOverview
-                    trace={selectedTraceObject!}
-                    setScrollSpanIndex={setScrollSpanIndex}
-                    projectId={id!}
-                    versionId={versionId!}
-                  />
+                  <Suspense fallback={<PanelFallback />}>
+                    <TraceContentOverview
+                      trace={selectedTraceObject!}
+                      setScrollSpanIndex={setScrollSpanIndex}
+                      projectId={id!}
+                      versionId={versionId!}
+                    />
+                  </Suspense>
                 </ResizablePanel>
               </>
             )}
@@ -235,17 +318,16 @@ export default function TraceGroupPage() {
                 selectedSpanId={scrollSpanIndex}
                 setSelectedTrace={setSelectedTrace}
                 setSelectedSpan={setScrollSpanIndex}
-                requestChatScroll={(spanId, role) => {
+                requestChatScroll={(spanId, role, sourceFile) => {
                   setChatScrollRequest((request) => request + 1);
                   setScrollSpanIndex(spanId);
                   setScrollMessageRole(role);
+                  setSelectedSourceFile(sourceFile ?? null);
+                  if (sourceFile && effectiveSelectedTrace) {
+                    scrollToRetrievedSource(effectiveSelectedTrace, spanId, sourceFile);
+                  }
                 }}
-                messageAnchors={llmMessages.filter(
-                  (message): message is LlmMessage & { role: 'user' | 'assistant' | 'system' } =>
-                    message.role === 'user' ||
-                    message.role === 'assistant' ||
-                    message.role === 'system'
-                )}
+                messageAnchors={messageAnchors}
                 selectedNodeKey={selectedNodeKey}
                 setSelectedNodeKey={setSelectedNodeKey}
               />
@@ -254,12 +336,14 @@ export default function TraceGroupPage() {
             <CustomResizeHandle />
 
             <ResizablePanel defaultSize={25} minSize={25} style={{ overflow: 'visible' }}>
-              <TraceContentOverview
-                trace={selectedTraceObject!}
-                setScrollSpanIndex={setScrollSpanIndex}
-                projectId={id!}
-                versionId={versionId!}
-              />
+              <Suspense fallback={<PanelFallback />}>
+                <TraceContentOverview
+                  trace={selectedTraceObject!}
+                  setScrollSpanIndex={setScrollSpanIndex}
+                  projectId={id!}
+                  versionId={versionId!}
+                />
+              </Suspense>
             </ResizablePanel>
           </>
         )}

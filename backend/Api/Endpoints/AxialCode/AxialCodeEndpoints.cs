@@ -28,6 +28,7 @@ public static class AxialCodeEndpoints
                             Label = ax.Label,
                             Description = ax.Description,
                             TraceIds = ax.TraceIds,
+                            JudgeGuidelines = ax.JudgeGuidelines,
                         }),
                     };
 

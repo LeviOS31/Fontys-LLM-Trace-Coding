@@ -1,4 +1,5 @@
-import { Box, Button, Callout, Flex, Spinner } from '@radix-ui/themes';import { AlertCircle } from 'lucide-react';
+import { Box, Button, Callout, Flex, Spinner } from '@radix-ui/themes';
+import { AlertCircle, Gavel } from 'lucide-react';
 import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
 import JudgeTemplateSelect from './JudgeTemplateSelect';
 import { colors } from '../../../shared/styling/colors';
@@ -20,7 +21,6 @@ export default function RunJudgePanel({
   loading,
   error,
 }: Props) {
-
   return (
     <Box
       style={{
@@ -33,20 +33,19 @@ export default function RunJudgePanel({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (canRun) onRun()
+          if (canRun) onRun();
         }}
       >
         <Flex direction="column" gap="3">
-
           <JudgeTemplateSelect
             templates={templates}
-            onChange={(updatedIds : string[]) => onTemplateChange(updatedIds)}
+            onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
           />
 
-            <Button type="submit" disabled={!canRun}>
-              <Spinner loading={loading} />
-              {loading ? 'Running judge' : 'Run judge'}
-            </Button>
+          <Button type="submit" disabled={!canRun}>
+            {loading ? <Spinner /> : <Gavel size={16} />}
+            {loading ? 'Running judge' : 'Run judge'}
+          </Button>
 
           {error && (
             <Callout.Root color="red" size="1">

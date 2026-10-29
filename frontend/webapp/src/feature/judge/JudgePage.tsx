@@ -54,7 +54,11 @@ export default function JudgePage() {
 
   useEffect(() => {
     if (!projectId || !versionId) return;
-    fetch(new URL(`/v1/projects/${projectId}/versions/${versionId}/judge-templates`, BASE_URL))
+
+    // Fixed: Construct endpoint using BASE_URL directly to prevent new URL invalid URL errors in Vitest/Happy-DOM
+    const endpoint = `${BASE_URL.replace(/\/$/, '')}/v1/projects/${projectId}/versions/${versionId}/judge-templates`;
+
+    fetch(endpoint)
       .then((r) => r.json())
       .then((d: { judgeTemplates: JudgeTemplate[] }) => setTemplates(d.judgeTemplates));
   }, [projectId, versionId]);

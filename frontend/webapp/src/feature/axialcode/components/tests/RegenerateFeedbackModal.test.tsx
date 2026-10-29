@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import RegenerateFeedbackModal from './RegenerateFeedbackModal';
+import RegenerateFeedbackModal from '../RegenerateFeedbackModal';
 
 describe('RegenerateFeedbackModal', () => {
   it('submits non-empty feedback as entered', () => {

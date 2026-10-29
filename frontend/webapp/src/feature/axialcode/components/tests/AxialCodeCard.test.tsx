@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { AxialCodeSnapshotCode } from '../../../shared/types/axialCodeSnapshotCode';
-import AxialCodeCard from './AxialCodeCard/AxialCodeCard';
+import type { AxialCodeSnapshotCode } from '../../../../shared/types/axialCodeSnapshotCode';
+import AxialCodeCard from '../AxialCodeCard/AxialCodeCard';
 
 const code: AxialCodeSnapshotCode = {
   id: 'code-1',

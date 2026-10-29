@@ -18,15 +18,13 @@ Example 1 — behavior PRESENT (true)
 <example_trace>
 {{example_positive_trace}}
 </example_trace>
-Evaluation: {{example_positive_reasoning}}
-Result: true
+{"reasoning": "{{example_positive_reasoning}}", "result": true}
 
 Example 2 — behavior ABSENT (false)
 <example_trace>
 {{example_negative_trace}}
 </example_trace>
-Evaluation: {{example_negative_reasoning}}
-Result: false
+{"reasoning": "{{example_negative_reasoning}}", "result": false}
 
 Instructions:
 - Use the judging guidelines as the sole criterion for judgment.
@@ -35,17 +33,9 @@ Instructions:
   - A user message is stored as gen_ai.prompt.N.content where gen_ai.prompt.N.role is "user".
   - An assistant response is stored as gen_ai.completion.N.content where gen_ai.completion.N.role is "assistant".
   - Do not require fields named user_message or assistant_response — extract from the OTLP attributes above.
-- Think step by step. First write a short Evaluation explaining your reasoning against the behavior definition, then give your final Result.
-- You MUST provide values for both "Evaluation" and "Result".
+- Think step by step against the behavior definition and the judging guidelines.
+- Respond with a single JSON object and nothing else: no text before or after it, and no code fences.
+- "reasoning" is required. It must be a non-empty explanation that references specific parts of the assistant response. Write it first, so the verdict follows from it.
+- "result" is true or false.
 
-
-Provide your feedback in this exact format:
-
-Evaluation: (your reasoning, as text, referencing specific parts of the assistant response)
-Result: (true or false)
-
-Output Requirements:
-After your reasoning, return your final answer as valid JSON on its own line, and nothing else after it:
-{
-  "result": true|false
-}
+{"reasoning": "<explanation>", "result": true|false}

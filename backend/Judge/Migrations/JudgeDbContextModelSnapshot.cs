@@ -28,11 +28,14 @@ namespace Judge.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AxialCodeId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("FalseCount")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
@@ -44,7 +47,16 @@ namespace Judge.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("TotalCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TrueCount")
+                        .HasColumnType("integer");
+
                     b.HasKey("JudgeRunId");
+
+                    b.HasIndex("ProjectId", "ProjectVersionId", "CreatedAt")
+                        .IsDescending(false, false, true);
 
                     b.ToTable("JudgeRuns");
                 });

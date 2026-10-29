@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Snapshot } from '../../../shared/types/snapshot';
-import AxialCodeList from './AxialCodeList';
+import type { Snapshot } from '../../../../shared/types/snapshot';
+import AxialCodeList from '../AxialCodeList';
 
-vi.mock('./AxialCodeCard/AxialCodeCard.tsx', () => ({
+vi.mock('../AxialCodeCard/AxialCodeCard.tsx', () => ({
   default: ({ code, snap }: { code: { name: string }; snap: 'A' | 'B' }) => (
     <div data-testid="code-card">{`${snap}:${code.name}`}</div>
   ),

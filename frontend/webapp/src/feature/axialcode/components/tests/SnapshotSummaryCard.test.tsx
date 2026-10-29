@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { Snapshot } from '../../../shared/types/snapshot';
-import SnapshotSummaryCard from './SnapshotSummaryCard';
+import type { Snapshot } from '../../../../shared/types/snapshot';
+import SnapshotSummaryCard from '../SnapshotSummaryCard';
 
 const snapshot: Snapshot = {
   label: 'Version B',

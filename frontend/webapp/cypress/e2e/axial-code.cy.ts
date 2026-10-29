@@ -516,4 +516,64 @@ describe('axial code', () => {
       });
     });
   });
+
+  // Scenario 4: Axial codes with judge guidelines and open code justifications
+  context('given an approved snapshot with judge guidelines', () => {
+    const seededResultWithGuidelines = {
+      ...seededAxialResultA,
+      axialCodes: [
+        {
+          ...seededAxialResultA.axialCodes[0],
+          judgeGuidelines:
+            'Mark true when: the user cannot navigate or understand the interface.\nMark false when: the user navigates without trouble.\nBorderline cases: a single hesitation counts as false.',
+          openCodeJustifications: [
+            {
+              traceId: openCodes[0].traceId,
+              quote: 'struggled to find the settings menu',
+              justification: 'The open code describes a user who could not locate a feature',
+            },
+          ],
+        },
+        seededAxialResultA.axialCodes[1],
+      ],
+    };
+
+    beforeEach(() => {
+      cy.task('seedProjects', [project]);
+      cy.task('seedVersions', [version]);
+      cy.task('seedTraces', [traceCollection]);
+      cy.task('seedOpenCodes', openCodes);
+      cy.task('seedAxialCodingResults', [seededResultWithGuidelines]);
+
+      visitAxialCodePage();
+
+      cy.contains('Usability Issues', { timeout: 8000 }).should('be.visible');
+    });
+
+    it('expands a card to show the judge guidelines and why each open code belongs', () => {
+      getAxialCodeCard('Usability Issues').within(() => {
+        cy.contains('button', 'Expand details ↓').click();
+        cy.get('[data-testid="axial-code-judge-guidelines"]')
+          .should('be.visible')
+          .and('contain.text', 'Judge guidelines')
+          .and(
+            'contain.text',
+            'Mark true when: the user cannot navigate or understand the interface.'
+          )
+          .and('contain.text', 'Borderline cases: a single hesitation counts as false.');
+        cy.contains('Why these open codes belong here').should('be.visible');
+        cy.get('[data-testid="axial-code-justification"]')
+          .should('have.length', 1)
+          .and('contain.text', 'struggled to find the settings menu')
+          .and('contain.text', 'The open code describes a user who could not locate a feature');
+      });
+    });
+
+    it('does not show judge guidelines for codes generated without them', () => {
+      getAxialCodeCard('Performance Concerns').within(() => {
+        cy.contains('button', 'Expand details ↓').click();
+        cy.get('[data-testid="axial-code-judge-guidelines"]').should('not.exist');
+      });
+    });
+  });
 });

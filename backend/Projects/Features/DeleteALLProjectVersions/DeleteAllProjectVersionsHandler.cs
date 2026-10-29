@@ -1,6 +1,7 @@
 ﻿using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Projects.Data;
+using RawLLMOutputs.Contracts.Features.DeleteAllRawLLMOutputOfVersion;
 using Serilog;
 using Shared;
 using System.Data.Common;
@@ -52,12 +53,17 @@ namespace Projects.Features.DeleteAllProjectVersions
             {
                 foreach (var versionId in VersionIDList)
                 {
-                    versionid = versionId;
                     var deletetraces = new DeleteAllTracesOfVersionRequest
                     {
                         VersionId = versionId,
                     };
                     var deleteTracesResult = await _mediator.Send(deletetraces, cancellationToken);
+                
+                    var deleteRawLLMOutput = new DeleteAllRawLLMOutputOfVersionQuery
+                    {
+                        VersionId = versionId,
+                    };
+                    var deleteRawLLMOutputResult = await _mediator.Send(deleteRawLLMOutput, cancellationToken);
                 }
             }
             catch (Exception ex)

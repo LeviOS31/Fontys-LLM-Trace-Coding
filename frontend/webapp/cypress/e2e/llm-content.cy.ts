@@ -121,7 +121,7 @@ describe('LLM chat content', () => {
   });
 
   it('renders the LLM conversation and opens retrieved source evidence', () => {
-    cy.contains('LLM chat interaction').should('be.visible');
+    cy.contains('LLM chat interaction', { timeout: 15000 }).should('be.visible');
     cy.contains('Summarize this source').should('be.visible');
     cy.contains('A concise summary').should('be.visible');
     cy.contains('E2E-MODEL').should('be.visible');

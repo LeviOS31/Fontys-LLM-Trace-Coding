@@ -138,29 +138,25 @@ export default function JudgePage() {
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
   const runJudge = async () => {
-
     selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
 
     if (!selectedTemplates || selectedTemplates.length === 0) return;
     setRunning(true);
     setError(null);
 
-    const axialCodeIds : string[] = [];
+    const axialCodeIds: string[] = [];
 
     selectedTemplates.forEach((template) => {
-        axialCodeIds.push(template.axialCodeId);
-    })
+      axialCodeIds.push(template.axialCodeId);
+    });
 
     try {
-      const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/judge`,
-        BASE_URL
-      );
-      
+      const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
+
       const res = await fetch(url.toString(), {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ axialCodeIds }) 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ axialCodeIds }),
       });
       const data = await res.json();
 
@@ -215,7 +211,7 @@ export default function JudgePage() {
 
       <RunJudgePanel
         templates={activeTemplates}
-        onTemplateChange={ (updatedIds : string[]) => setTemplateIds(updatedIds)}
+        onTemplateChange={(updatedIds: string[]) => setTemplateIds(updatedIds)}
         onRun={runJudge}
         canRun={!running && Boolean(selectedTemplates.length > 0)}
         loading={running}

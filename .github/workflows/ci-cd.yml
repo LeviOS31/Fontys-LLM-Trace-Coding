@@ -595,7 +595,7 @@ jobs:
               name: traceeval_network
           EOF
 
-          cat > .env.example <<'EOF'
+          cat > example.env <<'EOF'
           # Copy this to .env and set a real value before running:
           #   cp .env.example .env
           POSTGRES_PASSWORD=changeme

@@ -1,1 +1,4 @@
-export const BASE_URL = import.meta.env.VITE_API_URL == typeof "" || import.meta.env.VITE_API_URL === undefined ? window.location.origin : import.meta.env.VITE_API_URL;
+const hostname = window.location.hostname;
+
+// Always point to port 8080 where your backend lives
+export const BASE_URL = `http://${hostname}:8080`;

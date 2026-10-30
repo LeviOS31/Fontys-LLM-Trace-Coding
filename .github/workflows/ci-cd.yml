@@ -524,8 +524,6 @@ jobs:
           file: ./frontend/webapp/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          build-args: |
-            VITE_API_URL=http://localhost:8080
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
           tags: |
@@ -601,6 +599,7 @@ jobs:
           # Copy this to .env and set a real value before running:
           #   cp .env.example .env
           POSTGRES_PASSWORD=changeme
+          VITE_API_URL=http://localhost:8080
           EOF
 
       - name: Create GitHub Release
@@ -610,5 +609,5 @@ jobs:
           name: ${{ env.BUILD_VERSION }}
           files: |
             docker-compose.release.yml
-            .env.example
+            example.env
           generate_release_notes: true

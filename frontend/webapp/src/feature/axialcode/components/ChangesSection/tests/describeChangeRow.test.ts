@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { AxialCode } from '../../../../shared/types/axialCode.ts';
-import { compareAxialCodes } from '../../../../shared/util/compareAxialCodes.ts';
-import { buildChangeRows } from './buildChangeRows.ts';
-import { describeChangeRow } from './describeChangeRow.ts';
+import type { AxialCode } from '../../../../../shared/types/axialCode.ts';
+import { compareAxialCodes } from '../../../../../shared/util/compareAxialCodes.ts';
+import { buildChangeRows } from '../buildChangeRows.ts';
+import { describeChangeRow } from '../describeChangeRow.ts';
 
 const code = (label: string, traceIds: string[], description = ''): AxialCode => ({
   label,

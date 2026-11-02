@@ -39,6 +39,7 @@ export function GenerateAxialCodesPanel({
       { feedback, axialCodes: normalizedAxialCodes },
       {
         onSuccess: (generated) => {
+          console.log('generate response', generated);
           const generatedAxialCodes = Array.isArray(generated)
             ? generated
             : (generated?.axialCodes ?? []);
@@ -46,8 +47,16 @@ export function GenerateAxialCodesPanel({
             !Array.isArray(generated) && generated?.axialCodingResultId
               ? generated.axialCodingResultId
               : '';
+          if (!axialCodingResultId || generatedAxialCodes.length === 0) {
+            console.error('Unusable generate response', {
+              axialCodingResultId,
+              count: generatedAxialCodes.length,
+            });
+            return;
+          }
           onGenerated?.({ axialCodingResultId, axialCodes: generatedAxialCodes, feedback });
         },
+        onError: (err) => console.error('Generate failed', err),
       }
     );
   };

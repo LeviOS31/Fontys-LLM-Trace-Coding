@@ -399,7 +399,7 @@ public class GenerateAxialCodingResultHandler
         IEnumerable<OpenCodeLlmItem> openCodes
     )
     {
-        var openCodeText = openCodes.ToDictionary(code => code.OpenCodeId, code => NormalizeWhitespace(code.OpenCode));
+        var openCodeText = openCodes.ToDictionary(code => code.OpenCodeId, code => NormalizeForMatch(code.OpenCode));
 
         foreach (var axialCode in axialCodes)
         {
@@ -446,7 +446,7 @@ public class GenerateAxialCodingResultHandler
                     return ErrorCode.LlmError;
                 }
 
-                var normalizedQuote = NormalizeWhitespace(evidence.Quote);
+                var normalizedQuote = NormalizeForMatch(evidence.Quote);
                 var normalizedOpenCode = openCodeText.GetValueOrDefault(evidence.OpenCodeId);
                 if (
                     string.IsNullOrWhiteSpace(normalizedOpenCode)
@@ -542,9 +542,18 @@ public class GenerateAxialCodingResultHandler
         }
     }
 
-    private static string NormalizeWhitespace(string? text) =>
-        string.Join(' ', (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    private static string NormalizeForMatch(string? text)
+    {
+        var normalized = (text ?? string.Empty)
+            .Replace('\u2018', '\'')   // ‘
+            .Replace('\u2019', '\'')   // ’
+            .Replace('\u02BC', '\'')   // ʼ
+            .Replace('`', '\'')
+            .Replace('\u201C', '"')    // “
+            .Replace('\u201D', '"');   // ”
 
+        return string.Join(' ', normalized.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
     private static string NormalizeLlmResponse(string llmResponse)
     {
         var response = llmResponse.Trim();

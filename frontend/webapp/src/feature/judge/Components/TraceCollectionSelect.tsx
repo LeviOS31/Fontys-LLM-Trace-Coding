@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, Flex, Popover, Text, TextField } from '@radix-ui/themes';
 import { ChevronDown, Search } from 'lucide-react';
 import { BASE_URL } from '../../../shared/api/api';
-import styles from '../JudgePage.module.css';
 
 type TraceCollection = { traceCollectionId: string; name: string; tracersCount: number };
 

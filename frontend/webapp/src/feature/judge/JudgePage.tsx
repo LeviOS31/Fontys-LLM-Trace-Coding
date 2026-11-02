@@ -3,9 +3,9 @@ import { Navigate, useParams } from 'react-router';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { Gavel } from 'lucide-react';
 import { BASE_URL } from '../../shared/api/api';
-import JudgeOverview from './Components/JudgeOverview';
-import JudgeRunDetails from './Components/JudgeRunDetails';
-import RunJudgePanel from './Components/JudgeRunPanel';
+import JudgeOverview from './components/JudgeOverview';
+import JudgeRunDetails from './components/JudgeRunDetails';
+import RunJudgePanel from './components/JudgeRunPanel';
 import {
   isJudgeResponse,
   type JudgeResult,

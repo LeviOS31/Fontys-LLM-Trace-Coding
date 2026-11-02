@@ -11,6 +11,7 @@ public record InternalGetTraceTranscriptsRequest : IRequest<Result<InternalGetTr
     public required Guid UserId { get; init; }
     public Guid? TraceCollectionId { get; init; }
     public Guid? TraceId { get; init; }
+    public Guid[]? TraceCollectionIds { get; init; }
 }
 
 public sealed class InternalGetTraceTranscriptsRequestValidator

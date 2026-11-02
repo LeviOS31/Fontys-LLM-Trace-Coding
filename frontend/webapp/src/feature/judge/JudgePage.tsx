@@ -5,6 +5,7 @@ import styles from './JudgePage.module.css';
 import JudgePageTemplateSelect from './Components/JudgeTemplateSelect';
 import type { JudgeTemplate } from '../../shared/types/judgeTemplate';
 import { useForm, FormProvider } from 'react-hook-form';
+import TraceCollectionSelect from './Components/TraceCollectionSelect';
 
 type PageParams = { id: string; versionId: string };
 type Status = 'idle' | 'success' | 'error';
@@ -19,6 +20,7 @@ type View = 'formatted' | 'raw';
 
 type JudgeResult = {
   traceId: string;
+  judgeTemplateId: string;
   status: string;
   verdict: string;
   reasoning: string;
@@ -43,6 +45,7 @@ export default function JudgePage() {
   const [status, setStatus] = useState<Status>('idle');
   const [view, setView] = useState<View>('formatted');
   const [copied, setCopied] = useState(false);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!projectId || !versionId) return;
@@ -77,7 +80,7 @@ export default function JudgePage() {
       const res = await fetch(url.toString(), {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ axialCodeIds }) 
+        body: JSON.stringify({ axialCodeIds, traceCollectionIds: selectedCollectionIds }),
       });
 
       const data = await res.json();
@@ -104,7 +107,7 @@ export default function JudgePage() {
   };
   const methods = useForm({ defaultValues: { templateId: '' } });
 
-  const canRun = !loading && selectedTemplateIds.length > 0;
+  const canRun = !loading && selectedCollectionIds.length > 0 && selectedTemplateIds.length > 0;
   const canFormat = parsed !== null;
   const showFormatted = canFormat && view === 'formatted';
 
@@ -135,6 +138,13 @@ export default function JudgePage() {
               if (canRun) runJudge();
             }}
           >
+            <div className={styles.row}>
+              <TraceCollectionSelect
+                projectId={projectId}
+                versionId={versionId}
+                onChange={setSelectedCollectionIds}
+              />
+            </div>
             <div className={styles.row}>
               <JudgePageTemplateSelect
                 templates={templates}
@@ -201,37 +211,40 @@ export default function JudgePage() {
                 ) : (
                   <ul className={styles.items}>
                     {parsed.results.map((r) => {
-                      const verdictTrue = String(r.verdict).toLowerCase() === 'true';
-                      const ok = String(r.status).toLowerCase() === 'success';
-                      return (
-                        <li key={r.traceId} className={styles.item}>
-                          <div className={styles.itemHead}>
-                            <div>
-                              <span className={styles.metaLabel}>Trace</span>
-                              <code>{r.traceId}</code>
+                        const verdictTrue = String(r.verdict).toLowerCase() === 'true';
+                        const ok = String(r.status).toLowerCase() === 'success';
+                        return (
+                          <li key={`${r.traceId}-${r.judgeTemplateId}`} className={styles.item}>
+                            <div className={styles.itemHead}>
+                              <div>
+                                <span className={styles.metaLabel}>Trace</span>
+                                <code>{r.traceId}</code>
+                                <br />
+                                <span className={styles.metaLabel}>Template</span>
+                                {templates.find((t) => t.id === r.judgeTemplateId)?.name ?? r.judgeTemplateId}
+                              </div>
+                              <div className={styles.badges}>
+                                <span
+                                  className={`${styles.badge} ${
+                                    verdictTrue ? styles.badgeTrue : styles.badgeFalse
+                                  }`}
+                                >
+                                  Verdict: {String(r.verdict)}
+                                </span>
+                                <span
+                                  className={`${styles.badge} ${
+                                    ok ? styles.badgeOk : styles.badgeFail
+                                  }`}
+                                >
+                                  {r.status}
+                                </span>
+                              </div>
                             </div>
-                            <div className={styles.badges}>
-                              <span
-                                className={`${styles.badge} ${
-                                  verdictTrue ? styles.badgeTrue : styles.badgeFalse
-                                }`}
-                              >
-                                Verdict: {String(r.verdict)}
-                              </span>
-                              <span
-                                className={`${styles.badge} ${
-                                  ok ? styles.badgeOk : styles.badgeFail
-                                }`}
-                              >
-                                {r.status}
-                              </span>
-                            </div>
-                          </div>
-                          <p className={styles.reasoning}>{r.reasoning}</p>
-                          {r.error && <p className={styles.itemError}>{r.error}</p>}
-                        </li>
-                      );
-                    })}
+                            <p className={styles.reasoning}>{r.reasoning}</p>
+                            {r.error && <p className={styles.itemError}>{r.error}</p>}
+                          </li>
+                        );
+                      })}
                   </ul>
                 )}
               </>

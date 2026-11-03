@@ -7,7 +7,7 @@ export type JudgeTemplate = {
 
 // verdict and reasoning are null when the trace failed.
 export type JudgeResult = {
-  judgeTemplateId: string;
+  judgeTemplateId?: string;
   traceId: string;
   status: string;
   verdict: string | null;

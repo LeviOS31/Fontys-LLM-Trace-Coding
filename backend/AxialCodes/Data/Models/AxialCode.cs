@@ -9,6 +9,7 @@ public class AxialCode
     public const int MaxDescriptionLength = 255;
     public const int MaxFeedbackLength = 1000;
     public const int MaxJudgeGuidelinesLength = 2000;
+    public const int MaxRationaleLength = 1000;
 
     public required Guid AxialCodingResultId { get; init; }
     public required AxialCodingResult? AxialCodingResult { get; init; }
@@ -17,6 +18,9 @@ public class AxialCode
     public required string Label { get; init; }
     public required string Description { get; init; }
     public required ICollection<Guid> TraceIds { get; init; }
+
+    // Why this axial code was created, based on its grouped open codes. Null for results generated before it existed.
+    public string? Rationale { get; init; }
 
     // Guidelines a judge can apply to an unseen trace to decide whether it shows this behaviour,
     // derived from the grouped open codes. Null for results generated before they existed.
@@ -38,6 +42,7 @@ internal sealed class AxialCodeEntityConfiguration : IEntityTypeConfiguration<Ax
         builder.Property(x => x.Description).HasMaxLength(AxialCode.MaxDescriptionLength);
         builder.Property(x => x.Feedback).HasMaxLength(AxialCode.MaxFeedbackLength);
         builder.Property(x => x.JudgeGuidelines).HasMaxLength(AxialCode.MaxJudgeGuidelinesLength);
+        builder.Property(x => x.Rationale).HasMaxLength(AxialCode.MaxRationaleLength);
 
         builder.PrimitiveCollection(x => x.TraceIds);
 

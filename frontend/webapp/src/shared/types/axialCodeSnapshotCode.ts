@@ -11,8 +11,8 @@ export interface AxialCodeSnapshotCode {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  /** Guidelines for the judge to decide whether an unseen trace shows this behaviour. */
-  readonly judgeGuidelines?: string | null;
+  /** Why this code was created. */
+  readonly rationale?: string | null;
   /** Why each grouped open code belongs to this code. */
   readonly justifications?: readonly AxialCodeSnapshotJustification[];
   readonly prevalence: number;

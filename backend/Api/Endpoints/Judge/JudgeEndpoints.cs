@@ -26,7 +26,7 @@ public static class JudgeEndpoints
                         UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
                         ProjectId = projectId,
                         ProjectVersionId = projectVersionId,
-                        AxialCodeIds = body.AxialCodeIds,
+                        JudgeTemplateIds = body.JudgeTemplateIds,
                     };
                     var result = await mediator.Send(request);
 

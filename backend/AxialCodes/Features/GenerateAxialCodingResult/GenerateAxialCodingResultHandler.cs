@@ -12,6 +12,7 @@ using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
 using Shared.Builders;
 using Shared.Interfaces;
+using Traces.Contracts.Features.GetTrace;
 using Traces.Contracts.Features.GetVersionOpencode;
 
 namespace AxialCodes.Features.GenerateAxialCodingResult;
@@ -20,6 +21,10 @@ public class GenerateAxialCodingResultHandler
     : IRequestHandler<GenerateAxialCodingResultRequest, Result<GenerateAxialCodingResultResponse>>
 {
     private static readonly ILogger Logger = Log.ForContext<GenerateAxialCodingResultHandler>();
+
+    private const int NegativeCandidateCount = 3;
+    private const int MaxTraceChars = 4000;
+    private const int MaxExcerptChars = 500;
 
     private static readonly Lazy<string> _axialCodingPrompt = new(() =>
         LoadPrompt("AxialCodes.Resources.Prompts.AxialCodingPrompt.txt")
@@ -77,6 +82,8 @@ public class GenerateAxialCodingResultHandler
         {
             axialCodeGenerationResult = await GenerateAxialCodesAsync(
                 request.UserId,
+                request.ProjectId,
+                request.ProjectVersionId,
                 getOpenCodesResult.Value.Opencodes,
                 cancellationToken
             );
@@ -85,6 +92,8 @@ public class GenerateAxialCodingResultHandler
         {
             axialCodeGenerationResult = await GenerateAxialCodesAsync(
                 request.UserId,
+                request.ProjectId,
+                request.ProjectVersionId,
                 getOpenCodesResult.Value.Opencodes,
                 request.Feedback,
                 request.AxialCodes,
@@ -137,6 +146,10 @@ public class GenerateAxialCodingResultHandler
                 Description = ac.Description,
                 TraceIds = ac.TraceIds,
                 JudgeGuidelines = ac.JudgeGuidelines,
+                PositiveExampleTrace = ac.PositiveExampleTrace,
+                PositiveExampleReasoning = ac.PositiveExampleReasoning,
+                NegativeExampleTrace = ac.NegativeExampleTrace,
+                NegativeExampleReasoning = ac.NegativeExampleReasoning,
                 OpenCodeJustifications = ac.OpenCodeJustifications.Select(j => new OpenCodeJustificationViewModel
                 {
                     TraceId = j.TraceId,
@@ -167,6 +180,9 @@ public class GenerateAxialCodingResultHandler
 
         [JsonPropertyName("judgeGuidelines")]
         public required string JudgeGuidelines { get; init; }
+
+        [JsonPropertyName("positiveExampleOpenCodeId")]
+        public required int PositiveExampleOpenCodeId { get; init; }
 
         [JsonPropertyName("openCodeIds")]
         public required ICollection<int> OpenCodeIds { get; init; }
@@ -218,10 +234,42 @@ public class GenerateAxialCodingResultHandler
 
         [JsonPropertyName("rationale")]
         public required string Rationale { get; init; }
+
+        [JsonPropertyName("positive")]
+        public ExcerptLlmItem? Positive { get; init; }
+
+        [JsonPropertyName("negative")]
+        public ExcerptLlmItem? Negative { get; init; }
     }
+
+    private sealed record ExcerptLlmItem
+    {
+        [JsonPropertyName("openCodeId")]
+        public int? OpenCodeId { get; init; }
+
+        [JsonPropertyName("userExcerpt")]
+        public string? UserExcerpt { get; init; }
+
+        [JsonPropertyName("assistantExcerpt")]
+        public string? AssistantExcerpt { get; init; }
+
+        [JsonPropertyName("reasoning")]
+        public string? Reasoning { get; init; }
+    }
+
+    private sealed record ExampleResult(string Trace, string Reasoning);
+
+    private sealed record TraceMessage(string Role, string Content);
+
+    private sealed record VerificationOutcome(
+        HashSet<int> Supported,
+        Dictionary<int, (ExampleResult? Positive, ExampleResult? Negative)> Examples
+    );
 
     private async Task<Result<IEnumerable<AxialCode>>> GenerateAxialCodesAsync(
         Guid userId,
+        Guid projectId,
+        Guid projectVersionId,
         IEnumerable<GetVersionOpencodeResponse.OpencodeViewModel> opencodeViewModels,
         CancellationToken cancellationToken
     )
@@ -233,11 +281,21 @@ public class GenerateAxialCodingResultHandler
             new(ChatRole.System, _axialCodingPrompt.Value),
             new(ChatRole.User, openCodesJson),
         };
-        return await GenerateAndValidateAxialCodesAsync(userId, messages, mapping, openCodesPayload, cancellationToken);
+        return await GenerateAndValidateAxialCodesAsync(
+            userId,
+            projectId,
+            projectVersionId,
+            messages,
+            mapping,
+            openCodesPayload,
+            cancellationToken
+        );
     }
 
     private async Task<Result<IEnumerable<AxialCode>>> GenerateAxialCodesAsync(
         Guid userId,
+        Guid projectId,
+        Guid projectVersionId,
         IEnumerable<GetVersionOpencodeResponse.OpencodeViewModel> opencodeViewModels,
         string feedback,
         IEnumerable<AxialCodeViewModel> previousAxialCodes,
@@ -268,11 +326,21 @@ public class GenerateAxialCodingResultHandler
             new(ChatRole.System, _axialCodingWithFeedbackPrompt.Value),
             new(ChatRole.User, userPrompt),
         };
-        return await GenerateAndValidateAxialCodesAsync(userId, messages, mapping, openCodesPayload, cancellationToken);
+        return await GenerateAndValidateAxialCodesAsync(
+            userId,
+            projectId,
+            projectVersionId,
+            messages,
+            mapping,
+            openCodesPayload,
+            cancellationToken
+        );
     }
 
     private async Task<Result<IEnumerable<AxialCode>>> GenerateAndValidateAxialCodesAsync(
         Guid userId,
+        Guid projectId,
+        Guid projectVersionId,
         List<ChatMessage> messages,
         Dictionary<int, Guid> mapping,
         List<OpenCodeLlmItem> openCodesPayload,
@@ -298,16 +366,29 @@ public class GenerateAxialCodingResultHandler
             return validationResult.ErrorCode;
         }
 
-        var verificationResult = await VerifyAxialCodesAsync(userId, candidates, openCodesPayload, cancellationToken);
+        var verificationResult = await VerifyAxialCodesAsync(
+            userId,
+            projectId,
+            projectVersionId,
+            candidates,
+            openCodesPayload,
+            mapping,
+            cancellationToken
+        );
         if (verificationResult.IsError)
         {
             return verificationResult.ErrorCode;
         }
 
+        var verification = verificationResult.Value;
         var acceptedAxialCodes = candidates
             .Select((candidate, index) => (candidate, index))
-            .Where(item => verificationResult.Value.Contains(item.index))
-            .Select(item => BuildAxialCode(item.candidate, mapping))
+            .Where(item => verification.Supported.Contains(item.index))
+            .Select(item =>
+            {
+                var (positive, negative) = verification.Examples.GetValueOrDefault(item.index);
+                return BuildAxialCode(item.candidate, mapping, positive, negative);
+            })
             .ToArray();
 
         if (acceptedAxialCodes.Length == 0)
@@ -319,7 +400,12 @@ public class GenerateAxialCodingResultHandler
         return Result.Success<IEnumerable<AxialCode>>(acceptedAxialCodes);
     }
 
-    private static AxialCode BuildAxialCode(AxialCodeLlmItem candidate, Dictionary<int, Guid> mapping)
+    private static AxialCode BuildAxialCode(
+        AxialCodeLlmItem candidate,
+        Dictionary<int, Guid> mapping,
+        ExampleResult? positive,
+        ExampleResult? negative
+    )
     {
         var axialCodeId = Guid.NewGuid();
         return new AxialCode
@@ -328,6 +414,10 @@ public class GenerateAxialCodingResultHandler
             Label = candidate.Label.Trim(),
             Description = candidate.Description.Trim(),
             JudgeGuidelines = candidate.JudgeGuidelines.Trim(),
+            PositiveExampleTrace = positive?.Trace,
+            PositiveExampleReasoning = positive?.Reasoning,
+            NegativeExampleTrace = negative?.Trace,
+            NegativeExampleReasoning = negative?.Reasoning,
             TraceIds = candidate.OpenCodeIds.Select(id => mapping[id]).Distinct().ToArray(),
             // Open codes are keyed by trace; keep one justification per open code.
             OpenCodeJustifications = candidate
@@ -430,6 +520,12 @@ public class GenerateAxialCodingResultHandler
                 return ErrorCode.LlmError;
             }
 
+            if (!axialCode.OpenCodeIds.Contains(axialCode.PositiveExampleOpenCodeId))
+            {
+                Logger.Warning("Generated axial code picked a positive example that is not one of its open codes");
+                return ErrorCode.LlmError;
+            }
+
             var evidenceById = new Dictionary<int, string>();
             foreach (var evidence in axialCode.Evidence)
             {
@@ -476,14 +572,54 @@ public class GenerateAxialCodingResultHandler
         return Result.Success(true);
     }
 
-    private async Task<Result<HashSet<int>>> VerifyAxialCodesAsync(
+    private async Task<Result<VerificationOutcome>> VerifyAxialCodesAsync(
         Guid userId,
+        Guid projectId,
+        Guid projectVersionId,
         IEnumerable<AxialCodeLlmItem> axialCodes,
         List<OpenCodeLlmItem> openCodes,
+        Dictionary<int, Guid> mapping,
         CancellationToken cancellationToken
     )
     {
-        var candidates = axialCodes
+        var axialList = axialCodes.ToList();
+
+        // Load the traces needed for the examples: the positive pick and a few negative candidates
+        // (open codes that are not part of the axial code).
+        var traces = new Dictionary<int, IReadOnlyList<TraceMessage>>();
+        var negativeIdsByIndex = new Dictionary<int, int[]>();
+        for (var i = 0; i < axialList.Count; i++)
+        {
+            var code = axialList[i];
+            negativeIdsByIndex[i] = openCodes
+                .Select(c => c.OpenCodeId)
+                .Where(id => !code.OpenCodeIds.Contains(id))
+                .Take(NegativeCandidateCount)
+                .ToArray();
+
+            var idsToLoad = negativeIdsByIndex[i].Append(code.PositiveExampleOpenCodeId).Distinct();
+            foreach (var id in idsToLoad)
+            {
+                if (traces.ContainsKey(id))
+                {
+                    continue;
+                }
+                var traceMessages = await LoadTraceMessagesAsync(
+                    userId,
+                    projectId,
+                    projectVersionId,
+                    mapping[id],
+                    cancellationToken
+                );
+                if (traceMessages == null)
+                {
+                    continue;
+                }
+                traces[id] = traceMessages;
+            }
+        }
+
+        var candidates = axialList
             .Select(
                 (code, index) =>
                     new
@@ -494,6 +630,17 @@ public class GenerateAxialCodingResultHandler
                         judgeGuidelines = code.JudgeGuidelines,
                         openCodeIds = code.OpenCodeIds,
                         evidence = code.Evidence,
+                        positiveTrace = traces.TryGetValue(code.PositiveExampleOpenCodeId, out var positiveMessages)
+                            ? new
+                            {
+                                openCodeId = code.PositiveExampleOpenCodeId,
+                                messages = ClipMessages(positiveMessages),
+                            }
+                            : null,
+                        negativeCandidates = negativeIdsByIndex[index]
+                            .Where(traces.ContainsKey)
+                            .Select(id => new { openCodeId = id, messages = ClipMessages(traces[id]) })
+                            .ToArray(),
                     }
             )
             .ToArray();
@@ -531,15 +678,168 @@ public class GenerateAxialCodingResultHandler
                 throw new JsonException("Verification response did not contain exactly one check per axial code");
             }
 
-            return Result.Success<HashSet<int>>(
-                checks.Where(check => check.Supported).Select(check => check.Index).ToHashSet()
-            );
+            var supported = checks.Where(check => check.Supported).Select(check => check.Index).ToHashSet();
+            var examples = new Dictionary<int, (ExampleResult? Positive, ExampleResult? Negative)>();
+            foreach (var check in checks.Where(check => check.Supported))
+            {
+                var code = axialList[check.Index];
+
+                ExampleResult? positive = null;
+                if (traces.TryGetValue(code.PositiveExampleOpenCodeId, out var positiveTrace))
+                {
+                    positive = ValidateExcerpt(check.Positive, positiveTrace);
+                }
+
+                ExampleResult? negative = null;
+                if (
+                    check.Negative?.OpenCodeId is int negativeId
+                    && negativeIdsByIndex[check.Index].Contains(negativeId)
+                    && traces.TryGetValue(negativeId, out var negativeTrace)
+                )
+                {
+                    negative = ValidateExcerpt(check.Negative, negativeTrace);
+                }
+
+                examples[check.Index] = (positive, negative);
+            }
+
+            return new VerificationOutcome(supported, examples);
         }
         catch (JsonException ex)
         {
             Logger.Error(ex, "Failed to parse axial-code grounding verification response");
             return ErrorCode.LlmError;
         }
+    }
+
+    // Trace loading
+    private async Task<IReadOnlyList<TraceMessage>?> LoadTraceMessagesAsync(
+        Guid userId,
+        Guid projectId,
+        Guid projectVersionId,
+        Guid traceId,
+        CancellationToken cancellationToken
+    )
+    {
+        var result = await _mediator.Send(
+            new GetTraceQuery
+            {
+                ProjectId = projectId,
+                ProjectVersionId = projectVersionId,
+                UserId = userId,
+                TraceId = traceId,
+            },
+            cancellationToken
+        );
+        if (result.IsError)
+        {
+            Logger.Warning("Could not load trace {TraceId}: {Error}", traceId, result.ErrorCode);
+            return null;
+        }
+
+        var spans = GetSpanAttributes(result.Value).ToList();
+
+        // Later LLM spans repeat the earlier conversation in their prompt attributes,
+        // so use only the last span that has a completion. Fall back to all spans.
+        var llmSpans = spans.Where(s => s.ContainsKey("gen_ai.completion.0.content")).ToList();
+        var messages = ExtractMessages(llmSpans.Count > 0 ? llmSpans.TakeLast(1) : spans);
+
+        if (messages.Count == 0)
+        {
+            Logger.Warning(
+                "No gen_ai prompt/completion messages found in trace {TraceId}. Attribute keys: {Keys}",
+                traceId,
+                spans.SelectMany(s => s.Keys).Distinct().Take(30)
+            );
+            return null;
+        }
+        return messages;
+    }
+
+    // Reads gen_ai.prompt.N.* and gen_ai.completion.N.* attributes from each span.
+    private static List<TraceMessage> ExtractMessages(IEnumerable<IReadOnlyDictionary<string, string>> spans)
+    {
+        var messages = new List<TraceMessage>();
+        foreach (var attributes in spans)
+        {
+            foreach (var prefix in new[] { "gen_ai.prompt", "gen_ai.completion" })
+            {
+                var defaultRole = prefix == "gen_ai.completion" ? "assistant" : "user";
+                for (var i = 0; attributes.ContainsKey($"{prefix}.{i}.content"); i++)
+                {
+                    var role = attributes.GetValueOrDefault($"{prefix}.{i}.role") ?? defaultRole;
+                    messages.Add(new TraceMessage(role, attributes[$"{prefix}.{i}.content"]));
+                }
+            }
+        }
+        return messages;
+    }
+
+    private static IEnumerable<IReadOnlyDictionary<string, string>> GetSpanAttributes(GetTraceResponse trace) =>
+        trace
+            .TraceScopes.SelectMany(scope => scope.Spans)
+            .OrderBy(span => span.StartTimeUnixNano)
+            .Select(span =>
+            {
+                var attributes = new Dictionary<string, string>();
+                foreach (var attribute in span.Attributes)
+                {
+                    // ASSUMED: SpanAttributeView has Key and Value
+                    attributes[attribute.Key] = attribute.Value?.ToString() ?? string.Empty;
+                }
+                return (IReadOnlyDictionary<string, string>)attributes;
+            });
+
+    private static object[] ClipMessages(IReadOnlyList<TraceMessage> messages) =>
+        messages
+            .Select(message =>
+            {
+                var content = message.Content ?? string.Empty;
+                return (object)new
+                {
+                    role = message.Role,
+                    content = content.Length > MaxTraceChars ? content[..MaxTraceChars] : content,
+                };
+            })
+            .ToArray();
+
+    // An example is only kept when both excerpts are verbatim parts of the real trace.
+    // A missing or invalid excerpt only drops that example, it never rejects the axial code.
+    private static ExampleResult? ValidateExcerpt(ExcerptLlmItem? item, IReadOnlyList<TraceMessage> messages)
+    {
+        if (
+            item == null
+            || string.IsNullOrWhiteSpace(item.UserExcerpt)
+            || string.IsNullOrWhiteSpace(item.AssistantExcerpt)
+            || string.IsNullOrWhiteSpace(item.Reasoning)
+            || item.UserExcerpt.Trim().Length > MaxExcerptChars
+            || item.AssistantExcerpt.Trim().Length > MaxExcerptChars
+            || item.Reasoning.Trim().Length > AxialCode.MaxExampleReasoningLength
+        )
+        {
+            return null;
+        }
+
+        var userText = NormalizeForMatch(
+            string.Join(' ', messages.Where(m => m.Role == "user").Select(m => m.Content))
+        );
+        var assistantText = NormalizeForMatch(
+            string.Join(' ', messages.Where(m => m.Role == "assistant").Select(m => m.Content))
+        );
+
+        if (
+            !userText.Contains(NormalizeForMatch(item.UserExcerpt), StringComparison.Ordinal)
+            || !assistantText.Contains(NormalizeForMatch(item.AssistantExcerpt), StringComparison.Ordinal)
+        )
+        {
+            Logger.Warning("Example excerpt was not found verbatim in its trace");
+            return null;
+        }
+
+        return new ExampleResult(
+            $"User: {item.UserExcerpt.Trim()}\nAssistant: {item.AssistantExcerpt.Trim()}",
+            item.Reasoning.Trim()
+        );
     }
 
     private static string NormalizeForMatch(string? text)

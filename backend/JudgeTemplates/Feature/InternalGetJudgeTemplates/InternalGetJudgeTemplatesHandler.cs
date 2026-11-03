@@ -26,21 +26,49 @@ public class InternalGetJudgeTemplatesHandler
         CancellationToken cancellationToken)
     {
 
-        var judgeTemplates = await _dbContext.JudgeTemplates
-            .Where(jt => request.judgeIds.Contains(jt.JudgeTemplateId))
-            .ToListAsync(cancellationToken);
+        var axialCodesResponse = await _mediator.Send(
+           new InternalGetAllAxialCodesByVersionRequest
+           {
+               ProjectId = request.ProjectId,
+               ProjectVersionId = request.ProjectVersionId,
+               UserId = request.UserId,
+           },
+           cancellationToken);
+
+        if (axialCodesResponse.IsError)
+        {
+            return axialCodesResponse.ErrorCode!.Value;
+        }
+
+
+        var judgeTemplates = new List<JudgeTemplate>();
+
+        if (request.judgeIds is null || request.judgeIds.Count == 0)
+        {
+            judgeTemplates = await _dbContext.JudgeTemplates
+                .ToListAsync(cancellationToken);
+        }
+        else
+        {
+            judgeTemplates = await _dbContext.JudgeTemplates
+                .Where(jt => request.judgeIds.Contains(jt.JudgeTemplateId))
+                .ToListAsync(cancellationToken);
+        }
+
 
         if (judgeTemplates is null || judgeTemplates.Count == 0)
         {
             return ErrorCode.EntityNotFound;
         }
 
+        var axialCodes = axialCodesResponse.Value.AxialCodes;
+
         var response = new InternalGetJudgeTemplatesResponse
         {
             JudgeTemplates = judgeTemplates.Select(jt => new JudgeTemplateViewModel
             {
                 JudgeTemplateId = jt.JudgeTemplateId,
-                Content = jt.CustomJudgeTemplateContent,
+                Content = jt.CustomJudgeTemplateContent != null? jt.CustomJudgeTemplateContent : DefaultJudgeTemplate.Render(axialCodes.First(a => a.AxialCodeId == jt.AxialCodeId)),
                 IsDeprecated = jt.IsDeprecated
             }).ToArray()
         };

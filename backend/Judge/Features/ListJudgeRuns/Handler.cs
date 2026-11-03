@@ -26,7 +26,7 @@ public class ListJudgeRunsHandler : IRequestHandler<ListJudgeRunsRequest, Result
         {
             var query = _dbContext
                 .JudgeRuns.AsNoTracking()
-                .Where(r => r.ProjectId == request.ProjectId && r.ProjectVersionId == request.ProjectVersionId);
+                .Where(r => r.JudgeCollectionId == request.JudgeCollectionId);
 
             var totals = await query
                 .GroupBy(_ => 1)
@@ -72,7 +72,7 @@ public class ListJudgeRunsHandler : IRequestHandler<ListJudgeRunsRequest, Result
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Error listing judge runs for version {ProjectVersionId}", request.ProjectVersionId);
+            Logger.Error(ex, "Error listing judge runs for collection {JudgeCollectionId}", request.JudgeCollectionId);
             return ErrorCode.DatabaseError;
         }
     }

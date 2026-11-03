@@ -1,20 +1,24 @@
-using System.Text.Json;
 using Judge.Data;
 using Judge.Data.Models;
 using Judge.Features.GetJudgeRun;
 using Judge.Features.JudgeTracesForAxialCode;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Shared;
 using Shouldly;
+using System.Text.Json;
 
 namespace Judge.Tests.Features.GetJudgeRun;
 
 public class GetJudgeRunHandlerTests
 {
-    private static readonly Guid _projectId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
-    private static readonly Guid _projectVersionId = new("68DF6625-60EA-4E0A-8F29-29DE14197025");
+    private static readonly Guid _judgeCollectionId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
     private static readonly Guid _judgeRunId = new("68DF6625-60EA-4E0A-8F29-29DE14197026");
     private static readonly Guid _userId = new("CE97539F-4189-44FC-A87F-CFA3EDB177ED");
+    private static readonly Guid _projectId = new("CE97539F-4189-44FC-A87F-CFA3EDB177EE");
+    private static readonly Guid _projectVersionId = new("CE97539F-4189-44FC-A87F-CFA3EDB177EF");
 
     private static DbContextOptions<JudgeDbContext> CreateOptions() =>
         new DbContextOptionsBuilder<JudgeDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
@@ -22,18 +26,18 @@ public class GetJudgeRunHandlerTests
     private static GetJudgeRunRequest CreateRequest() =>
         new()
         {
+            JudgeCollectionId = _judgeCollectionId,
             ProjectId = _projectId,
             ProjectVersionId = _projectVersionId,
             JudgeRunId = _judgeRunId,
             UserId = _userId,
         };
 
-    private static JudgeRun CreateRun(string resultsJson, Guid? projectId = null, Guid? projectVersionId = null) =>
+    private static JudgeRun CreateRun(string resultsJson) =>
         new()
         {
             JudgeRunId = _judgeRunId,
-            ProjectId = projectId ?? _projectId,
-            ProjectVersionId = projectVersionId ?? _projectVersionId,
+            JudgeCollectionId = _judgeCollectionId,
             ResultsJson = resultsJson,
             CreatedAt = DateTimeOffset.UtcNow,
             TotalCount = 0,
@@ -42,12 +46,56 @@ public class GetJudgeRunHandlerTests
             FailedCount = 0,
         };
 
-    private static async Task<JudgeDbContext> CreateContextWith(JudgeRun run)
+    private static async Task<JudgeDbContext> CreateContextWith(
+        string? resultsJson = null,
+        bool includeCollection = true,
+        bool includeRun = true
+    )
     {
         var context = new JudgeDbContext(CreateOptions());
-        context.JudgeRuns.Add(run);
+
+        if (includeCollection)
+        {
+            context.JudgeCollections.Add(
+                new JudgeCollection
+                {
+                    Name = "Collection",
+                    JudgeCollectionId = _judgeCollectionId,
+                    ProjectVersionId = _projectVersionId,
+                    CreatedAt = DateTime.UtcNow,
+                }
+            );
+        }
+
+        if (includeRun)
+        {
+            context.JudgeRuns.Add(CreateRun(resultsJson ?? "[]"));
+        }
+
         await context.SaveChangesAsync();
         return context;
+    }
+
+    private static IMediator CreateMediator(params Guid[] versionIds)
+    {
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetAllProjectVersionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new GetAllProjectVersionsResponse
+                {
+                    Versions = versionIds
+                        .Select(versionId => new GetAllProjectVersionsResponse.ProjectVersionSummary
+                        {
+                            VersionId = versionId,
+                            ProjectId = _projectId,
+                            Name = "Version",
+                            Description = "Test version",
+                        })
+                        .ToList(),
+                }
+            );
+        return mediator;
     }
 
     [Fact]
@@ -69,8 +117,9 @@ public class GetJudgeRunHandlerTests
                 },
             }
         );
-        await using var context = await CreateContextWith(CreateRun(json));
-        var handler = new GetJudgeRunHandler(context);
+        await using var context = await CreateContextWith(json);
+        var mediator = CreateMediator(_projectVersionId);
+        var handler = new GetJudgeRunHandler(context, mediator);
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -87,7 +136,7 @@ public class GetJudgeRunHandlerTests
     }
 
     [Fact]
-    public async Task WhenRunHasErroredTrace_ReturnNullVerdictAndReasoning()
+    public async Task WhenRunHasErroredTrace_ReturnErrorDetails()
     {
         // Arrange
         var json = JsonSerializer.Serialize(
@@ -104,8 +153,8 @@ public class GetJudgeRunHandlerTests
                 },
             }
         );
-        await using var context = await CreateContextWith(CreateRun(json));
-        var handler = new GetJudgeRunHandler(context);
+        await using var context = await CreateContextWith(json);
+        var handler = new GetJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -120,11 +169,11 @@ public class GetJudgeRunHandlerTests
     }
 
     [Fact]
-    public async Task WhenResultsJsonIsEmptyArray_ReturnEmptyResults()
+    public async Task WhenResultsJsonIsNull_ReturnEmptyResults()
     {
         // Arrange
-        await using var context = await CreateContextWith(CreateRun("[]"));
-        var handler = new GetJudgeRunHandler(context);
+        await using var context = await CreateContextWith("null");
+        var handler = new GetJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -135,56 +184,62 @@ public class GetJudgeRunHandlerTests
     }
 
     [Fact]
-    public async Task WhenResultsJsonIsNull_ReturnEmptyResults()
+    public async Task WhenCollectionDoesNotExist_ReturnEntityNotFoundWithoutLoadingVersions()
     {
         // Arrange
-        await using var context = await CreateContextWith(CreateRun("null"));
-        var handler = new GetJudgeRunHandler(context);
+        await using var context = await CreateContextWith(includeCollection: false);
+        var mediator = CreateMediator(_projectVersionId);
+        var handler = new GetJudgeRunHandler(context, mediator);
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value!.Results.ShouldBeEmpty();
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
+        await mediator.DidNotReceive().Send(Arg.Any<GetAllProjectVersionsQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task WhenVersionLookupFails_ReturnMediatorError()
+    {
+        // Arrange
+        await using var context = await CreateContextWith();
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetAllProjectVersionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(ErrorCode.DatabaseError);
+        var handler = new GetJudgeRunHandler(context, mediator);
+
+        // Act
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorCode.ShouldBe(ErrorCode.DatabaseError);
+    }
+
+    [Fact]
+    public async Task WhenVersionDoesNotExist_ReturnEntityNotFound()
+    {
+        // Arrange
+        await using var context = await CreateContextWith();
+        var handler = new GetJudgeRunHandler(context, CreateMediator(Guid.NewGuid()));
+
+        // Act
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
     }
 
     [Fact]
     public async Task WhenRunDoesNotExist_ReturnEntityNotFound()
     {
         // Arrange
-        await using var context = new JudgeDbContext(CreateOptions());
-        var handler = new GetJudgeRunHandler(context);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
-    }
-
-    [Fact]
-    public async Task WhenRunBelongsToOtherProject_ReturnEntityNotFound()
-    {
-        // Arrange
-        await using var context = await CreateContextWith(CreateRun("[]", projectId: Guid.NewGuid()));
-        var handler = new GetJudgeRunHandler(context);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
-    }
-
-    [Fact]
-    public async Task WhenRunBelongsToOtherVersion_ReturnEntityNotFound()
-    {
-        // Arrange
-        await using var context = await CreateContextWith(CreateRun("[]", projectVersionId: Guid.NewGuid()));
-        var handler = new GetJudgeRunHandler(context);
+        await using var context = await CreateContextWith(includeRun: false);
+        var handler = new GetJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -198,8 +253,8 @@ public class GetJudgeRunHandlerTests
     public async Task WhenResultsJsonIsCorrupt_ReturnDatabaseError()
     {
         // Arrange
-        await using var context = await CreateContextWith(CreateRun("{ this is not valid json"));
-        var handler = new GetJudgeRunHandler(context);
+        await using var context = await CreateContextWith("{ this is not valid json");
+        var handler = new GetJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -210,12 +265,12 @@ public class GetJudgeRunHandlerTests
     }
 
     [Fact]
-    public async Task WhenContextIsDisposed_ReturnDatabaseError()
+    public async Task WhenContextFailsLoadingCollection_ReturnDatabaseError()
     {
         // Arrange
         var context = new JudgeDbContext(CreateOptions());
         await context.DisposeAsync();
-        var handler = new GetJudgeRunHandler(context);
+        var handler = new GetJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);

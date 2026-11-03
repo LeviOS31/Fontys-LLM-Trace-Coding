@@ -2,13 +2,9 @@
 using Microsoft.EntityFrameworkCore;
 using Projects.Contracts.Features.GetAllProjectVersions;
 using Projects.Data;
-using Projects.Data.Models;
 using Serilog;
 using Shared;
-using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 
 namespace Projects.Features.GetProjectVersions
 {

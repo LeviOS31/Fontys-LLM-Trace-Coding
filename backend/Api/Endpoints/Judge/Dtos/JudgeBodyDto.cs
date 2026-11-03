@@ -2,6 +2,6 @@
 {
     public class JudgeBodyDto
     {
-        public required Guid[] JudgeTemplateIds { get; set; }
+        public required List<Guid> JudgeTemplateIds { get; set; }
     }
 }

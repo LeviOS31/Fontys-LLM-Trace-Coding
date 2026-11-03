@@ -2,6 +2,7 @@ using Judge.Data;
 using Judge.Data.Models;
 using Judge.Features.ListJudgeRuns;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Shared;
 using Shouldly;
 
@@ -9,19 +10,17 @@ namespace Judge.Tests.Features.ListJudgeRuns;
 
 public class ListJudgeRunsHandlerTests
 {
-    private static readonly Guid _projectId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
-    private static readonly Guid _projectVersionId = new("68DF6625-60EA-4E0A-8F29-29DE14197025");
+    private static readonly Guid _judgeCollectionId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
     private static readonly Guid _userId = new("CE97539F-4189-44FC-A87F-CFA3EDB177ED");
     private static readonly DateTimeOffset _baseTime = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
 
     private static DbContextOptions<JudgeDbContext> CreateOptions() =>
         new DbContextOptionsBuilder<JudgeDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
 
-    private static ListJudgeRunsRequest CreateRequest(int limit = 20, int offset = 0) =>
+    private static ListJudgeRunsRequest CreateRequest(int limit = 20, int offset = 0, Guid? judgeCollectionId = null) =>
         new()
         {
-            ProjectId = _projectId,
-            ProjectVersionId = _projectVersionId,
+            JudgeCollectionId = judgeCollectionId ?? _judgeCollectionId,
             UserId = _userId,
             Limit = limit,
             Offset = offset,
@@ -30,8 +29,7 @@ public class ListJudgeRunsHandlerTests
     private static JudgeRun CreateRun(
         DateTimeOffset? createdAt = null,
         Guid? judgeRunId = null,
-        Guid? projectId = null,
-        Guid? projectVersionId = null,
+        Guid? judgeCollectionId = null,
         Guid? axialCodeId = null,
         int total = 0,
         int trueCount = 0,
@@ -41,8 +39,7 @@ public class ListJudgeRunsHandlerTests
         new()
         {
             JudgeRunId = judgeRunId ?? Guid.NewGuid(),
-            ProjectId = projectId ?? _projectId,
-            ProjectVersionId = projectVersionId ?? _projectVersionId,
+            JudgeCollectionId = judgeCollectionId ?? _judgeCollectionId,
             ResultsJson = "[]",
             CreatedAt = createdAt ?? _baseTime,
             TotalCount = total,
@@ -51,7 +48,7 @@ public class ListJudgeRunsHandlerTests
             FailedCount = failed,
         };
 
-    private static async Task<JudgeDbContext> CreateContextWith(params JudgeRun[] runs)
+    private static async Task<JudgeDbContext> CreateContextWith( params JudgeRun[] runs)
     {
         var context = new JudgeDbContext(CreateOptions());
         context.JudgeRuns.AddRange(runs);
@@ -242,19 +239,21 @@ public class ListJudgeRunsHandlerTests
     }
 
     [Fact]
-    public async Task WhenRunsExistForOtherProjectOrVersion_IgnoreThem()
+    public async Task WhenRunsExistForOtherCollection_IgnoreThem()
     {
         // Arrange
         var ownRunId = Guid.NewGuid();
+        Guid judgecollectionid = Guid.NewGuid();
+
         await using var context = await CreateContextWith(
-            CreateRun(judgeRunId: ownRunId, total: 1, trueCount: 1),
-            CreateRun(projectId: Guid.NewGuid(), total: 10, trueCount: 10),
-            CreateRun(projectVersionId: Guid.NewGuid(), total: 20, trueCount: 20)
+            CreateRun(judgeRunId: ownRunId, judgeCollectionId: judgecollectionid, total: 1, trueCount: 1),
+            CreateRun(total: 10, trueCount: 10),
+            CreateRun(total: 20, trueCount: 20)
         );
         var handler = new ListJudgeRunsHandler(context);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(judgeCollectionId: judgecollectionid), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();

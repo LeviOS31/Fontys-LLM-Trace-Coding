@@ -81,6 +81,7 @@ public partial class InternalGetTraceTranscriptsHandler
         var transcripts = traces.Select(trace =>
             new TraceTranscriptViewModel
             {
+                TraceCollectionId = trace.TraceCollectionId,
                 TraceId = trace.TraceId,
                 Transcript = SharedTraceFunctions.BuildTranscript(trace),
             }

@@ -7,7 +7,7 @@ public class JudgeRun
 {
     public required Guid JudgeRunId { get; init; }
     public required Guid JudgeCollectionId { get; init; }
-    public required JudgeCollection JudgeCollection { get; init; }
+    public JudgeCollection JudgeCollection { get; init; }
     public required string ResultsJson { get; set; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required int TotalCount { get; init; }

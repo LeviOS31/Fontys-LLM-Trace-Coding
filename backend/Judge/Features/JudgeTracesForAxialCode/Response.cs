@@ -2,8 +2,8 @@ namespace Judge.Features.JudgeTracesForAxialCode;
 
 public record JudgeTracesForAxialCodeResponse
 {
-    public required Guid JudgeRunId { get; init; }
-    public required IEnumerable<TraceJudgeResultViewModel> Results { get; init; }
+    public required Guid JudgeCollectionId { get; init; }
+    public required IEnumerable<IEnumerable<TraceJudgeResultViewModel>> Results { get; init; }
 }
 
 public record TraceJudgeResultViewModel

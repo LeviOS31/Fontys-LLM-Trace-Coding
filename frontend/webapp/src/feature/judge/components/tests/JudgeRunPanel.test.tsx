@@ -13,6 +13,14 @@ vi.mock('../JudgeTemplateSelect.tsx', () => ({
   ),
 }));
 
+vi.mock('../TraceCollectionSelect.tsx', () => ({
+  default: ({ onChange }: { onChange: (ids: string[]) => void }) => (
+    <button type="button" onClick={() => onChange(['c1', 'c2'])}>
+      Pick collections
+    </button>
+  ),
+}));
+
 afterEach(cleanup);
 
 const templates: JudgeTemplate[] = [
@@ -25,6 +33,7 @@ function renderPanel(overrides: Overrides = {}) {
   const props = {
     templates,
     onTemplateChange: vi.fn(),
+    onCollectionChange: vi.fn(),
     onRun: vi.fn(),
     canRun: true,
     loading: false,
@@ -44,6 +53,12 @@ describe('RunJudgePanel', () => {
     const { onTemplateChange } = renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
     expect(onTemplateChange).toHaveBeenCalledWith(['t1', 't2']);
+  });
+
+  it('forwards trace collection changes from the selector', () => {
+    const { onCollectionChange } = renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Pick collections' }));
+    expect(onCollectionChange).toHaveBeenCalledWith(['c1', 'c2']);
   });
 
   it('runs the judge when the form is submitted and running is allowed', () => {

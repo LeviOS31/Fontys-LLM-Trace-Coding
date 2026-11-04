@@ -5,7 +5,7 @@ import { Gavel } from 'lucide-react';
 import { BASE_URL } from '../../shared/api/api';
 import JudgeOverview from './components/JudgeOverview';
 import JudgeRunDetails from './components/JudgeRunDetails';
-import RunJudgePanel from './components/JudgeRunPanel';
+import RunJudgePanel, { type JudgeMode } from './components/JudgeRunPanel';
 import {
   isJudgeResponse,
   type JudgeResult,
@@ -34,6 +34,7 @@ export default function JudgePage() {
   // All templates, including deprecated ones, so older runs can still show a name.
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
   const [templateIds, setTemplateIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<JudgeMode>('testing');
 
   const [summaries, setSummaries] = useState<JudgeRunSummary[]>([]);
   const [totals, setTotals] = useState<JudgeRunTotals>(EMPTY_TOTALS);
@@ -138,22 +139,19 @@ export default function JudgePage() {
 
   const selectedRun = runs.find((r) => r.judgeRunId === selectedRunId) ?? null;
   const hasMore = summaries.length < totals.runs;
-  let selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
+
+  // Judge run: every active template. Template testing: only the ones picked in the select.
+  const selectedTemplates =
+    mode === 'run' ? activeTemplates : activeTemplates.filter((t) => templateIds.includes(t.id));
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
   const runJudge = async () => {
-    selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
-
-    if (!selectedTemplates || selectedTemplates.length === 0) return;
+    if (selectedTemplates.length === 0) return;
     setRunning(true);
     setError(null);
 
-    const axialCodeIds: string[] = [];
-
-    selectedTemplates.forEach((template) => {
-      axialCodeIds.push(template.axialCodeId);
-    });
+    const axialCodeIds = selectedTemplates.map((template) => template.axialCodeId);
 
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
@@ -217,6 +215,11 @@ export default function JudgePage() {
       <RunJudgePanel
         templates={activeTemplates}
         onTemplateChange={(updatedIds: string[]) => setTemplateIds(updatedIds)}
+        mode={mode}
+        onModeChange={(m) => {
+          setMode(m);
+          setTemplateIds([]);
+        }}
         projectId={projectId}
         versionId={versionId}
         onCollectionChange={setSelectedCollectionIds}

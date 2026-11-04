@@ -1,13 +1,17 @@
-import { Box, Button, Callout, Flex, Spinner } from '@radix-ui/themes';
+import { Box, Button, Callout, Flex, SegmentedControl, Spinner, Text } from '@radix-ui/themes';
 import { AlertCircle, Gavel } from 'lucide-react';
 import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
 import JudgeTemplateSelect from './JudgeTemplateSelect';
 import TraceCollectionSelect from './TraceCollectionSelect';
 import { colors } from '../../../shared/styling/colors';
 
+export type JudgeMode = 'testing' | 'run';
+
 type Props = {
   readonly templates: JudgeTemplate[];
   readonly onTemplateChange: (ids: string[]) => void;
+  readonly mode: JudgeMode;
+  readonly onModeChange: (mode: JudgeMode) => void;
   readonly onRun: () => void;
   readonly canRun: boolean;
   readonly loading: boolean;
@@ -20,6 +24,8 @@ type Props = {
 export default function RunJudgePanel({
   templates,
   onTemplateChange,
+  mode,
+  onModeChange,
   onRun,
   canRun,
   loading,
@@ -44,21 +50,38 @@ export default function RunJudgePanel({
         }}
       >
         <Flex direction="column" gap="3">
+          <SegmentedControl.Root
+            value={mode}
+            onValueChange={(v) => onModeChange(v as JudgeMode)}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            <SegmentedControl.Item value="testing">Testing templates</SegmentedControl.Item>
+            <SegmentedControl.Item value="run">Evaluating templates</SegmentedControl.Item>
+          </SegmentedControl.Root>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
-            <div style={{ gridArea: '1 / 1' }}>
-              <JudgeTemplateSelect
-                templates={templates}
-                onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
+            {mode === 'testing' && (
+              <div style={{ gridArea: '1 / 1' }}>
+                <JudgeTemplateSelect
+                  templates={templates}
+                  onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
+                />
+              </div>
+            )}
+            <div style={{ gridArea: '1 / 1', pointerEvents: 'none' }}>
+              <TraceCollectionSelect
+                projectId={projectId}
+                versionId={versionId}
+                onChange={onCollectionChange}
               />
             </div>
-            <div style={{ gridArea: '1 / 1', pointerEvents: 'none' }}>
-            <TraceCollectionSelect
-              projectId={projectId}
-              versionId={versionId}
-              onChange={onCollectionChange}
-            />
           </div>
-          </div>
+
+          {mode === 'run' && (
+            <Text size="2" color="gray">
+              Judging with all {templates.length} active templates.
+            </Text>
+          )}
 
           <Button type="submit" disabled={!canRun}>
             {loading ? <Spinner /> : <Gavel size={16} />}

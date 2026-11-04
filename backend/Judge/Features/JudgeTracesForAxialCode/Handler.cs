@@ -86,7 +86,7 @@ public class JudgeTracesForAxialCodeHandler
             ? transcripts.Where(t => t.TraceId == request.TraceId.Value).ToList()
             : request.TraceCollectionId.HasValue || request.TraceCollectionIds is { Length: > 0 }
                 ? transcripts
-                : transcripts.Where(t => traceIdSet.Contains(t.TraceId)).ToList();
+                : transcripts;
 
         if (request.TraceId.HasValue && tracesToJudge.Count != 1)
         {

@@ -27,6 +27,7 @@ public static class JudgeEndpoints
                         ProjectId = projectId,
                         ProjectVersionId = projectVersionId,
                         JudgeTemplateIds = body.JudgeTemplateIds,
+                        TraceCollectionIds = body.TraceCollectionIds,
                     };
                     var result = await mediator.Send(request);
 

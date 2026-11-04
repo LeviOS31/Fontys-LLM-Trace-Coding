@@ -70,6 +70,7 @@ public class JudgeTracesForAxialCodeHandler
                 ProjectVersionId = request.ProjectVersionId,
                 UserId = request.UserId,
                 TraceCollectionId = request.TraceCollectionId,
+                TraceCollectionIds = request.TraceCollectionIds,
                 TraceId = request.TraceId,
             },
             cancellationToken
@@ -82,14 +83,10 @@ public class JudgeTracesForAxialCodeHandler
         var transcripts = transcriptsResult.Value.Transcripts.ToList();
 
         var tracesToJudge = request.TraceId.HasValue
-            ? transcripts
-                .Where(t => t.TraceId == request.TraceId.Value)
-                .ToList()
-            : request.TraceCollectionId.HasValue
+            ? transcripts.Where(t => t.TraceId == request.TraceId.Value).ToList()
+            : request.TraceCollectionId.HasValue || request.TraceCollectionIds is { Length: > 0 }
                 ? transcripts
-                    .Where(t => t.TraceCollectionId == request.TraceCollectionId.Value)
-                    .ToList()
-                : transcripts;
+                : transcripts.Where(t => traceIdSet.Contains(t.TraceId)).ToList();
 
         if (request.TraceId.HasValue && tracesToJudge.Count != 1)
         {

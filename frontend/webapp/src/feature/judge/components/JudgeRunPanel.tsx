@@ -2,6 +2,7 @@ import { Box, Button, Callout, Flex, Spinner } from '@radix-ui/themes';
 import { AlertCircle, Gavel } from 'lucide-react';
 import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
 import JudgeTemplateSelect from './JudgeTemplateSelect';
+import TraceCollectionSelect from './TraceCollectionSelect';
 import { colors } from '../../../shared/styling/colors';
 
 type Props = {
@@ -11,6 +12,9 @@ type Props = {
   readonly canRun: boolean;
   readonly loading: boolean;
   readonly error: RunError | null;
+  readonly projectId?: string;
+  readonly versionId?: string;
+  readonly onCollectionChange: (ids: string[]) => void;
 };
 
 export default function RunJudgePanel({
@@ -20,6 +24,9 @@ export default function RunJudgePanel({
   canRun,
   loading,
   error,
+  projectId,
+  versionId,
+  onCollectionChange,
 }: Props) {
   return (
     <Box
@@ -37,10 +44,21 @@ export default function RunJudgePanel({
         }}
       >
         <Flex direction="column" gap="3">
-          <JudgeTemplateSelect
-            templates={templates}
-            onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
-          />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
+            <div style={{ gridArea: '1 / 1' }}>
+              <JudgeTemplateSelect
+                templates={templates}
+                onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
+              />
+            </div>
+            <div style={{ gridArea: '1 / 1', pointerEvents: 'none' }}>
+            <TraceCollectionSelect
+              projectId={projectId}
+              versionId={versionId}
+              onChange={onCollectionChange}
+            />
+          </div>
+          </div>
 
           <Button type="submit" disabled={!canRun}>
             {loading ? <Spinner /> : <Gavel size={16} />}

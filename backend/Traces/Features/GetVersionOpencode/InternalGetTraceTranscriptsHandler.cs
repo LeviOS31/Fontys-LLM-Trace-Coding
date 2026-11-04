@@ -55,6 +55,11 @@ public partial class InternalGetTraceTranscriptsHandler
                 );
             }
 
+            if (request.TraceCollectionIds is { Length: > 0 })
+            {
+                tracesQuery = tracesQuery.Where(t => request.TraceCollectionIds.Contains(t.TraceCollectionId));
+            }
+
             traces = await tracesQuery
                 .Include(t => t.TraceScopes)
                     .ThenInclude(s => s.TraceScopeSpans)

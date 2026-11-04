@@ -5,6 +5,9 @@ using Judge.Features.ListJudgeRuns;
 using Judge.Features.DeleteJudgeRun;
 using Judge.Features.GetJudgeRun;
 using Mediator;
+using Judge.Features.GetJudgeCollection;
+using Judge.Features.GetAllJudgeCollectionsByVersion;
+using Judge.Features.DeleteJudgeCollection;
 
 namespace Api.Endpoints.Judge;
 
@@ -98,5 +101,55 @@ public static class JudgeEndpoints
                 }
             )
             .WithTags("Judge");
+        app.MapGet(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",
+            async (Guid projectId, Guid projectVersionId, Guid judgeCollectionId, IMediator mediator) =>
+            {
+                var result = await mediator.Send(
+                    new GetJudgeCollectionRequest
+                    {
+                        ProjectId = projectId,
+                        VersionId = projectVersionId,
+                        JudgeCollectionId = judgeCollectionId,
+                    }
+                );
+                return result.ToHttpResult();
+            }
+            )
+            .WithTags("Judge");
+
+        app.MapGet(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection",
+            async (Guid projectId, Guid projectVersionId, IMediator mediator) =>
+            {
+                var result = await mediator.Send(
+                    new GetAllJudgeCollectionsByVersionRequest
+                    {
+                        ProjectId = projectId,
+                        VersionId = projectVersionId,
+                    }
+                );
+                return result.ToHttpResult();
+            }
+            )
+            .WithTags("Judge");
+
+        app.MapDelete(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",
+            async (Guid projectId, Guid projectVersionId, Guid judgeCollectionId, IMediator mediator) =>
+            {
+                var result = await mediator.Send(
+                    new DeleteJudgeCollectionRequest
+                    {
+                        ProjectId = projectId,
+                        ProjectVersionId = projectVersionId,
+                        JudgeCollectionId = judgeCollectionId,
+                    }
+                );
+                return result.ToHttpResult();
+            }
+            )
+            .WithTags("Judge");
     }
 }
+   

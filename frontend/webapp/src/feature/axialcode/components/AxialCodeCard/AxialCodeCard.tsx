@@ -81,12 +81,7 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
   const [expanded, setExpanded] = useState(false);
   const justifications = code.justifications ?? [];
 
-  // Clamp prevalence between 0 and 100.
   const prevalence = Math.min(100, Math.max(0, code.prevalence));
-  const intensity = prevalence / 100;
-
-  // Gradient from whitish green at low prevalence to dark green at high prevalence.
-  const prevalenceColor = `hsl(130, ${25 + intensity * 55}%, ${96 - intensity * 66}%)`;
 
   return (
     <Card
@@ -99,12 +94,12 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
       onMouseLeave={() => onHover?.(null)}
     >
       <Flex gap="3" align="start">
-        {/* Vertical prevalence indicator */}
+        {/* Vertical ranking-based color indicator */}
         <Box
           style={{
             width: 3,
             alignSelf: 'stretch',
-            background: prevalenceColor,
+            background: code.color,
             borderRadius: 2,
             flexShrink: 0,
           }}
@@ -139,7 +134,7 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
             </Text>
           </Flex>
 
-          {/* Horizontal prevalence indicator */}
+          {/* Horizontal prevalence bar using the ranking-based color */}
           <Box
             style={{
               height: 3,
@@ -152,9 +147,9 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
               style={{
                 width: `${prevalence}%`,
                 height: '100%',
-                background: prevalenceColor,
+                background: code.color,
                 borderRadius: 2,
-                transition: 'width 200ms ease, background 200ms ease',
+                transition: 'width 200ms ease',
               }}
             />
           </Box>

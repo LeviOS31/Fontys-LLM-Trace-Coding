@@ -6,8 +6,6 @@ namespace Projects.Data.Models
     public class ProjectVersion
     {
         public const int MinNameLength = 1;
-        public const int MaxNameLength = 64;
-        public const int MaxDescriptionLength = 256;
 
         public required Guid VersionId { get; init; }
         public required Guid ProjectId { get; init; }
@@ -21,8 +19,8 @@ namespace Projects.Data.Models
         public void Configure(EntityTypeBuilder<ProjectVersion> builder)
         {
             builder.HasKey(x => x.VersionId);
-            builder.Property(x => x.Name).IsRequired().HasMaxLength(ProjectVersion.MaxNameLength);
-            builder.Property(x => x.Description).IsRequired().HasMaxLength(ProjectVersion.MaxDescriptionLength);
+            builder.Property(x => x.Name).IsRequired();
+            builder.Property(x => x.Description).IsRequired();
             builder.Property(x => x.ProjectId).IsRequired();
             builder.HasOne(x => x.project).WithMany(x => x.versions).HasForeignKey(x => x.ProjectId).IsRequired();
         }

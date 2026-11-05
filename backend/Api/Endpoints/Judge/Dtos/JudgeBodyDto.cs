@@ -2,7 +2,7 @@
 {
     public class JudgeBodyDto
     {
-        public required Guid[] AxialCodeIds { get; set; }
+        public required List<Guid> JudgeTemplateIds { get; set; }
         public Guid[]? TraceCollectionIds { get; init; }
     }
 }

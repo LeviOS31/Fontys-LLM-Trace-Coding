@@ -7,10 +7,11 @@ namespace Judge.Features.GetJudgeRun;
 
 public record GetJudgeRunRequest : IRequest<Result<GetJudgeRunResponse>>
 {
-    public required Guid ProjectId { get; init; }
-    public required Guid ProjectVersionId { get; init; }
+    public required Guid JudgeCollectionId { get; init; }
     public required Guid JudgeRunId { get; init; }
     public required Guid UserId { get; init; }
+    public required Guid ProjectId { get; init; }
+    public required Guid ProjectVersionId { get; init; }
 }
 
 public record GetJudgeRunResponse
@@ -23,9 +24,10 @@ public sealed class GetJudgeRunRequestValidator : AbstractValidator<GetJudgeRunR
 {
     public GetJudgeRunRequestValidator()
     {
-        RuleFor(x => x.ProjectId).NotEmpty();
-        RuleFor(x => x.ProjectVersionId).NotEmpty();
+        RuleFor(x => x.JudgeCollectionId).NotEmpty();
         RuleFor(x => x.JudgeRunId).NotEmpty();
         RuleFor(x => x.UserId).NotEmpty();
+        RuleFor(x => x.ProjectId).NotEmpty();
+        RuleFor(x => x.ProjectVersionId).NotEmpty();
     }
 }

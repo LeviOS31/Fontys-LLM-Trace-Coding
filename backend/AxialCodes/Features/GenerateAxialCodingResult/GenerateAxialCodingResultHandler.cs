@@ -422,10 +422,6 @@ public class GenerateAxialCodingResultHandler
                 || string.IsNullOrWhiteSpace(axialCode.Description)
                 || string.IsNullOrWhiteSpace(axialCode.Rationale)
                 || string.IsNullOrWhiteSpace(axialCode.JudgeGuidelines)
-                || axialCode.Label.Length > AxialCode.MaxLabelLength
-                || axialCode.Description.Length > AxialCode.MaxDescriptionLength
-                || axialCode.Rationale.Trim().Length > AxialCode.MaxRationaleLength
-                || axialCode.JudgeGuidelines.Trim().Length > AxialCode.MaxJudgeGuidelinesLength
                 || axialCode.OpenCodeIds == null
                 || axialCode.Evidence == null
                 || axialCode.OpenCodeIds.Count == 0
@@ -448,9 +444,7 @@ public class GenerateAxialCodingResultHandler
                     evidence == null
                     || !axialCode.OpenCodeIds.Contains(evidence.OpenCodeId)
                     || string.IsNullOrWhiteSpace(evidence.Quote)
-                    || evidence.Quote.Trim().Length > AxialCodeOpenCodeJustification.MaxQuoteLength
                     || string.IsNullOrWhiteSpace(evidence.Justification)
-                    || evidence.Justification.Trim().Length > AxialCodeOpenCodeJustification.MaxJustificationLength
                     || !evidenceById.TryAdd(evidence.OpenCodeId, evidence.Quote)
                 )
                 {

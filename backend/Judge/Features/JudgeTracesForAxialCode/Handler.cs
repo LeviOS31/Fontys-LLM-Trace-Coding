@@ -1,9 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
 using Judge.Data;
 using Judge.Data.Models;
-using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
+using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplates;
 using Mediator;
 using Microsoft.Extensions.AI;
 using Serilog;
@@ -11,11 +10,6 @@ using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
 using Shared.Interfaces;
 using Traces.Contracts.Features.InternalGetTraceTranscripts;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using Traces.Contracts.Features.InternalGetTraceTranscripts;
-using static AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion.InternalGetAllAxialCodesByVersionResponse;
 
 namespace Judge.Features.JudgeTracesForAxialCode;
 
@@ -52,33 +46,13 @@ public class JudgeTracesForAxialCodeHandler
         CancellationToken cancellationToken
     )
     {
-        // 1. Axial code (for its TraceIds)
-        var axialCodesResult = await _mediator.Send(
-            new InternalGetAllAxialCodesByVersionRequest
-            {
-                ProjectId = request.ProjectId,
-                ProjectVersionId = request.ProjectVersionId,
-                UserId = request.UserId,
-            },
-            cancellationToken
-        );
-        if (axialCodesResult.IsError)
-        {
-            return axialCodesResult.ErrorCode!.Value;
-        }
-        AxialCodeEntry[] axialCode = axialCodesResult.Value.AxialCodes.Where(a => request.AxialCodeIds.Contains(a.AxialCodeId)).ToArray();
-        if (axialCode is null || axialCode.Length == 0)
-        {
-            return ErrorCode.EntityNotFound;
-        }
-
         // 2. Judge template content
         var templateResult = await _mediator.Send(
-            new InternalGetJudgeTemplateByAxialCodeIdRequest
+            new InternalGetJudgeTemplatesRequest
             {
                 ProjectId = request.ProjectId,
                 ProjectVersionId = request.ProjectVersionId,
-                AxialCodeIds = request.AxialCodeIds,
+                judgeIds = request.JudgeTemplateIds,
                 UserId = request.UserId,
             },
             cancellationToken
@@ -108,13 +82,11 @@ public class JudgeTracesForAxialCodeHandler
 
         var transcripts = transcriptsResult.Value.Transcripts.ToList();
 
-        var traceIdSet = axialCode.SelectMany(a => a.TraceIds).ToHashSet();
-
         var tracesToJudge = request.TraceId.HasValue
             ? transcripts.Where(t => t.TraceId == request.TraceId.Value).ToList()
             : request.TraceCollectionId.HasValue || request.TraceCollectionIds is { Length: > 0 }
                 ? transcripts
-                : transcripts.Where(t => traceIdSet.Contains(t.TraceId)).ToList();
+                : transcripts;
 
         if (request.TraceId.HasValue && tracesToJudge.Count != 1)
         {
@@ -122,10 +94,11 @@ public class JudgeTracesForAxialCodeHandler
         }
 
         // 4. Judge each trace
-        var results = new List<TraceJudgeResultViewModel>();
-        foreach (var trace in tracesToJudge)
+        var resultsformatted = new List<List<TraceJudgeResultViewModel>>();
+        foreach (var judge in templateResult.Value.JudgeTemplates)
         {
-            foreach (var judge in templateResult.Value.JudgeTemplates)
+            var results = new List<TraceJudgeResultViewModel>();
+            foreach (var trace in tracesToJudge)
             {
                 var result = await JudgeSingleTraceAsync(
                     request.UserId,
@@ -145,34 +118,60 @@ public class JudgeTracesForAxialCodeHandler
                     }
                 );
             }
+
+            resultsformatted.Add(results);
         }
 
         // 5. Persist the run
-        var judgeRun = new JudgeRun
+        JudgeCollection judgeCollection = new JudgeCollection
         {
-            JudgeRunId = Guid.NewGuid(),
-            ProjectId = request.ProjectId,
+            JudgeCollectionId = new Guid(),
             ProjectVersionId = request.ProjectVersionId,
-            ResultsJson = JsonSerializer.Serialize(results),
-            CreatedAt = DateTimeOffset.UtcNow,
-            TotalCount = results.Count,
-            TrueCount = results.Count(r => r.Status == "Success" && r.Verdict == "True"),
-            FalseCount = results.Count(r => r.Status == "Success" && r.Verdict == "False"),
-            FailedCount = results.Count(r => r.Status == "Error"),
+            CreatedAt = DateTime.UtcNow,
+            Name = $"Judge Collection {DateTime.UtcNow}",
         };
 
         try
         {
-            _dbContext.JudgeRuns.Add(judgeRun);
+            _dbContext.JudgeCollections.Add(judgeCollection);
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Error saving judge run for axial code {AxialCodeId}", request.AxialCodeIds);
+            Logger.Error(ex, "Error saving judge collection");
             return ErrorCode.DatabaseError;
         }
 
-        return new JudgeTracesForAxialCodeResponse { JudgeRunId = judgeRun.JudgeRunId, Results = results };
+        foreach (var judgeresults in resultsformatted)
+        {
+            var judgeRun = new JudgeRun
+            {
+                JudgeRunId = Guid.NewGuid(),
+                JudgeCollectionId = judgeCollection.JudgeCollectionId,
+                ResultsJson = JsonSerializer.Serialize(judgeresults),
+                CreatedAt = DateTimeOffset.UtcNow,
+                TotalCount = judgeresults.Count,
+                TrueCount = judgeresults.Count(r => r.Status == "Success" && r.Verdict == "True"),
+                FalseCount = judgeresults.Count(r => r.Status == "Success" && r.Verdict == "False"),
+                FailedCount = judgeresults.Count(r => r.Status == "Error"),
+            };
+
+            judgeCollection.judgeRuns.Add(judgeRun);
+
+            try
+            {
+                _dbContext.JudgeRuns.Add(judgeRun);
+                
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error saving judge run");
+                return ErrorCode.DatabaseError;
+            }
+        }
+
+        return new JudgeTracesForAxialCodeResponse { JudgeCollectionId = judgeCollection.JudgeCollectionId, Results = resultsformatted };
     }
 
     private sealed record JudgeVerdict

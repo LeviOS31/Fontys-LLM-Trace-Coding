@@ -286,7 +286,7 @@ describe('JudgePage', () => {
       expect(String(postUrl)).toBe('http://localhost/v1/projects/p1/versions/v1/judge');
       expect(postInit?.headers).toEqual({ 'Content-Type': 'application/json' });
       expect(JSON.parse(String(postInit?.body))).toEqual({
-        axialCodeIds: ['a1', 'a2'],
+        judgeTemplateIds: ['t1', 't2'],
         traceCollectionIds: ['c1', 'c2'],
       });
     });

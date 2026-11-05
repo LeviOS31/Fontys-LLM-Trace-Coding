@@ -10,6 +10,7 @@ public class JudgeDbContext : DbContext
         : base(options) { }
 
     public virtual DbSet<JudgeRun> JudgeRuns { get; set; }
+    public virtual DbSet<JudgeCollection> JudgeCollections { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

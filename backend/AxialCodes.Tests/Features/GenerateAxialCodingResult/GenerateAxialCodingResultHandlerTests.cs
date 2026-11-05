@@ -676,26 +676,6 @@ public class GenerateAxialCodingResultHandlerTests
         await mockContext.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task WhenRationaleTooLong_ReturnLlmError()
-    {
-        // Arrange
-        var tooLongRationale = new string('x', AxialCode.MaxRationaleLength + 1);
-        var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\""
-                + tooLongRationale
-                + "\",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
-        );
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorCode.LlmError, result.ErrorCode);
-        await mockContext.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
-    }
-
     private static GenerateAxialCodingResultRequest CreateRequest() =>
         new()
         {

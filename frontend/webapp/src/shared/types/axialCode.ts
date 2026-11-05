@@ -12,8 +12,8 @@ export interface AxialCode {
   label: string;
   description: string;
   traceIds: string[];
-  /** Guidelines for the judge to decide whether an unseen trace shows this behaviour. Absent for codes generated before they existed. */
-  judgeGuidelines?: string | null;
+  /** Why this code was created. Absent for codes generated before it existed. */
+  rationale?: string | null;
   openCodeJustifications?: OpenCodeJustification[] | null;
   feedback?: string | null;
 }

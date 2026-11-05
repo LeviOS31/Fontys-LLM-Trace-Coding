@@ -149,18 +149,15 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
               pt="3"
               style={{ borderTop: '1px dashed var(--gray-5)' }}
             >
-              {code.judgeGuidelines && (
-                <Box className={styles.guidelines} data-testid="axial-code-judge-guidelines">
-                  <Text as="p" size="1" color="gray" className={styles.sectionLabel}>
-                    Judge guidelines
+              {code.rationale && (
+                <Flex direction="column" gap="1" data-testid="axial-code-rationale">
+                  <Text size="1" color="gray" className={styles.sectionLabel}>
+                    Why this code exists
                   </Text>
-                  <Text as="p" size="1" color="gray">
-                    Derived from the open codes in this group
+                  <Text as="p" size="2">
+                    {code.rationale}
                   </Text>
-                  <Text as="p" size="2" className={styles.guidelinesText}>
-                    {code.judgeGuidelines}
-                  </Text>
-                </Box>
+                </Flex>
               )}
 
               {justifications.length > 0 ? (

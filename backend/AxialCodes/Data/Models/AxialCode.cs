@@ -14,6 +14,9 @@ public class AxialCode
     public required string Description { get; init; }
     public required ICollection<Guid> TraceIds { get; init; }
 
+    // Why this axial code was created, based on its grouped open codes. Null for results generated before it existed.
+    public string? Rationale { get; init; }
+
     // Guidelines a judge can apply to an unseen trace to decide whether it shows this behaviour,
     // derived from the grouped open codes. Null for results generated before they existed.
     public string? JudgeGuidelines { get; init; }

@@ -14,7 +14,6 @@ const ORIGIN_PREFIX: Partial<Record<NonNullable<AxialCodeSnapshotCode['changeKin
   split: 'Split from',
 };
 
-/** Where a regenerated code comes from and how many open codes it gained or lost. */
 function ChangeDetails({ code }: { readonly code: AxialCodeSnapshotCode }) {
   const prefix = code.changeKind ? ORIGIN_PREFIX[code.changeKind] : undefined;
   const added = code.addedTraceIds?.length ?? 0;
@@ -81,6 +80,12 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
   const [expanded, setExpanded] = useState(false);
   const justifications = code.justifications ?? [];
 
+  const prevalence = Math.min(100, Math.max(0, code.prevalence));
+  const intensity = prevalence / 100;
+
+  // Light whitish green (low prevalence) to dark green (high prevalence).
+  const prevalenceColor = `hsl(130, ${25 + intensity * 55}%, ${96 - intensity * 66}%)`;
+
   return (
     <Card
       size="1"
@@ -92,15 +97,17 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
       onMouseLeave={() => onHover?.(null)}
     >
       <Flex gap="3" align="start">
-        <Box
-          style={{
-            width: 3,
-            alignSelf: 'stretch',
-            background: code.color,
-            borderRadius: 2,
-            flexShrink: 0,
-          }}
-        />
+        <Box style={{ height: 3, background: 'var(--gray-3)', borderRadius: 2 }}>
+          <Box
+            style={{
+              width: `${prevalence}%`,
+              height: '100%',
+              background: prevalenceColor,
+              borderRadius: 2,
+              transition: 'width 200ms ease, background 200ms ease',
+            }}
+          />
+        </Box>
 
         <Flex direction="column" gap="2" style={{ flex: 1, minWidth: 0 }}>
           <Flex align="center" gap="2" wrap="wrap">
@@ -134,10 +141,11 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
           <Box style={{ height: 3, background: 'var(--gray-3)', borderRadius: 2 }}>
             <Box
               style={{
-                width: `${Math.min(100, code.prevalence * 3)}%`,
-                height: '100%',
-                background: code.color,
+                width: 3,
+                alignSelf: 'stretch',
+                background: prevalenceColor,
                 borderRadius: 2,
+                flexShrink: 0,
               }}
             />
           </Box>

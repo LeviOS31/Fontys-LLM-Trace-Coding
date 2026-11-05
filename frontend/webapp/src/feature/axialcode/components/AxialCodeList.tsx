@@ -18,7 +18,7 @@ export default function AxialCodeList({
   onHover,
 }: AxialCodeListProps) {
   const codes = useMemo(() => {
-    return [...snapshot.codes];
+    return [...snapshot.codes].sort((a, b) => b.openCodeCount - a.openCodeCount);
   }, [snapshot.codes]);
 
   return (

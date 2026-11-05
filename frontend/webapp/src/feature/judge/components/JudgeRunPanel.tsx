@@ -55,8 +55,8 @@ export default function RunJudgePanel({
             onValueChange={(v) => onModeChange(v as JudgeMode)}
             style={{ alignSelf: 'flex-start' }}
           >
-            <SegmentedControl.Item value="testing">Testing templates</SegmentedControl.Item>
             <SegmentedControl.Item value="run">Evaluating templates</SegmentedControl.Item>
+            <SegmentedControl.Item value="testing">Testing templates</SegmentedControl.Item>
           </SegmentedControl.Root>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>

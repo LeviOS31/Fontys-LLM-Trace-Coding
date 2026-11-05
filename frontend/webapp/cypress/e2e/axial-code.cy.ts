@@ -524,6 +524,7 @@ describe('axial code', () => {
       axialCodes: [
         {
           ...seededAxialResultA.axialCodes[0],
+          rationale: 'Several open codes report users unable to find or understand features.',
           judgeGuidelines:
             'Mark true when: the user cannot navigate or understand the interface.\nMark false when: the user navigates without trouble.\nBorderline cases: a single hesitation counts as false.',
           openCodeJustifications: [
@@ -550,17 +551,17 @@ describe('axial code', () => {
       cy.contains('Usability Issues', { timeout: 8000 }).should('be.visible');
     });
 
-    it('expands a card to show the judge guidelines and why each open code belongs', () => {
+    it('expands a card to show why the code exists, without the judge guidelines', () => {
       getAxialCodeCard('Usability Issues').within(() => {
         cy.contains('button', 'Expand details ↓').click();
-        cy.get('[data-testid="axial-code-judge-guidelines"]')
+        cy.contains('Mark true when').should('not.exist');
+        cy.get('[data-testid="axial-code-rationale"]')
           .should('be.visible')
-          .and('contain.text', 'Judge guidelines')
+          .and('contain.text', 'Why this code exists')
           .and(
             'contain.text',
-            'Mark true when: the user cannot navigate or understand the interface.'
-          )
-          .and('contain.text', 'Borderline cases: a single hesitation counts as false.');
+            'Several open codes report users unable to find or understand features.'
+          );
         cy.contains('Why these open codes belong here').should('be.visible');
         cy.get('[data-testid="axial-code-justification"]')
           .should('have.length', 1)
@@ -569,10 +570,10 @@ describe('axial code', () => {
       });
     });
 
-    it('does not show judge guidelines for codes generated without them', () => {
+    it('does not show a rationale for codes generated without one', () => {
       getAxialCodeCard('Performance Concerns').within(() => {
         cy.contains('button', 'Expand details ↓').click();
-        cy.get('[data-testid="axial-code-judge-guidelines"]').should('not.exist');
+        cy.get('[data-testid="axial-code-rationale"]').should('not.exist');
       });
     });
   });

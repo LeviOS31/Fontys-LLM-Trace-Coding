@@ -136,6 +136,7 @@ public class GenerateAxialCodingResultHandler
                 Label = ac.Label,
                 Description = ac.Description,
                 TraceIds = ac.TraceIds,
+                Rationale = ac.Rationale,
                 JudgeGuidelines = ac.JudgeGuidelines,
                 OpenCodeJustifications = ac.OpenCodeJustifications.Select(j => new OpenCodeJustificationViewModel
                 {
@@ -165,6 +166,9 @@ public class GenerateAxialCodingResultHandler
         [JsonPropertyName("description")]
         public required string Description { get; init; }
 
+        [JsonPropertyName("rationale")]
+        public required string Rationale { get; init; }
+
         [JsonPropertyName("judgeGuidelines")]
         public required string JudgeGuidelines { get; init; }
 
@@ -182,6 +186,9 @@ public class GenerateAxialCodingResultHandler
 
         [JsonPropertyName("description")]
         public required string Description { get; init; }
+
+        [JsonPropertyName("rationale")]
+        public string? Rationale { get; init; }
 
         [JsonPropertyName("judgeGuidelines")]
         public string? JudgeGuidelines { get; init; }
@@ -249,6 +256,7 @@ public class GenerateAxialCodingResultHandler
         {
             Label = axial.Label,
             Description = axial.Description,
+            Rationale = axial.Rationale,
             JudgeGuidelines = axial.JudgeGuidelines,
             OpenCodeIds = axial
                 .TraceIds.Select(id => mapping.FirstOrDefault(kvp => kvp.Value == id).Key)
@@ -327,6 +335,7 @@ public class GenerateAxialCodingResultHandler
             AxialCodeId = axialCodeId,
             Label = candidate.Label.Trim(),
             Description = candidate.Description.Trim(),
+            Rationale = candidate.Rationale.Trim(),
             JudgeGuidelines = candidate.JudgeGuidelines.Trim(),
             TraceIds = candidate.OpenCodeIds.Select(id => mapping[id]).Distinct().ToArray(),
             // Open codes are keyed by trace; keep one justification per open code.
@@ -411,9 +420,11 @@ public class GenerateAxialCodingResultHandler
             if (
                 string.IsNullOrWhiteSpace(axialCode.Label)
                 || string.IsNullOrWhiteSpace(axialCode.Description)
+                || string.IsNullOrWhiteSpace(axialCode.Rationale)
                 || string.IsNullOrWhiteSpace(axialCode.JudgeGuidelines)
                 || axialCode.Label.Length > AxialCode.MaxLabelLength
                 || axialCode.Description.Length > AxialCode.MaxDescriptionLength
+                || axialCode.Rationale.Trim().Length > AxialCode.MaxRationaleLength
                 || axialCode.JudgeGuidelines.Trim().Length > AxialCode.MaxJudgeGuidelinesLength
                 || axialCode.OpenCodeIds == null
                 || axialCode.Evidence == null
@@ -491,6 +502,7 @@ public class GenerateAxialCodingResultHandler
                         index,
                         label = code.Label,
                         description = code.Description,
+                        rationale = code.Rationale,
                         judgeGuidelines = code.JudgeGuidelines,
                         openCodeIds = code.OpenCodeIds,
                         evidence = code.Evidence,

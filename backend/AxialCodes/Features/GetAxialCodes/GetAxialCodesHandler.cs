@@ -80,6 +80,7 @@ public class GetAxialCodesHandler : IRequestHandler<GetAxialCodesQuery, Result<G
                 Label = a.Label,
                 Description = a.Description,
                 TraceIds = a.TraceIds,
+                Rationale = a.Rationale,
                 JudgeGuidelines = a.JudgeGuidelines,
                 OpenCodeJustifications = a.OpenCodeJustifications.Select(j => new OpenCodeJustificationViewModel
                 {

@@ -49,7 +49,7 @@ export function convertApiCodesToSnapshot(
       id: `code_${i}_${label}`,
       name: apiCode.label,
       description: apiCode.description,
-      judgeGuidelines: apiCode.judgeGuidelines ?? null,
+      rationale: apiCode.rationale ?? null,
       justifications: (apiCode.openCodeJustifications ?? []).map((j) => ({
         traceId: j.traceId,
         quote: j.quote,

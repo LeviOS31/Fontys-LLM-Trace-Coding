@@ -40,13 +40,12 @@ describe('AxialCodeCard', () => {
     expect(screen.queryByText('Invented warranty terms')).not.toBeInTheDocument();
   });
 
-  it('shows the judge guidelines and why each open code belongs when expanded', () => {
+  it('shows why the code exists and why each open code belongs when expanded', () => {
     render(
       <AxialCodeCard
         code={{
           ...code,
-          judgeGuidelines:
-            'Mark true when: the model states a policy that does not exist.\nMark false when: the model quotes a real policy.\nBorderline cases: hedged statements count as false.',
+          rationale: 'Several open codes report the model making up policy details.',
           justifications: [
             {
               traceId: 'trace-1',
@@ -59,17 +58,15 @@ describe('AxialCodeCard', () => {
       />
     );
 
-    expect(screen.queryByTestId('axial-code-judge-guidelines')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('axial-code-rationale')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand details ↓' }));
 
-    const guidelines = screen.getByTestId('axial-code-judge-guidelines');
-    expect(guidelines).toHaveTextContent('Judge guidelines');
-    expect(guidelines).toHaveTextContent('Derived from the open codes in this group');
-    expect(guidelines).toHaveTextContent(
-      'Mark true when: the model states a policy that does not exist.'
+    const rationale = screen.getByTestId('axial-code-rationale');
+    expect(rationale).toHaveTextContent('Why this code exists');
+    expect(rationale).toHaveTextContent(
+      'Several open codes report the model making up policy details.'
     );
-    expect(guidelines).toHaveTextContent('Borderline cases: hedged statements count as false.');
 
     expect(screen.getByText('Why these open codes belong here')).toBeInTheDocument();
     const justification = screen.getByTestId('axial-code-justification');
@@ -79,12 +76,12 @@ describe('AxialCodeCard', () => {
     expect(screen.queryByText('Made-up refund rule')).not.toBeInTheDocument();
   });
 
-  it('shows no judge guidelines for codes generated before they existed', () => {
+  it('shows only the open codes for codes generated without a rationale or justifications', () => {
     render(<AxialCodeCard code={code} snap="A" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand details ↓' }));
 
-    expect(screen.queryByTestId('axial-code-judge-guidelines')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('axial-code-rationale')).not.toBeInTheDocument();
     expect(screen.getByText('Open codes')).toBeInTheDocument();
   });
 

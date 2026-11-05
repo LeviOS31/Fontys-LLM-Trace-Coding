@@ -1,9 +1,10 @@
-import { Box, Button, Flex, Kbd, Text } from '@radix-ui/themes';
+import { Box, Button, Callout, Flex, Kbd, Text } from '@radix-ui/themes';
 import { useEffect, type RefObject } from 'react';
-import { RefreshCw, Gavel } from 'lucide-react';
+import { AlertCircle, Layers, RefreshCw, Gavel } from 'lucide-react';
 import { colors } from '../../../../shared/styling/colors.ts';
 import type { AxialCode } from '../../../../shared/types/axialCode.ts';
 import { isTyping } from '../../../../shared/util/shortcutHelpers.ts';
+import type { CreateAllJudgeTemplatesResult } from '../../hooks/useCreateAllJudgeTemplates.ts';
 import '../../../axialcode/components/GenerateAxailCodesPanal/GenerateAxialCodesPanel.css';
 
 interface Props {
@@ -13,6 +14,11 @@ interface Props {
   readonly onCreate: () => void;
   readonly isCreating: boolean;
   readonly selectRef?: RefObject<HTMLSelectElement | null>;
+  /** Axial codes without a template; null hides the action until this is known. */
+  readonly missingCount: number | null;
+  readonly onCreateAll: () => void;
+  readonly isCreatingAll: boolean;
+  readonly createAllResult?: CreateAllJudgeTemplatesResult;
 }
 
 export function CreateTemplatePanel({
@@ -22,21 +28,27 @@ export function CreateTemplatePanel({
   onCreate,
   isCreating,
   selectRef,
+  missingCount,
+  onCreateAll,
+  isCreatingAll,
+  createAllResult,
 }: Props) {
   const selectedAxialHasId =
     scopeAxial !== 'all' && axialCodes.some((a) => a.axialCodeId === scopeAxial);
+  const isBusy = isCreating || isCreatingAll;
+  const failedLabels = createAllResult?.failedLabels ?? [];
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (isTyping()) return;
       if (e.key.toLowerCase() !== 'c') return;
-      if (isCreating || !selectedAxialHasId) return;
+      if (isBusy || !selectedAxialHasId) return;
       e.preventDefault();
       onCreate();
     };
     globalThis.addEventListener('keydown', handleKey);
     return () => globalThis.removeEventListener('keydown', handleKey);
-  }, [isCreating, selectedAxialHasId, onCreate]);
+  }, [isBusy, selectedAxialHasId, onCreate]);
 
   return (
     <Box
@@ -94,7 +106,7 @@ export function CreateTemplatePanel({
             size="2"
             color={colors.theme.radix.primary}
             variant="solid"
-            disabled={isCreating || !selectedAxialHasId}
+            disabled={isBusy || !selectedAxialHasId}
             onClick={onCreate}
           >
             {isCreating ? <RefreshCw size={14} className="ai-icon-spin" /> : <Gavel size={14} />}
@@ -103,6 +115,51 @@ export function CreateTemplatePanel({
           </Button>
         </Flex>
       </Flex>
+
+      {missingCount !== null && (
+        <Flex
+          align="center"
+          justify="between"
+          gap="4"
+          mt="3"
+          pt="3"
+          style={{ borderTop: `1px solid var(--${colors.theme.radix.primary}-6)` }}
+        >
+          <Text size="2" color="gray" data-testid="missing-templates-count">
+            {missingCount === 0
+              ? 'Every axial code has a judge template.'
+              : `${missingCount} axial ${missingCount === 1 ? 'code has' : 'codes have'} no judge template yet.`}
+          </Text>
+          <Button
+            size="2"
+            variant="soft"
+            color={colors.theme.radix.primary}
+            disabled={isBusy || missingCount === 0}
+            onClick={onCreateAll}
+            style={{ flexShrink: 0 }}
+          >
+            {isCreatingAll ? (
+              <RefreshCw size={14} className="ai-icon-spin" />
+            ) : (
+              <Layers size={14} />
+            )}
+            {isCreatingAll ? 'Creating all…' : 'Create all templates'}
+          </Button>
+        </Flex>
+      )}
+
+      {failedLabels.length > 0 && createAllResult && (
+        <Callout.Root color="red" size="1" mt="3" role="alert">
+          <Callout.Icon>
+            <AlertCircle size={16} />
+          </Callout.Icon>
+          <Callout.Text>
+            Created {createAllResult.createdCount} of{' '}
+            {createAllResult.createdCount + failedLabels.length} templates. Could not create:{' '}
+            {failedLabels.join(', ')}. Click Create all templates to try again.
+          </Callout.Text>
+        </Callout.Root>
+      )}
     </Box>
   );
 }

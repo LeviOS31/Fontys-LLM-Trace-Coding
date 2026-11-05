@@ -97,8 +97,7 @@ namespace Traces.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("OpenCode")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("TraceCollectionId")
                         .HasColumnType("uuid");
@@ -129,8 +128,7 @@ namespace Traces.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("ProjectVersionId")
                         .HasColumnType("uuid");

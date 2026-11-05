@@ -5,7 +5,6 @@ namespace Traces.Data.Models;
 
 public class Trace
 {
-    public const int MaxOpenCodeLength = 255;
     public required Guid TraceId { get; init; }
     public required Guid TraceCollectionId { get; init; }
     public required TraceCollection TraceCollection { get; init; }
@@ -23,7 +22,7 @@ internal sealed class TraceEntityConfiguration : IEntityTypeConfiguration<Trace>
     {
         builder.HasKey(x => x.TraceId);
         builder.Property(x => x.TraceCollectionId);
-        builder.Property(x => x.OpenCode).HasMaxLength(Trace.MaxOpenCodeLength);
+        builder.Property(x => x.OpenCode);
         builder.Property(x => x.UpdatedAt);
         builder.HasOne(x => x.TraceCollection).WithMany(x => x.Traces).HasForeignKey(x => x.TraceCollectionId);
         builder.Property(x => x.TraceGroupId).IsRequired(false);

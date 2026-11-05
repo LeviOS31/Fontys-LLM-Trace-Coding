@@ -149,19 +149,18 @@ export default function JudgePage() {
     setRunning(true);
     setError(null);
 
-    const axialCodeIds: string[] = [];
+    const selectedtemplateids : string[] = [];
 
     selectedTemplates.forEach((template) => {
-      axialCodeIds.push(template.axialCodeId);
-    });
-
+        selectedtemplateids.push(template.id);
+    })
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
 
       const res = await fetch(url.toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ axialCodeIds, traceCollectionIds: selectedCollectionIds }),
+        body: JSON.stringify({ judgeTemplateIds: selectedtemplateids, traceCollectionIds: selectedCollectionIds }),
       });
       const data = await res.json();
 

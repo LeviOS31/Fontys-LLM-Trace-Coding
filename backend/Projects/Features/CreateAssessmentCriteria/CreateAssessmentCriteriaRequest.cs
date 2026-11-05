@@ -19,7 +19,7 @@ namespace Projects.Features.CreateAssessmentCriteria
         {
             RuleFor(x => x.UserId).NotEmpty();
             RuleFor(x => x.ProjectId).NotEmpty();
-            RuleFor(x => x.Criteria).Length(AssessmentCriteriaModel.MinLength, AssessmentCriteriaModel.MaxLength);
+            RuleFor(x => x.Criteria).NotEmpty();
         }
     }
 }

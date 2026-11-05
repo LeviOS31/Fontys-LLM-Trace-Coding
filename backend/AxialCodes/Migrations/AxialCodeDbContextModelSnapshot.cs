@@ -46,8 +46,7 @@ namespace AxialCodes.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Rationale")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.PrimitiveCollection<Guid[]>("TraceIds")
                         .IsRequired()

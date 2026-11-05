@@ -422,6 +422,7 @@ export function LlmContent({
                       radius="full"
                       color="gray"
                       data-source-file={source.sourceFile}
+                      style={{ maxWidth: '100%', minWidth: 0 }}
                       onClick={() =>
                         setSelectedSource({
                           sourceFile: source.sourceFile,
@@ -429,12 +430,21 @@ export function LlmContent({
                         })
                       }
                     >
-                      <Flex align="center" gap="2" wrap="wrap">
-                        <FileText size={14} />
-                        <Text size="2" weight="medium">
+                      <Flex align="center" gap="2" wrap="nowrap" style={{ minWidth: 0 }}>
+                        <FileText size={14} style={{ flexShrink: 0 }} />
+                        <Text
+                          size="2"
+                          weight="medium"
+                          style={{
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           {source.sourceFile}
                         </Text>
-                        <Badge size="1" color="gray">
+                        <Badge size="1" color="gray" style={{ flexShrink: 0 }}>
                           {source.chunks.length} chunk{source.chunks.length === 1 ? '' : 's'}
                         </Badge>
                       </Flex>

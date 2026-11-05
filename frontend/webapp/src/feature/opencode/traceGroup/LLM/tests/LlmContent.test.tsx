@@ -85,6 +85,33 @@ describe('LLM chat content', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('keeps long retrieved source names on one line and truncates them', () => {
+    const sourceFile = 'docs/a-very-long-source-file-name-that-should-not-wrap-across-lines.md';
+    renderMessages([
+      message('Summarize this source', {
+        role: 'user',
+        retrievedSources: [
+          {
+            sourceFile,
+            retrievalSpanIds: ['retrieval-1'],
+            chunks: [],
+          },
+        ],
+      }),
+    ]);
+
+    const button = screen.getByRole('button', { name: new RegExp(sourceFile) });
+    const filename = screen.getByText(sourceFile);
+
+    expect(button).toHaveStyle({ maxWidth: '100%', minWidth: '0' });
+    expect(button.firstElementChild).toHaveClass('rt-r-fw-nowrap');
+    expect(filename).toHaveStyle({
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    });
+  });
+
   it('renders an empty conversation without message content', () => {
     renderMessages([]);
 

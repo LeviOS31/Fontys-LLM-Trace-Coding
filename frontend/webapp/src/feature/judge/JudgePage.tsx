@@ -34,7 +34,7 @@ export default function JudgePage() {
   // All templates, including deprecated ones, so older runs can still show a name.
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
   const [templateIds, setTemplateIds] = useState<string[]>([]);
-  const [mode, setMode] = useState<JudgeMode>('testing');
+  const [mode, setMode] = useState<JudgeMode>('run');
 
   const [summaries, setSummaries] = useState<JudgeRunSummary[]>([]);
   const [totals, setTotals] = useState<JudgeRunTotals>(EMPTY_TOTALS);

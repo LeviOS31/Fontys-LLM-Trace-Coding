@@ -4,6 +4,7 @@ import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
 import JudgeTemplateSelect from './JudgeTemplateSelect';
 import TraceCollectionSelect from './TraceCollectionSelect';
 import { colors } from '../../../shared/styling/colors';
+import styles from './JudgeRunPanel.module.css';
 
 export type JudgeMode = 'testing' | 'run';
 
@@ -51,8 +52,10 @@ export default function RunJudgePanel({
       >
         <Flex direction="column" gap="3">
           <SegmentedControl.Root
+            className={styles.modeToggle}
             value={mode}
             onValueChange={(v) => onModeChange(v as JudgeMode)}
+            radius="full"
             style={{ alignSelf: 'flex-start' }}
           >
             <SegmentedControl.Item value="run">Evaluating templates</SegmentedControl.Item>

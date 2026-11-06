@@ -6,14 +6,10 @@ namespace JudgeTemplates.Data.Models;
 
 public class JudgeTemplate
 {
-    public const int MaxNameLength = 255;
-    public const int MaxDescriptionLength = 255;
     public Guid JudgeTemplateId { get; set; }
 
-    [MaxLength(MaxNameLength)]
     public required string JudgeTemplateName { get; set; }
 
-    [MaxLength(MaxDescriptionLength)]
     public required string JudgeTemplateDescription { get; set; }
     public required Guid AxialCodeId { get; set; }
     public Guid ProjectId { get; set; }
@@ -33,8 +29,8 @@ internal sealed class JudgeTemplateEntityConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<JudgeTemplate> builder)
     {
         builder.HasKey(x => x.JudgeTemplateId);
-        builder.Property(x => x.JudgeTemplateName).HasMaxLength(JudgeTemplate.MaxNameLength);
-        builder.Property(x => x.JudgeTemplateDescription).HasMaxLength(JudgeTemplate.MaxDescriptionLength);
+        builder.Property(x => x.JudgeTemplateName);
+        builder.Property(x => x.JudgeTemplateDescription);
         builder.Property(x => x.CustomJudgeTemplateContent).HasMaxLength(int.MaxValue);
     }
 }

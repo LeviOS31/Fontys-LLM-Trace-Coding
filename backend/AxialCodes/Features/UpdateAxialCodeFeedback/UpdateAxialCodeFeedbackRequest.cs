@@ -21,6 +21,5 @@ public sealed class UpdateAxialCodeFeedbackRequestValidator : AbstractValidator<
         RuleFor(x => x.ProjectVersionId).NotEmpty();
         RuleFor(x => x.AxialCodeId).NotEmpty();
         RuleFor(x => x.UserId).NotEmpty();
-        RuleFor(x => x.Feedback).MaximumLength(AxialCodes.Data.Models.AxialCode.MaxFeedbackLength);
     }
 }

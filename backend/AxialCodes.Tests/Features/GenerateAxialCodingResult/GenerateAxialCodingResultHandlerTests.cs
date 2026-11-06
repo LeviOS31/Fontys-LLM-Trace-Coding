@@ -323,7 +323,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ])
             );
@@ -614,6 +614,7 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.Equal("L1", axialCode.Label);
         Assert.Equal("D1", axialCode.Description);
         Assert.Equal([traceId1, traceId2], axialCode.TraceIds);
+        Assert.Equal("R1", axialCode.Rationale);
         Assert.Equal("Mark true when the assistant mentions A or B", axialCode.JudgeGuidelines);
         var justifications = axialCode.OpenCodeJustifications!.ToList();
         Assert.Equal(2, justifications.Count);
@@ -788,7 +789,7 @@ public class GenerateAxialCodingResultHandlerTests
     {
         // Arrange
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\" \"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\" \"}]}]"
         );
 
         // Act
@@ -805,7 +806,7 @@ public class GenerateAxialCodingResultHandlerTests
     {
         // Arrange
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
         );
 
         // Act
@@ -818,14 +819,11 @@ public class GenerateAxialCodingResultHandlerTests
     }
 
     [Fact]
-    public async Task WhenJudgeGuidelinesTooLong_ReturnLlmError()
+    public async Task WhenLlmOmitsRationale_ReturnLlmError()
     {
         // Arrange
-        var tooLongCriteria = new string('x', AxialCode.MaxJudgeGuidelinesLength + 1);
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\""
-                + tooLongCriteria
-                + "\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\" \",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
         );
 
         // Act
@@ -984,6 +982,7 @@ public class GenerateAxialCodingResultHandlerTests
                 {
                     Label = "Old",
                     Description = "Old Desc",
+                    Rationale = "Old rationale",
                     JudgeGuidelines = "Old guidelines",
                     TraceIds = [traceId1],
                 },
@@ -997,13 +996,15 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value.AxialCodes);
         await mockContext.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-        // The previous judge guidelines are sent to the LLM so they can be revised.
+        // The previous rationale and judge guidelines are sent to the LLM so they can be revised.
         await chatClient
             .Received()
             .GetResponseAsync(
                 Arg.Is<IEnumerable<ChatMessage>>(messages =>
                     messages.Any(m =>
-                        m.Role == ChatRole.User && m.Text.Contains("\"judgeGuidelines\":\"Old guidelines\"")
+                        m.Role == ChatRole.User
+                        && m.Text.Contains("\"rationale\":\"Old rationale\"")
+                        && m.Text.Contains("\"judgeGuidelines\":\"Old guidelines\"")
                     )
                 ),
                 Arg.Any<ChatOptions>(),

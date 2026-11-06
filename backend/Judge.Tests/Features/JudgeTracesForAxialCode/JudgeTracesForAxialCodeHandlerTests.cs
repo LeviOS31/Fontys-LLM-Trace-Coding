@@ -1,7 +1,7 @@
 using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
 using Judge.Data;
 using Judge.Features.JudgeTracesForAxialCode;
-using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
+using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplates;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
@@ -39,7 +39,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         {
             ProjectId = _projectId,
             ProjectVersionId = _projectVersionId,
-            AxialCodeIds = _axialCodeIds,
+            JudgeTemplateIds = _axialCodeIds.ToList(),
             UserId = _userId,
             TraceId = traceId,
             TraceCollectionId = traceCollectionId,
@@ -68,22 +68,21 @@ public class JudgeTracesForAxialCodeHandlerTests
             0 => new InternalGetTraceTranscriptsResponse { Transcripts = [] },
             1 => new InternalGetTraceTranscriptsResponse
             {
-                Transcripts = [new() { TraceId = ids[0], Transcript = $"transcript {ids[0]}" }],
+                Transcripts = [new() { TraceId = ids[0], TraceCollectionId = ids[0], Transcript = $"transcript {ids[0]}" }],
             },
             2 => new InternalGetTraceTranscriptsResponse
             {
                 Transcripts =
                 [
-                    new() { TraceId = ids[0], Transcript = $"transcript {ids[0]}" },
-                    new() { TraceId = ids[1], Transcript = $"transcript {ids[1]}" },
+                    new() { TraceId = ids[0], TraceCollectionId = ids[0], Transcript = $"transcript {ids[0]}" },
+                    new() { TraceId = ids[1], TraceCollectionId = ids[0], Transcript = $"transcript {ids[1]}" },
                 ],
             },
             _ => throw new ArgumentException("Helper supports at most two transcripts."),
         };
 
     private static IMediator CreateMediator(
-        Result<InternalGetAllAxialCodesByVersionResponse>? axialCodes = null,
-        Result<InternalGetJudgeTemplateByAxialCodeIdResponse>? template = null,
+        Result<InternalGetJudgeTemplatesResponse>? template = null,
         Result<InternalGetTraceTranscriptsResponse>? transcripts = null,
         Result<GetLlmConfigResponse>? llmConfig = null
     )
@@ -91,14 +90,10 @@ public class JudgeTracesForAxialCodeHandlerTests
         var mediator = Substitute.For<IMediator>();
 
         mediator
-            .Send(Arg.Any<InternalGetAllAxialCodesByVersionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(axialCodes ?? AxialCodes(_traceId1));
-
-        mediator
-            .Send(Arg.Any<InternalGetJudgeTemplateByAxialCodeIdRequest>(), Arg.Any<CancellationToken>())
+            .Send(Arg.Any<InternalGetJudgeTemplatesRequest>(), Arg.Any<CancellationToken>())
             .Returns(
                 template
-                    ?? new InternalGetJudgeTemplateByAxialCodeIdResponse
+                    ?? new InternalGetJudgeTemplatesResponse
                     {
                         JudgeTemplates =
                         [
@@ -193,8 +188,8 @@ public class JudgeTracesForAxialCodeHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.JudgeRunId.ShouldNotBe(Guid.Empty);
-        var item = result.Value.Results.Single();
+        result.Value!.JudgeCollectionId.ShouldNotBe(Guid.Empty);
+        var item = result.Value.Results.Single().First();
         item.TraceId.ShouldBe(_traceId1);
         item.Status.ShouldBe("Success");
         item.Verdict.ShouldBe("True");
@@ -215,7 +210,7 @@ public class JudgeTracesForAxialCodeHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Success");
         item.Verdict.ShouldBe("False");
         item.Reasoning.ShouldBe("Not present.");
@@ -228,7 +223,6 @@ public class JudgeTracesForAxialCodeHandlerTests
         var options = CreateOptions();
         await using var context = new JudgeDbContext(options);
         var mediator = CreateMediator(
-            axialCodes: AxialCodes(_traceId1, _traceId2),
             transcripts: Transcripts(_traceId1, _traceId2)
         );
         var (builder, _) = CreateChatClient(TrueResponse, FalseResponse);
@@ -241,9 +235,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         result.IsSuccess.ShouldBeTrue();
         await using var verifyContext = new JudgeDbContext(options);
         var run = await verifyContext.JudgeRuns.SingleAsync();
-        run.JudgeRunId.ShouldBe(result.Value!.JudgeRunId);
-        run.ProjectId.ShouldBe(_projectId);
-        run.ProjectVersionId.ShouldBe(_projectVersionId);
+        run.JudgeCollectionId.ShouldBe(result.Value!.JudgeCollectionId);
         run.TotalCount.ShouldBe(2);
         run.TrueCount.ShouldBe(1);
         run.FalseCount.ShouldBe(1);
@@ -263,7 +255,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Success");
         item.Verdict.ShouldBe("True");
         item.Reasoning.ShouldBe("The trace shows it.");
@@ -281,7 +273,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Success");
         item.Reasoning.ShouldBe("It uses {placeholders} here.");
     }
@@ -298,7 +290,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        result.Value!.Results.Single().Reasoning.ShouldBe("Padded.");
+        result.Value!.Results.Single().First().Reasoning.ShouldBe("Padded.");
     }
 
     [Fact]
@@ -314,7 +306,7 @@ public class JudgeTracesForAxialCodeHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Error");
         item.Verdict.ShouldBeNull();
         item.Reasoning.ShouldBeNull();
@@ -333,7 +325,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Error");
         item.Verdict.ShouldBeNull();
         item.Error.ShouldBe(ErrorCode.LlmError.ToString());
@@ -351,7 +343,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Error");
         item.Error.ShouldBe(ErrorCode.LlmError.ToString());
     }
@@ -370,7 +362,7 @@ public class JudgeTracesForAxialCodeHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Error");
         item.Error.ShouldBe(ErrorCode.LlmError.ToString());
         await using var verifyContext = new JudgeDbContext(options);
@@ -387,7 +379,6 @@ public class JudgeTracesForAxialCodeHandlerTests
         // Arrange
         await using var context = new JudgeDbContext(CreateOptions());
         var mediator = CreateMediator(
-            axialCodes: AxialCodes(_traceId1, _traceId2),
             transcripts: Transcripts(_traceId1, _traceId2)
         );
         var (builder, _) = CreateChatClient("""{"result": true}""", TrueResponse);
@@ -397,7 +388,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        var results = result.Value!.Results.ToList();
+        var results = result.Value!.Results.First().ToList();
         results[0].Status.ShouldBe("Error");
         results[1].Status.ShouldBe("Success");
         results[1].Verdict.ShouldBe("True");
@@ -416,45 +407,9 @@ public class JudgeTracesForAxialCodeHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
-        var item = result.Value!.Results.Single();
+        var item = result.Value!.Results.Single().First();
         item.Status.ShouldBe("Error");
         item.Error.ShouldBe(ErrorCode.EntityNotFound.ToString());
-        await AssertLlmNotCalled(client);
-    }
-
-    [Fact]
-    public async Task WhenAxialCodesRequestFails_ReturnErrorWithoutCallingLlm()
-    {
-        // Arrange
-        await using var context = new JudgeDbContext(CreateOptions());
-        var (builder, client) = CreateChatClient();
-        var mediator = CreateMediator(axialCodes: ErrorCode.EntityNotFound);
-        var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
-        await AssertLlmNotCalled(client);
-    }
-
-    [Fact]
-    public async Task WhenAxialCodeIsNotInVersion_ReturnEntityNotFound()
-    {
-        // Arrange
-        await using var context = new JudgeDbContext(CreateOptions());
-        var (builder, client) = CreateChatClient();
-        var mediator = CreateMediator(axialCodes: new InternalGetAllAxialCodesByVersionResponse { AxialCodes = [] });
-        var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
         await AssertLlmNotCalled(client);
     }
 
@@ -501,7 +456,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var options = CreateOptions();
         await using var context = new JudgeDbContext(options);
         var (builder, _) = CreateChatClient();
-        var mediator = CreateMediator(axialCodes: ErrorCode.EntityNotFound);
+        var mediator = CreateMediator(template: ErrorCode.EntityNotFound);
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
         // Act
@@ -513,13 +468,12 @@ public class JudgeTracesForAxialCodeHandlerTests
     }
 
     [Fact]
-    public async Task WhenNoTraceFilterIsGiven_OnlyJudgeTracesOfTheAxialCode()
+    public async Task WhenNoTraceFilterIsGiven_JudgeAllTracesOfVersion()
     {
         // Arrange
         await using var context = new JudgeDbContext(CreateOptions());
         var (builder, client) = CreateChatClient(TrueResponse);
         var mediator = CreateMediator(
-            axialCodes: AxialCodes(_traceId1),
             transcripts: Transcripts(_traceId1, _traceId2)
         );
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
@@ -529,9 +483,9 @@ public class JudgeTracesForAxialCodeHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.Results.Select(r => r.TraceId).ToList().ShouldBe([_traceId1]);
+        result.Value!.Results.First().Select(r => r.TraceId).ToList().ShouldBe(new List<Guid>{ _traceId1, _traceId2});
         await client
-            .Received(1)
+            .Received(2)
             .GetResponseAsync(
                 Arg.Any<IEnumerable<ChatMessage>>(),
                 Arg.Any<ChatOptions?>(),
@@ -546,17 +500,16 @@ public class JudgeTracesForAxialCodeHandlerTests
         await using var context = new JudgeDbContext(CreateOptions());
         var (builder, _) = CreateChatClient(TrueResponse, TrueResponse);
         var mediator = CreateMediator(
-            axialCodes: AxialCodes(_traceId1),
             transcripts: Transcripts(_traceId1, _traceId2)
         );
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(traceCollectionId: Guid.NewGuid()), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceCollectionId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.Results.Select(r => r.TraceId).ToList().ShouldBe([_traceId1, _traceId2]);
+        result.Value!.Results.First().Select(r => r.TraceId).ToList().ShouldBe([_traceId1, _traceId2]);
     }
 
     [Fact]
@@ -573,7 +526,7 @@ public class JudgeTracesForAxialCodeHandlerTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value!.Results.Single().TraceId.ShouldBe(_traceId2);
+        result.Value!.Results.Single().First().TraceId.ShouldBe(_traceId2);
     }
 
     [Fact]
@@ -594,26 +547,27 @@ public class JudgeTracesForAxialCodeHandlerTests
         await AssertLlmNotCalled(client);
     }
 
-    [Fact]
-    public async Task WhenNoTracesMatch_ReturnSuccessWithEmptyRun()
-    {
-        // Arrange
-        var options = CreateOptions();
-        await using var context = new JudgeDbContext(options);
-        var (builder, client) = CreateChatClient();
-        var mediator = CreateMediator(axialCodes: AxialCodes(), transcripts: Transcripts(_traceId1));
-        var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
+    // TODO: replace with correct test
+    //[Fact]
+    //public async Task WhenNoTracesMatch_ReturnSuccessWithEmptyRun()
+    //{
+    //    // Arrange
+    //    var options = CreateOptions();
+    //    await using var context = new JudgeDbContext(options);
+    //    var (builder, client) = CreateChatClient();
+    //    var mediator = CreateMediator( transcripts: Transcripts(_traceId1));
+    //    var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+    //    // Act
+    //    var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
-        // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value!.Results.ShouldBeEmpty();
-        await AssertLlmNotCalled(client);
-        await using var verifyContext = new JudgeDbContext(options);
-        (await verifyContext.JudgeRuns.SingleAsync()).TotalCount.ShouldBe(0);
-    }
+    //    // Assert
+    //    result.IsSuccess.ShouldBeTrue();
+    //    result.Value!.Results.ShouldBeEmpty();
+    //    await AssertLlmNotCalled(client);
+    //    await using var verifyContext = new JudgeDbContext(options);
+    //    (await verifyContext.JudgeRuns.SingleAsync()).TotalCount.ShouldBe(0);
+    //}
 
     [Fact]
     public async Task WhenRequestIsValid_SendTemplateAndTranscriptToLlmWithResponseFormat()

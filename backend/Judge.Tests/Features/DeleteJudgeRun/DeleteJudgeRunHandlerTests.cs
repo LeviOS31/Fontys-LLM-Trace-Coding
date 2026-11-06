@@ -1,9 +1,11 @@
 using Judge.Data;
 using Judge.Data.Models;
 using Judge.Features.DeleteJudgeRun;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
-using NSubstitute.ExceptionExtensions;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
+using Projects.Contracts.Features.GetAllProjectVersions;
 using Shared;
 using Shouldly;
 
@@ -11,10 +13,11 @@ namespace Judge.Tests.Features.DeleteJudgeRun;
 
 public class DeleteJudgeRunHandlerTests
 {
-    private static readonly Guid _projectId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
-    private static readonly Guid _projectVersionId = new("68DF6625-60EA-4E0A-8F29-29DE14197025");
+    private static readonly Guid _judgeCollectionId = new("68DF6625-60EA-4E0A-8F29-29DE14197024");
     private static readonly Guid _judgeRunId = new("68DF6625-60EA-4E0A-8F29-29DE14197026");
     private static readonly Guid _userId = new("CE97539F-4189-44FC-A87F-CFA3EDB177ED");
+    private static readonly Guid _projectId = new("CE97539F-4189-44FC-A87F-CFA3EDB177EE");
+    private static readonly Guid _projectVersionId = new("CE97539F-4189-44FC-A87F-CFA3EDB177EF");
 
     private static DbContextOptions<JudgeDbContext> CreateOptions() =>
         new DbContextOptionsBuilder<JudgeDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
@@ -22,22 +25,18 @@ public class DeleteJudgeRunHandlerTests
     private static DeleteJudgeRunRequest CreateRequest() =>
         new()
         {
+            JudgeCollectionId = _judgeCollectionId,
             ProjectId = _projectId,
             ProjectVersionId = _projectVersionId,
             JudgeRunId = _judgeRunId,
             UserId = _userId,
         };
 
-    private static JudgeRun CreateRun(
-        Guid? judgeRunId = null,
-        Guid? projectId = null,
-        Guid? projectVersionId = null
-    ) =>
+    private static JudgeRun CreateRun(Guid? judgeRunId = null) =>
         new()
         {
             JudgeRunId = judgeRunId ?? _judgeRunId,
-            ProjectId = projectId ?? _projectId,
-            ProjectVersionId = projectVersionId ?? _projectVersionId,
+            JudgeCollectionId = _judgeCollectionId,
             ResultsJson = "[]",
             CreatedAt = DateTimeOffset.UtcNow,
             TotalCount = 0,
@@ -46,21 +45,59 @@ public class DeleteJudgeRunHandlerTests
             FailedCount = 0,
         };
 
-    private static async Task Seed(DbContextOptions<JudgeDbContext> options, params JudgeRun[] runs)
+    private static async Task<JudgeDbContext> CreateContextWith(
+        bool includeCollection = true,
+        params JudgeRun[] runs
+    )
     {
-        await using var context = new JudgeDbContext(options);
+        var context = new JudgeDbContext(CreateOptions());
+
+        if (includeCollection)
+        {
+            context.JudgeCollections.Add(
+                new JudgeCollection
+                {
+                    JudgeCollectionId = _judgeCollectionId,
+                    ProjectVersionId = _projectVersionId,
+                    Name = "Collection",
+                    CreatedAt = DateTime.UtcNow,
+                }
+            );
+        }
+
         context.JudgeRuns.AddRange(runs);
         await context.SaveChangesAsync();
+        return context;
+    }
+
+    private static IMediator CreateMediator(params Guid[] versionIds)
+    {
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetAllProjectVersionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new GetAllProjectVersionsResponse
+                {
+                    Versions = versionIds
+                        .Select(versionId => new GetAllProjectVersionsResponse.ProjectVersionSummary
+                        {
+                            VersionId = versionId,
+                            ProjectId = _projectId,
+                            Name = "Version",
+                            Description = "Test version",
+                        })
+                        .ToList(),
+                }
+            );
+        return mediator;
     }
 
     [Fact]
     public async Task WhenRunExists_ReturnDeletedJudgeRunId()
     {
         // Arrange
-        var options = CreateOptions();
-        await Seed(options, CreateRun());
-        await using var context = new JudgeDbContext(options);
-        var handler = new DeleteJudgeRunHandler(context);
+        await using var context = await CreateContextWith(runs: [CreateRun()]);
+        var handler = new DeleteJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -75,24 +112,40 @@ public class DeleteJudgeRunHandlerTests
     {
         // Arrange
         var options = CreateOptions();
-        await Seed(options, CreateRun());
+        await using (var seedContext = new JudgeDbContext(options))
+        {
+            seedContext.JudgeCollections.Add(
+                new JudgeCollection
+                {
+                    JudgeCollectionId = _judgeCollectionId,
+                    ProjectVersionId = _projectVersionId,
+                    Name = "Collection",
+                    CreatedAt = DateTime.UtcNow,
+                }
+            );
+            seedContext.JudgeRuns.Add(CreateRun());
+            await seedContext.SaveChangesAsync();
+        }
+
         await using var context = new JudgeDbContext(options);
-        var handler = new DeleteJudgeRunHandler(context);
+        var handler = new DeleteJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
-        _ = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
+        result.IsSuccess.ShouldBeTrue();
         await using var verifyContext = new JudgeDbContext(options);
         (await verifyContext.JudgeRuns.AnyAsync()).ShouldBeFalse();
     }
 
     [Fact]
-    public async Task WhenRunDoesNotExist_ReturnEntityNotFound()
+    public async Task WhenCollectionDoesNotExist_ReturnEntityNotFoundWithoutLoadingVersions()
     {
         // Arrange
-        await using var context = new JudgeDbContext(CreateOptions());
-        var handler = new DeleteJudgeRunHandler(context);
+        await using var context = await CreateContextWith(includeCollection: false, runs: [CreateRun()]);
+        var mediator = CreateMediator(_projectVersionId);
+        var handler = new DeleteJudgeRunHandler(context, mediator);
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -100,76 +153,19 @@ public class DeleteJudgeRunHandlerTests
         // Assert
         result.IsSuccess.ShouldBeFalse();
         result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
+        await mediator.DidNotReceive().Send(Arg.Any<GetAllProjectVersionsQuery>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task WhenRunBelongsToOtherProject_ReturnEntityNotFoundAndKeepRun()
+    public async Task WhenVersionLookupFails_ReturnMediatorError()
     {
         // Arrange
-        var options = CreateOptions();
-        await Seed(options, CreateRun(projectId: Guid.NewGuid()));
-        await using var context = new JudgeDbContext(options);
-        var handler = new DeleteJudgeRunHandler(context);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
-        await using var verifyContext = new JudgeDbContext(options);
-        (await verifyContext.JudgeRuns.CountAsync()).ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task WhenRunBelongsToOtherVersion_ReturnEntityNotFoundAndKeepRun()
-    {
-        // Arrange
-        var options = CreateOptions();
-        await Seed(options, CreateRun(projectVersionId: Guid.NewGuid()));
-        await using var context = new JudgeDbContext(options);
-        var handler = new DeleteJudgeRunHandler(context);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
-        await using var verifyContext = new JudgeDbContext(options);
-        (await verifyContext.JudgeRuns.CountAsync()).ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task WhenRunIsDeleted_KeepOtherRunsOfTheSameVersion()
-    {
-        // Arrange
-        var options = CreateOptions();
-        var otherRunId = Guid.NewGuid();
-        await Seed(options, CreateRun(), CreateRun(judgeRunId: otherRunId));
-        await using var context = new JudgeDbContext(options);
-        var handler = new DeleteJudgeRunHandler(context);
-
-        // Act
-        _ = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        await using var verifyContext = new JudgeDbContext(options);
-        var remaining = await verifyContext.JudgeRuns.ToListAsync();
-        remaining.Count.ShouldBe(1);
-        remaining[0].JudgeRunId.ShouldBe(otherRunId);
-    }
-
-    [Fact]
-    public async Task WhenDatabaseThrowsDbUpdateException_ReturnDatabaseError()
-    {
-        // Arrange
-        var options = CreateOptions();
-        await Seed(options, CreateRun());
-        var context = Substitute.ForPartsOf<JudgeDbContext>(options);
-        context.When(c => c.SaveChangesAsync(Arg.Any<CancellationToken>())).DoNotCallBase();
-        context.SaveChangesAsync(Arg.Any<CancellationToken>()).Throws(new DbUpdateException());
-        var handler = new DeleteJudgeRunHandler(context);
+        await using var context = await CreateContextWith(runs: [CreateRun()]);
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetAllProjectVersionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(ErrorCode.DatabaseError);
+        var handler = new DeleteJudgeRunHandler(context, mediator);
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
@@ -180,12 +176,76 @@ public class DeleteJudgeRunHandlerTests
     }
 
     [Fact]
-    public async Task WhenContextIsDisposed_ReturnDatabaseError()
+    public async Task WhenVersionDoesNotExist_ReturnEntityNotFoundAndKeepRun()
     {
         // Arrange
-        var context = new JudgeDbContext(CreateOptions());
-        await context.DisposeAsync();
-        var handler = new DeleteJudgeRunHandler(context);
+        await using var context = await CreateContextWith(runs: [CreateRun()]);
+        var handler = new DeleteJudgeRunHandler(context, CreateMediator(Guid.NewGuid()));
+
+        // Act
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
+        (await context.JudgeRuns.AnyAsync()).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task WhenRunDoesNotExist_ReturnEntityNotFound()
+    {
+        // Arrange
+        await using var context = await CreateContextWith();
+        var handler = new DeleteJudgeRunHandler(context, CreateMediator(_projectVersionId));
+
+        // Act
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ErrorCode.ShouldBe(ErrorCode.EntityNotFound);
+    }
+
+    [Fact]
+    public async Task WhenRunIsDeleted_KeepOtherRuns()
+    {
+        // Arrange
+        var otherRunId = Guid.NewGuid();
+        await using var context = await CreateContextWith(runs: [CreateRun(), CreateRun(otherRunId)]);
+        var handler = new DeleteJudgeRunHandler(context, CreateMediator(_projectVersionId));
+
+        // Act
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        var remaining = await context.JudgeRuns.ToListAsync();
+        remaining.Count.ShouldBe(1);
+        remaining[0].JudgeRunId.ShouldBe(otherRunId);
+    }
+
+    [Fact]
+    public async Task WhenSaveChangesFails_ReturnDatabaseError()
+    {
+        // Arrange
+        var options = CreateOptions();
+        await using var seedContext = new JudgeDbContext(options);
+        seedContext.JudgeCollections.Add(
+            new JudgeCollection
+            {
+                JudgeCollectionId = _judgeCollectionId,
+                ProjectVersionId = _projectVersionId,
+                Name = "Collection",
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
+        seedContext.JudgeRuns.Add(CreateRun());
+        await seedContext.SaveChangesAsync();
+
+        var context = Substitute.ForPartsOf<JudgeDbContext>(options);
+        context.When(c => c.SaveChangesAsync(Arg.Any<CancellationToken>())).DoNotCallBase();
+        context.SaveChangesAsync(Arg.Any<CancellationToken>()).Throws(new DbUpdateException());
+        var handler = new DeleteJudgeRunHandler(context, CreateMediator(_projectVersionId));
 
         // Act
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);

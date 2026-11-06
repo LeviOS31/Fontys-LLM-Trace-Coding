@@ -156,13 +156,14 @@ public class GetAxialCodesHandlerTests
         Assert.Equal(axialCodes[0].Label, returnedCodes[0].Label);
         Assert.Equal(axialCodes[0].Description, returnedCodes[0].Description);
         Assert.Equal(axialCodes[0].TraceIds, returnedCodes[0].TraceIds);
-        // Results generated before this feature have no judge guidelines or justifications.
+        // Results generated before these features have no rationale, judge guidelines or justifications.
+        Assert.Null(returnedCodes[0].Rationale);
         Assert.Null(returnedCodes[0].JudgeGuidelines);
         Assert.Empty(returnedCodes[0].OpenCodeJustifications);
     }
 
     [Fact]
-    public async Task WhenActiveResultHasJustifications_ReturnsJudgeGuidelinesAndJustifications()
+    public async Task WhenActiveResultHasJustifications_ReturnsRationaleJudgeGuidelinesAndJustifications()
     {
         // Arrange
         var query = CreateQuery();
@@ -184,6 +185,7 @@ public class GetAxialCodesHandlerTests
                     AxialCodeId = axialCodeId,
                     Label = "UX",
                     Description = "User experience related",
+                    Rationale = "Several open codes report users struggling with the interface",
                     JudgeGuidelines = "Mark true when the user complains about the interface",
                     TraceIds = [traceId],
                     OpenCodeJustifications =
@@ -217,6 +219,7 @@ public class GetAxialCodesHandlerTests
         // Assert
         Assert.True(response.IsSuccess);
         var returnedCode = Assert.Single(response.Value.AxialCodes!);
+        Assert.Equal("Several open codes report users struggling with the interface", returnedCode.Rationale);
         Assert.Equal("Mark true when the user complains about the interface", returnedCode.JudgeGuidelines);
         var justification = Assert.Single(returnedCode.OpenCodeJustifications);
         Assert.Equal(traceId, justification.TraceId);

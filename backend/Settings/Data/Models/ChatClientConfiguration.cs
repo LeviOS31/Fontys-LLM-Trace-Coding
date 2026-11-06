@@ -6,9 +6,6 @@ namespace Settings.Data.Models;
 
 public class ChatClientConfiguration
 {
-    public const int MaxProviderLength = 64;
-    public const int MaxEndpointLength = 256;
-    public const int MaxModelLength = 64;
 
     public required Guid UserId { get; init; }
     public required string? Provider { get; set; }
@@ -28,9 +25,9 @@ internal sealed class ChatClientConfigurationEntityConfiguration : IEntityTypeCo
     public void Configure(EntityTypeBuilder<ChatClientConfiguration> builder)
     {
         builder.HasKey(x => x.UserId);
-        builder.Property(x => x.Provider).HasMaxLength(ChatClientConfiguration.MaxProviderLength);
-        builder.Property(x => x.Endpoint).HasMaxLength(ChatClientConfiguration.MaxEndpointLength);
-        builder.Property(x => x.Model).HasMaxLength(ChatClientConfiguration.MaxModelLength);
+        builder.Property(x => x.Provider);
+        builder.Property(x => x.Endpoint);
+        builder.Property(x => x.Model);
 
         // Seed data
         var provider = _configuration["AI:Provider"]!;

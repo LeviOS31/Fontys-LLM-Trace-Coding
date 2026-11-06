@@ -20,7 +20,7 @@ public sealed class EditOpencodeRequestValidator : AbstractValidator<EditOpencod
     {
         RuleFor(x => x.TraceId).NotEmpty();
         RuleFor(x => x.ProjectVersionId).NotEmpty();
-        RuleFor(x => x.OpenCode).MaximumLength(Trace.MaxOpenCodeLength);
+        RuleFor(x => x.OpenCode);
         RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.ProjectId).NotEmpty();
     }

@@ -38,6 +38,7 @@ export default function JudgePage() {
   const [summaries, setSummaries] = useState<JudgeRunSummary[]>([]);
   const [totals, setTotals] = useState<JudgeRunTotals>(EMPTY_TOTALS);
   const [listLoading, setListLoading] = useState(false);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
 
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [results, setResults] = useState<JudgeResult[] | null>(null);
@@ -148,19 +149,18 @@ export default function JudgePage() {
     setRunning(true);
     setError(null);
 
-    const axialCodeIds: string[] = [];
+    const selectedtemplateids : string[] = [];
 
     selectedTemplates.forEach((template) => {
-      axialCodeIds.push(template.axialCodeId);
-    });
-
+        selectedtemplateids.push(template.id);
+    })
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
 
       const res = await fetch(url.toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ axialCodeIds }),
+        body: JSON.stringify({ judgeTemplateIds: selectedtemplateids, traceCollectionIds: selectedCollectionIds }),
       });
       const data = await res.json();
 
@@ -216,8 +216,11 @@ export default function JudgePage() {
       <RunJudgePanel
         templates={activeTemplates}
         onTemplateChange={(updatedIds: string[]) => setTemplateIds(updatedIds)}
+        projectId={projectId}
+        versionId={versionId}
+        onCollectionChange={setSelectedCollectionIds}
         onRun={runJudge}
-        canRun={!running && Boolean(selectedTemplates.length > 0)}
+        canRun={!running && selectedTemplates.length > 0 && selectedCollectionIds.length > 0}
         loading={running}
         error={error}
       />

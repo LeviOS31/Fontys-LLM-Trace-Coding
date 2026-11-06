@@ -5,8 +5,6 @@ namespace AxialCodes.Data.Models;
 
 public class AxialCodeOpenCodeJustification
 {
-    public const int MaxQuoteLength = 500;
-    public const int MaxJustificationLength = 1000;
 
     public required Guid AxialCodeId { get; init; }
     public AxialCode? AxialCode { get; init; }
@@ -28,7 +26,7 @@ internal sealed class AxialCodeOpenCodeJustificationEntityConfiguration
     {
         builder.HasKey(x => new { x.AxialCodeId, x.TraceId });
 
-        builder.Property(x => x.Quote).HasMaxLength(AxialCodeOpenCodeJustification.MaxQuoteLength);
-        builder.Property(x => x.Justification).HasMaxLength(AxialCodeOpenCodeJustification.MaxJustificationLength);
+        builder.Property(x => x.Quote);
+        builder.Property(x => x.Justification);
     }
 }

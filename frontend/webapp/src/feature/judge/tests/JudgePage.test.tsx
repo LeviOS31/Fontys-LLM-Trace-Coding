@@ -18,6 +18,7 @@ vi.mock('../components/JudgeRunPanel.tsx', () => ({
   default: ({
     templates,
     onTemplateChange,
+    onCollectionChange,
     onRun,
     canRun,
     loading,
@@ -25,6 +26,7 @@ vi.mock('../components/JudgeRunPanel.tsx', () => ({
   }: {
     templates: JudgeTemplate[];
     onTemplateChange: (ids: string[]) => void;
+    onCollectionChange: (ids: string[]) => void;
     onRun: () => void;
     canRun: boolean;
     loading: boolean;
@@ -38,6 +40,8 @@ vi.mock('../components/JudgeRunPanel.tsx', () => ({
       </ul>
       <button onClick={() => onTemplateChange(['t1', 't2'])}>Pick templates</button>
       <button onClick={() => onTemplateChange(['t3'])}>Pick deprecated</button>
+      <button onClick={() => onCollectionChange(['c1', 'c2'])}>Pick collections</button>
+      <button onClick={() => onCollectionChange([])}>Clear collections</button>
       <button disabled={!canRun} onClick={onRun}>
         Run
       </button>
@@ -186,6 +190,12 @@ function renderPage(path = '/projects/p1/versions/v1/judge') {
 const calls = () => fetchMock.mock.calls as [unknown, RequestInit | undefined][];
 const callsWithMethod = (method: string) => calls().filter(([, init]) => init?.method === method);
 
+// Running needs both an active template and at least one trace collection.
+const pickSelection = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Pick collections' }));
+};
+
 describe('JudgePage', () => {
   it('redirects to not-found if the project/version route parameters are absent', () => {
     renderPage('/judge');
@@ -233,7 +243,7 @@ describe('JudgePage', () => {
   });
 
   describe('running the judge', () => {
-    it('cannot run until an active template is selected', async () => {
+    it('cannot run until an active template and a trace collection are selected', async () => {
       renderPage();
       await screen.findByTestId('overview');
       const run = screen.getByRole('button', { name: 'Run' });
@@ -243,14 +253,21 @@ describe('JudgePage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Pick deprecated' }));
       expect(run).toBeDisabled();
 
+      // Templates alone are not enough: a trace collection is needed too.
       fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
+      expect(run).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Pick collections' }));
       expect(run).toBeEnabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Clear collections' }));
+      expect(run).toBeDisabled();
     });
 
-    it('posts the axial code ids, reloads the list and opens the new run', async () => {
+    it('posts the axial code ids and trace collection ids, reloads the list and opens the new run', async () => {
       renderPage();
       await screen.findByTestId('overview');
-      fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
+      pickSelection();
 
       postReply = { body: { judgeRunId: 'run-2', results: [] } };
       listReply = {
@@ -268,14 +285,17 @@ describe('JudgePage', () => {
       const [[postUrl, postInit]] = callsWithMethod('POST');
       expect(String(postUrl)).toBe('http://localhost/v1/projects/p1/versions/v1/judge');
       expect(postInit?.headers).toEqual({ 'Content-Type': 'application/json' });
-      expect(JSON.parse(String(postInit?.body))).toEqual({ axialCodeIds: ['a1', 'a2'] });
+      expect(JSON.parse(String(postInit?.body))).toEqual({
+        judgeTemplateIds: ['t1', 't2'],
+        traceCollectionIds: ['c1', 'c2'],
+      });
     });
 
     it('shows the status code when the request fails', async () => {
       postReply = { status: 500, body: { detail: 'boom' } };
       renderPage();
       await screen.findByTestId('overview');
-      fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
+      pickSelection();
       fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Request failed (500).');
@@ -287,7 +307,7 @@ describe('JudgePage', () => {
       postReply = { body: { unexpected: true } };
       renderPage();
       await screen.findByTestId('overview');
-      fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
+      pickSelection();
       fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -299,7 +319,7 @@ describe('JudgePage', () => {
       postReply = { reject: true };
       renderPage();
       await screen.findByTestId('overview');
-      fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
+      pickSelection();
       fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Request failed.');

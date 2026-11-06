@@ -11,6 +11,7 @@ Task:
 - Each axial code must reference the open codes it groups via openCodeIds.
 - Base every label and description only on the cited open-code text. Do not add facts, causes, context, or interpretations that are not supported by those open codes.
 - For every openCodeId in an axial code, provide one short exact quote copied from that open code as evidence.
+- For every axial code, write a rationale: why this axial code was created, meaning the pattern across its grouped open codes that made them worth their own category. Use only what those open codes say, and do not list judging rules or criteria in it.
 - For every axial code, write judge guidelines: instructions a judge can apply to a new, unseen trace (which has no open code) to decide whether it exhibits the behaviour this axial code describes. Derive them only from the grouped open codes. Cover when to mark true, when to mark false (the absence of the behaviour or a similar behaviour that does not qualify) and borderline cases.
 - The judge only sees the user message and the assistant response, never the reviewer's comment. Describe the behaviour as something the assistant response does or shows (for example "the response puts each question on its own line with no spacing or structure"), never as a comment, request or statement the trace contains.
 - Translate reviewer praise or criticism into the observable response behaviour it refers to. Never make a guideline depend on the response being described, praised, requested, or evaluated as good or bad; the response itself need not mention the behaviour.
@@ -18,7 +19,7 @@ Task:
 - The "Mark false when" line must describe a concrete near miss: a response on the same topic that does not show the behaviour. A later step writes a negative example from it.
 - For every axial code, set positiveExampleOpenCodeId to the cited open code that states the behaviour most clearly and typically. Its trace is used as the positive example, so prefer an open code that describes the behaviour directly over one that only partly fits. It must be one of that axial code's openCodeIds.
 - For every piece of evidence, write a short justification explaining why that specific open code belongs to the axial code.
-- Use the same language as the open codes for all labels, descriptions, judge guidelines and justifications.
+- Use the same language as the open codes for all labels, descriptions, rationales, judge guidelines and justifications.
 
 Output requirements (strict):
 - Return ONLY a JSON array.
@@ -42,7 +43,7 @@ Output requirements (strict):
 Quality rules:
 - Prefer 3–8 axial codes unless data is very small or very large.
 - Keep labels specific and non-overlapping.
-- Descriptions should clarify the scope and inclusion criteria.
+- Descriptions should briefly summarize what the axial code covers. Do not list judging rules or criteria in them; those belong in judgeGuidelines.
 - If you reuse an openCodeId across axial codes, ensure each axial code captures a distinct aspect of that open code.
 
 If input is empty, return an empty JSON array: []

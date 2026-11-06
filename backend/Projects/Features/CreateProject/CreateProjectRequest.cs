@@ -19,8 +19,7 @@ public sealed class CreateProjectRequestValidator : AbstractValidator<CreateProj
     {
         RuleFor(x => x.UserId).NotEmpty();
 
-        RuleFor(x => x.Name).Length(Project.MinNameLength, Project.MaxNameLength);
+        RuleFor(x => x.Name).NotEmpty();
 
-        RuleFor(x => x.Description).MaximumLength(Project.MaxDescriptionLength);
     }
 }

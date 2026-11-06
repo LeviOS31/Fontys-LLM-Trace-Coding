@@ -152,6 +152,7 @@ public class GenerateAxialCodingResultHandler
                 Label = ac.Label,
                 Description = ac.Description,
                 TraceIds = ac.TraceIds,
+                Rationale = ac.Rationale,
                 JudgeGuidelines = ac.JudgeGuidelines,
                 PositiveExampleTrace = ac.PositiveExampleTrace,
                 PositiveExampleReasoning = ac.PositiveExampleReasoning,
@@ -185,6 +186,9 @@ public class GenerateAxialCodingResultHandler
         [JsonPropertyName("description")]
         public required string Description { get; init; }
 
+        [JsonPropertyName("rationale")]
+        public required string Rationale { get; init; }
+
         [JsonPropertyName("judgeGuidelines")]
         public required string JudgeGuidelines { get; init; }
 
@@ -205,6 +209,9 @@ public class GenerateAxialCodingResultHandler
 
         [JsonPropertyName("description")]
         public required string Description { get; init; }
+
+        [JsonPropertyName("rationale")]
+        public string? Rationale { get; init; }
 
         [JsonPropertyName("judgeGuidelines")]
         public string? JudgeGuidelines { get; init; }
@@ -287,6 +294,7 @@ public class GenerateAxialCodingResultHandler
         {
             Label = axial.Label,
             Description = axial.Description,
+            Rationale = axial.Rationale,
             JudgeGuidelines = axial.JudgeGuidelines,
             OpenCodeIds = axial
                 .TraceIds.Select(id => mapping.FirstOrDefault(kvp => kvp.Value == id).Key)
@@ -411,6 +419,7 @@ public class GenerateAxialCodingResultHandler
             AxialCodeId = axialCodeId,
             Label = candidate.Label.Trim(),
             Description = candidate.Description.Trim(),
+            Rationale = candidate.Rationale.Trim(),
             JudgeGuidelines = candidate.JudgeGuidelines.Trim(),
             PositiveExampleTrace = positive?.Trace,
             PositiveExampleReasoning = positive?.Reasoning,
@@ -499,10 +508,8 @@ public class GenerateAxialCodingResultHandler
             if (
                 string.IsNullOrWhiteSpace(axialCode.Label)
                 || string.IsNullOrWhiteSpace(axialCode.Description)
+                || string.IsNullOrWhiteSpace(axialCode.Rationale)
                 || string.IsNullOrWhiteSpace(axialCode.JudgeGuidelines)
-                || axialCode.Label.Length > AxialCode.MaxLabelLength
-                || axialCode.Description.Length > AxialCode.MaxDescriptionLength
-                || axialCode.JudgeGuidelines.Trim().Length > AxialCode.MaxJudgeGuidelinesLength
                 || axialCode.OpenCodeIds == null
                 || axialCode.Evidence == null
                 || axialCode.OpenCodeIds.Count == 0
@@ -531,9 +538,7 @@ public class GenerateAxialCodingResultHandler
                     evidence == null
                     || !axialCode.OpenCodeIds.Contains(evidence.OpenCodeId)
                     || string.IsNullOrWhiteSpace(evidence.Quote)
-                    || evidence.Quote.Trim().Length > AxialCodeOpenCodeJustification.MaxQuoteLength
                     || string.IsNullOrWhiteSpace(evidence.Justification)
-                    || evidence.Justification.Trim().Length > AxialCodeOpenCodeJustification.MaxJustificationLength
                     || !evidenceById.TryAdd(evidence.OpenCodeId, evidence.Quote)
                 )
                 {
@@ -661,6 +666,7 @@ public class GenerateAxialCodingResultHandler
                         index,
                         label = code.Label,
                         description = code.Description,
+                        rationale = code.Rationale,
                         judgeGuidelines = code.JudgeGuidelines,
                         openCodeIds = code.OpenCodeIds,
                         evidence = code.Evidence,

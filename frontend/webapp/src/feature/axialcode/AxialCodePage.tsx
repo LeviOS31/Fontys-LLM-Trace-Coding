@@ -13,7 +13,6 @@ import { useGetCurrentAxialCodesOfVersion } from './hooks/useGetCurrentAxialCode
 import { useGetOpenCodesByVersion } from './hooks/useGetOpenCodesByVersion.ts';
 import { useSaveAxialCodingResults } from './hooks/useSaveAxialCodingResults.ts';
 import SnapshotSummaryCard from './components/SnapshotSummaryCard.tsx';
-import SnapshotTreemapSection from '../../shared/components/SnapshotTreemap.tsx';
 import AxialCodeList from './components/AxialCodeList.tsx';
 import { convertApiCodesToSnapshot } from '../../shared/util/convertApiCodesToSnapshot.ts';
 import { compareAxialCodes } from '../../shared/util/compareAxialCodes.ts';
@@ -214,8 +213,6 @@ export default function AxialCodePage() {
             <SnapshotSummaryCard snapshot={snapshotA} />
           </Box>
 
-          <SnapshotTreemapSection snapshotA={snapshotA} />
-
           <Box pb="9">
             <SectionHead title="Axial codes" />
             <AxialCodeList snapshot={snapshotA} />
@@ -258,10 +255,6 @@ export default function AxialCodePage() {
               <SnapshotSummaryCard snapshot={snapshotA} isComparison />
               <SnapshotSummaryCard snapshot={snapshotB} isB isComparison />
             </Grid>
-          </Box>
-
-          <Box mt="2">
-            <SnapshotTreemapSection snapshotA={snapshotA} snapshotB={snapshotB} />
           </Box>
 
           <Box mt="2" pb="9">

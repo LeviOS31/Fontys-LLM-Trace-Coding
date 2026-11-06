@@ -7,16 +7,41 @@
 }
 
 .textBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: none;
   border: none;
   padding: 0;
   margin: 0;
   text-align: left;
+  cursor: pointer;
+}
+
+.card {
+  cursor: pointer;
+  background: var(--color-panel-solid);
+  border: 1px solid var(--gray-6);
+  border-radius: var(--radius-3);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition:
+    box-shadow 140ms,
+    border-color 140ms;
+}
+.card:hover {
+  border-color: var(--gray-8);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Radix paints its own border via ::after; hide it so there is only one. */
+.card::after {
+  box-shadow: none;
 }
 
 .sectionLabel {
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  font-weight: 700;
 }
 
 .justificationList {
@@ -32,4 +57,33 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+.exampleMarkdown {
+  font-size: var(--font-size-2);
+  line-height: 1.6;
+}
+
+.exampleMarkdown ul,
+.exampleMarkdown ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.exampleMarkdown li {
+  margin-bottom: 0.25rem;
+}
+
+.exampleMarkdown p {
+  margin-top: 0;
+}
+
+.exampleMarkdown p:last-child {
+  margin-bottom: 0;
+}
+
+.exampleMarkdown code {
+  background: var(--gray-a3);
+  padding: 2px 4px;
+  border-radius: 4px;
 }

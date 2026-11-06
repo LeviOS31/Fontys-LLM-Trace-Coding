@@ -48,6 +48,22 @@ namespace AxialCodes.Migrations
                     b.Property<string>("Rationale")
                         .HasColumnType("text");
 
+                    b.Property<string>("NegativeExampleReasoning")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("NegativeExampleTrace")
+                        .HasMaxLength(1100)
+                        .HasColumnType("character varying(1100)");
+
+                    b.Property<string>("PositiveExampleReasoning")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("PositiveExampleTrace")
+                        .HasMaxLength(1100)
+                        .HasColumnType("character varying(1100)");
+
                     b.PrimitiveCollection<Guid[]>("TraceIds")
                         .IsRequired()
                         .HasColumnType("uuid[]");

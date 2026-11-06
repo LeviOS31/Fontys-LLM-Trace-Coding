@@ -7,6 +7,10 @@ public record AxialCodeViewModel
     public required ICollection<Guid> TraceIds { get; init; }
     public string? Rationale { get; init; }
     public string? JudgeGuidelines { get; init; }
+    public string? PositiveExampleTrace { get; init; }
+    public string? PositiveExampleReasoning { get; init; }
+    public string? NegativeExampleTrace { get; init; }
+    public string? NegativeExampleReasoning { get; init; }
     public IEnumerable<OpenCodeJustificationViewModel>? OpenCodeJustifications { get; init; }
 }
 

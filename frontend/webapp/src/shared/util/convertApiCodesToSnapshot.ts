@@ -1,5 +1,8 @@
 import type { AxialCode as ApiAxialCode } from '../types/axialCode.ts';
-import type { AxialCodeSnapshotCode } from '../types/axialCodeSnapshotCode.ts';
+import type {
+  AxialCodeSnapshotCode,
+  AxialCodeSnapshotExample,
+} from '../types/axialCodeSnapshotCode.ts';
 import type { Snapshot } from '../types/snapshot.ts';
 import type { SnapshotTotals } from '../types/snapshotTotals.ts';
 import buildColors from './buildColors.ts';
@@ -10,6 +13,13 @@ export interface SnapshotComparisonOptions {
   readonly colorOf?: ReadonlyMap<ApiAxialCode, string>;
   /** What happened to each code compared to the approved version. */
   readonly changeOf?: ReadonlyMap<ApiAxialCode, AxialCodeChange>;
+}
+
+function toExample(
+  trace: string | null | undefined,
+  reasoning: string | null | undefined
+): AxialCodeSnapshotExample | null {
+  return trace ? { trace, reasoning: reasoning ?? '' } : null;
 }
 
 export function convertApiCodesToSnapshot(
@@ -45,6 +55,8 @@ export function convertApiCodesToSnapshot(
       totalOpenCodes > 0 ? Math.round((openCodeCount / totalOpenCodes) * 1000) / 10 : 0;
     const change = comparison?.changeOf?.get(apiCode);
 
+    // judgeGuidelines is deliberately not mapped: it stays on the API type for regeneration
+    // but is never shown to the user.
     return {
       id: `code_${i}_${label}`,
       name: apiCode.label,
@@ -55,6 +67,8 @@ export function convertApiCodesToSnapshot(
         quote: j.quote,
         justification: j.justification,
       })),
+      positiveExample: toExample(apiCode.positiveExampleTrace, apiCode.positiveExampleReasoning),
+      negativeExample: toExample(apiCode.negativeExampleTrace, apiCode.negativeExampleReasoning),
       prevalence,
       traceCount: openCodeCount,
       openCodeCount,

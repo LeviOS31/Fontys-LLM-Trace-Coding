@@ -1,20 +1,24 @@
 import type { AxialCodeChangeKind } from '../util/compareAxialCodes.ts';
 
-/** Why a single open code belongs to an axial code. */
 export interface AxialCodeSnapshotJustification {
   readonly traceId: string;
   readonly quote: string;
   readonly justification: string;
 }
 
+export interface AxialCodeSnapshotExample {
+  readonly trace: string;
+  readonly reasoning: string;
+}
+
 export interface AxialCodeSnapshotCode {
   readonly id: string;
   readonly name: string;
   readonly description: string;
-  /** Why this code was created. */
   readonly rationale?: string | null;
-  /** Why each grouped open code belongs to this code. */
   readonly justifications?: readonly AxialCodeSnapshotJustification[];
+  readonly positiveExample?: AxialCodeSnapshotExample | null;
+  readonly negativeExample?: AxialCodeSnapshotExample | null;
   readonly prevalence: number;
   readonly traceCount: number;
   readonly openCodeCount: number;
@@ -22,7 +26,6 @@ export interface AxialCodeSnapshotCode {
   readonly sampleTraces: readonly string[];
   readonly sampleOpenCodes: readonly string[];
   readonly color: string;
-  /** Labels of the approved codes this regenerated code comes from. */
   readonly derivedFrom?: readonly string[];
   readonly changeKind?: AxialCodeChangeKind;
   readonly addedTraceIds?: readonly string[];

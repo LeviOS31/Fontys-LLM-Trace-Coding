@@ -26,6 +26,7 @@ Output requirements (strict):
 - Each element must have:
   - label: string, <= 255 chars.
   - description: string, <= 255 chars.
+  - rationale: string, <= 1000 chars. Why this axial code was created: the pattern across its grouped open codes. Do not list judging rules or criteria.
   - judgeGuidelines: string, <= 2000 chars. Three lines separated by "\n", starting with "Mark true when:", "Mark false when:" and "Borderline cases:". Write them as instructions for judging a trace, not as an explanation of the grouping.
   - positiveExampleOpenCodeId: integer, one of the axial code's openCodeIds.
   - openCodeIds: array of integer IDs (openCodeId values from input).

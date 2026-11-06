@@ -30,8 +30,16 @@ public class GenerateAxialCodingResultHandler
         + "If the response does not clearly exhibit the behavior, return false. Also estimate matchScore from 0 to 100 for how closely the response exhibits it; use 0 when there is no evidence.\n"
         + "Return only JSON: {\"reasoning\":\"A short explanation citing the assistant response\",\"result\":true|false,\"matchScore\":0}.";
 
-    private const int MaxExcerptChars = 500;
-    private const int MaxNegativeAttempts = 5;
+    private const int MaxExcerptChars = 500;          // stored and shown, per message
+    private const int MaxJudgeChars = 3000;           // what the judge sees, per message
+    private const int MaxJudgedReasoningChars = 800;  // leaves room for the fallback prefix under the 1000 column
+    private const int MaxNegativeAttempts = 6;
+    private const int ClearNegativeScore = 15;        // at or below this a negative is accepted immediately
+    private const int MaxNegativeScore = 40;          // above this a "false" verdict is too borderline to show
+
+    // The model is nondeterministic: a missing field or a paraphrased quote can succeed on a second try.
+    private const int MaxGenerationAttempts = 2;
+
 
     private static readonly Lazy<string> _axialCodingPrompt = new(() =>
         LoadPrompt("AxialCodes.Resources.Prompts.AxialCodingPrompt.txt")
@@ -245,7 +253,9 @@ public class GenerateAxialCodingResultHandler
         [JsonPropertyName("rationale")] public required string Rationale { get; init; }
     }
 
-    private sealed record ExampleResult(string Trace, string Reasoning, string UserExcerpt, string AssistantExcerpt);
+    // Trace: clipped "User: ...\nAssistant: ..." that is stored and shown.
+    // JudgeInput: the (much less clipped) text the judge actually reads.
+    private sealed record ExampleResult(string Trace, string Reasoning, string JudgeInput);
 
     private sealed record ExampleJudgment(ExampleResult Example, bool MatchesExpected, int MatchScore);
 
@@ -335,51 +345,89 @@ public class GenerateAxialCodingResultHandler
         CancellationToken cancellationToken
     )
     {
-        var llmResult = await DoLlmCall(userId, messages, cancellationToken);
-        if (llmResult.IsError)
+        // Generate, parse and ground-check. Retry when the model output is malformed or ungrounded.
+        List<AxialCodeLlmItem>? candidates = null;
+        ErrorCode? lastError = null;
+        for (var attempt = 1; attempt <= MaxGenerationAttempts; attempt++)
         {
-            return llmResult.ErrorCode!;
+            var llmResult = await DoLlmCall(userId, messages, cancellationToken);
+            if (llmResult.IsError)
+            {
+                return llmResult.ErrorCode!;
+            }
+
+            var parsedResult = ParseAxialCodes(llmResult.Value);
+            if (parsedResult.IsError)
+            {
+                lastError = parsedResult.ErrorCode;
+                Logger.Warning(
+                    "Axial code generation attempt {Attempt}/{Max} could not be parsed",
+                    attempt,
+                    MaxGenerationAttempts
+                );
+                continue;
+            }
+
+            var parsedCandidates = parsedResult.Value.ToList();
+            var validationResult = ValidateGroundedAxialCodes(parsedCandidates, mapping, openCodesPayload);
+            if (validationResult.IsError)
+            {
+                lastError = validationResult.ErrorCode;
+                Logger.Warning(
+                    "Axial code generation attempt {Attempt}/{Max} failed grounding validation",
+                    attempt,
+                    MaxGenerationAttempts
+                );
+                continue;
+            }
+
+            candidates = parsedCandidates;
+            break;
         }
 
-        var parsedResult = ParseAxialCodes(llmResult.Value);
-        if (parsedResult.IsError)
+        if (candidates == null)
         {
-            return parsedResult.ErrorCode!;
-        }
-
-        var candidates = parsedResult.Value.ToList();
-        var validationResult = ValidateGroundedAxialCodes(candidates, mapping, openCodesPayload);
-        if (validationResult.IsError)
-        {
-            return validationResult.ErrorCode!;
+            return lastError ?? ErrorCode.LlmError;
         }
 
         var verificationResult = await VerifyAxialCodesAsync(
-            userId,
-            projectId,
-            projectVersionId,
-            candidates,
-            openCodesPayload,
-            mapping,
-            cancellationToken
-        );
+    userId,
+    candidates,
+    openCodesPayload,
+    cancellationToken
+);
         if (verificationResult.IsError)
         {
             return verificationResult.ErrorCode!;
         }
 
-        var verification = verificationResult.Value;
-        var accepted = candidates
-            .Select((candidate, index) => (candidate, index))
-            .Where(item => verification.Supported.Contains(item.index))
-            .ToArray();
+        var supported = verificationResult.Value;
+        if (supported.Count == 0)
+        {
+            Logger.Warning("Grounding verification rejected all generated axial codes");
+            return ErrorCode.LlmError;
+        }
+
+        // Examples are only searched for codes that passed the audit.
+        var traceCache = new Dictionary<Guid, IReadOnlyList<TraceMessage>?>();
+        var positives = await FindPositiveExamplesAsync(
+            userId,
+            projectId,
+            projectVersionId,
+            candidates,
+            supported,
+            mapping,
+            traceCache,
+            cancellationToken
+        );
 
         // Sequential on purpose: every LLM call reads the config through a scoped DbContext,
         // which does not allow concurrent use.
         var acceptedAxialCodes = new List<AxialCode>();
-        foreach (var item in accepted)
+        foreach (var index in supported.OrderBy(i => i))
         {
-            var positive = verification.Positives.GetValueOrDefault(item.index);
+            var candidate = candidates[index];
+            var positive = positives.GetValueOrDefault(index);
             ExampleResult? negative = null;
             if (positive != null)
             {
@@ -387,20 +435,15 @@ public class GenerateAxialCodingResultHandler
                     userId,
                     projectId,
                     projectVersionId,
-                    item.candidate,
+                    candidate,
                     positive,
                     openCodesPayload,
                     mapping,
+                    traceCache,
                     cancellationToken
                 );
             }
-            acceptedAxialCodes.Add(BuildAxialCode(item.candidate, mapping, positive, negative));
-        }
-
-        if (acceptedAxialCodes.Count == 0)
-        {
-            Logger.Warning("Grounding verification rejected all generated axial codes");
-            return ErrorCode.LlmError;
+            acceptedAxialCodes.Add(BuildAxialCode(candidate, mapping, positive, negative));
         }
 
         return Result.Success<IEnumerable<AxialCode>>(acceptedAxialCodes);
@@ -575,90 +618,14 @@ public class GenerateAxialCodingResultHandler
         return Result.Success(true);
     }
 
-    private async Task<Result<VerificationOutcome>> VerifyAxialCodesAsync(
-        Guid userId,
-        Guid projectId,
-        Guid projectVersionId,
-        IEnumerable<AxialCodeLlmItem> axialCodes,
-        List<OpenCodeLlmItem> openCodes,
-        Dictionary<int, Guid> mapping,
-        CancellationToken cancellationToken
-    )
+    private async Task<Result<HashSet<int>>> VerifyAxialCodesAsync(
+    Guid userId,
+    IReadOnlyList<AxialCodeLlmItem> axialCodes,
+    List<OpenCodeLlmItem> openCodes,
+    CancellationToken cancellationToken
+)
     {
-        var axialList = axialCodes.ToList();
-
-        // Prefer a real trace that the judge confirms; keep the nominated trace as best available otherwise.
-        var traces = new Dictionary<int, IReadOnlyList<TraceMessage>>();
-        var positives = new Dictionary<int, ExampleResult>();
-        for (var index = 0; index < axialList.Count; index++)
-        {
-            var code = axialList[index];
-            ExampleResult? closestAvailable = null;
-            var closestMatchScore = -1;
-            var candidateIds = new[] { code.PositiveExampleOpenCodeId }
-                .Concat(code.OpenCodeIds.Where(id => id != code.PositiveExampleOpenCodeId))
-                .Distinct();
-            foreach (var id in candidateIds)
-            {
-                if (!traces.TryGetValue(id, out var traceMessages))
-                {
-                    traceMessages = await LoadTraceMessagesAsync(
-                        userId,
-                        projectId,
-                        projectVersionId,
-                        mapping[id],
-                        cancellationToken
-                    );
-                    if (traceMessages != null)
-                    {
-                        traces[id] = traceMessages;
-                    }
-                }
-
-                if (traceMessages == null)
-                {
-                    continue;
-                }
-
-                var built = BuildExcerptExample(traceMessages);
-                if (built == null)
-                {
-                    continue;
-                }
-
-                var judged = await JudgeExampleAsync(userId, code, built, expectedResult: true, cancellationToken);
-                if (judged?.MatchesExpected == true)
-                {
-                    positives[index] = judged.Example;
-                    break;
-                }
-
-                if (judged != null && judged.MatchScore > closestMatchScore)
-                {
-                    closestMatchScore = judged.MatchScore;
-                    closestAvailable = judged.Example with
-                    {
-                        Reasoning =
-                            $"This is the closest available real trace for the category, although it does not clearly demonstrate the behavior: {judged.Example.Reasoning}",
-                    };
-                }
-                else if (judged == null && closestAvailable == null)
-                {
-                    closestAvailable = built with
-                    {
-                        Reasoning =
-                            "This is the nominated real trace for the category; its behavior could not be confirmed against the judging guidelines.",
-                    };
-                }
-            }
-
-            if (!positives.ContainsKey(index) && closestAvailable != null)
-            {
-                positives[index] = closestAvailable;
-            }
-        }
-
-        var candidates = axialList
+        var candidates = axialCodes
             .Select(
                 (code, index) =>
                     new
@@ -707,8 +674,7 @@ public class GenerateAxialCodingResultHandler
                 throw new JsonException("Verification response did not contain exactly one check per axial code");
             }
 
-            var supported = checks.Where(check => check.Supported).Select(check => check.Index).ToHashSet();
-            return new VerificationOutcome(supported, positives);
+            return checks.Where(check => check.Supported).Select(check => check.Index).ToHashSet();
         }
         catch (JsonException ex)
         {
@@ -717,9 +683,90 @@ public class GenerateAxialCodingResultHandler
         }
     }
 
-    // Finds a real trace that does not exhibit the behaviour. Nothing is generated: candidates are
-    // open-coded traces outside this axial code, ranked in code by word overlap with its label and
-    // description (closest topic first), and the judge must confirm the verdict is false.
+    // For each supported code: the nominated open code's trace first, then the other traces in the code.
+    // The first trace the judge confirms wins; otherwise the closest-scoring one is kept as best available.
+    private async Task<Dictionary<int, ExampleResult>> FindPositiveExamplesAsync(
+        Guid userId,
+        Guid projectId,
+        Guid projectVersionId,
+        IReadOnlyList<AxialCodeLlmItem> axialCodes,
+        HashSet<int> indices,
+        Dictionary<int, Guid> mapping,
+        Dictionary<Guid, IReadOnlyList<TraceMessage>?> traceCache,
+        CancellationToken cancellationToken
+    )
+    {
+        var positives = new Dictionary<int, ExampleResult>();
+        foreach (var index in indices.OrderBy(i => i))
+        {
+            var code = axialCodes[index];
+            ExampleResult? closestAvailable = null;
+            var closestMatchScore = -1;
+            var candidateIds = new[] { code.PositiveExampleOpenCodeId }
+                .Concat(code.OpenCodeIds.Where(id => id != code.PositiveExampleOpenCodeId))
+                .Distinct();
+
+            foreach (var id in candidateIds)
+            {
+                var traceMessages = await LoadTraceMessagesCachedAsync(
+                    traceCache,
+                    userId,
+                    projectId,
+                    projectVersionId,
+                    mapping[id],
+                    cancellationToken
+                );
+                if (traceMessages == null)
+                {
+                    continue;
+                }
+
+                var built = BuildExcerptExample(traceMessages);
+                if (built == null)
+                {
+                    continue;
+                }
+
+                var judged = await JudgeExampleAsync(userId, code, built, expectedResult: true, cancellationToken);
+                if (judged?.MatchesExpected == true)
+                {
+                    positives[index] = judged.Example;
+                    closestAvailable = null;
+                    break;
+                }
+
+                if (judged != null && judged.MatchScore > closestMatchScore)
+                {
+                    closestMatchScore = judged.MatchScore;
+                    closestAvailable = judged.Example with
+                    {
+                        Reasoning =
+                            $"This is the closest available real trace for the category, although it does not clearly demonstrate the behavior: {judged.Example.Reasoning}",
+                    };
+                }
+                else if (judged == null && closestAvailable == null)
+                {
+                    closestAvailable = built with
+                    {
+                        Reasoning =
+                            "This is the nominated real trace for the category; its behavior could not be confirmed against the judging guidelines.",
+                    };
+                }
+            }
+
+            if (!positives.ContainsKey(index) && closestAvailable != null)
+            {
+                positives[index] = closestAvailable;
+            }
+        }
+
+        return positives;
+    }
+
+    // Finds a real trace that does not exhibit the behaviour. Nothing is generated. Candidates are
+    // open-coded traces outside this axial code, ranked by overlap with the code's label, description
+    // and its "Mark false when" near miss. The judge must say false; a clearly low match score is
+    // accepted immediately, otherwise the lowest-scoring false verdict among the candidates is used.
     private async Task<ExampleResult?> FindRealNegativeAsync(
         Guid userId,
         Guid projectId,
@@ -728,6 +775,7 @@ public class GenerateAxialCodingResultHandler
         ExampleResult positive,
         List<OpenCodeLlmItem> openCodes,
         Dictionary<int, Guid> mapping,
+        Dictionary<Guid, IReadOnlyList<TraceMessage>?> traceCache,
         CancellationToken cancellationToken
     )
     {
@@ -740,19 +788,35 @@ public class GenerateAxialCodingResultHandler
         static double Jaccard(HashSet<string> a, HashSet<string> b) =>
             a.Count == 0 || b.Count == 0 ? 0 : (double)a.Intersect(b).Count() / a.Union(b).Count();
 
+        var nearMiss =
+            candidate
+                .JudgeGuidelines.Split('\n')
+                .FirstOrDefault(line =>
+                    line.TrimStart().StartsWith("Mark false when:", StringComparison.OrdinalIgnoreCase)
+                ) ?? string.Empty;
+
         var own = candidate.OpenCodeIds.ToHashSet();
-        var reference = Tokens($"{candidate.Label} {candidate.Description}");
+        var topic = Tokens($"{candidate.Label} {candidate.Description}");
+        var nearMissTokens = Tokens(nearMiss);
 
         var pool = openCodes
             .Where(code => !own.Contains(code.OpenCodeId) && !string.IsNullOrWhiteSpace(code.OpenCode))
-            .OrderByDescending(code => Jaccard(reference, Tokens(code.OpenCode)))
-            .ThenBy(code => code.OpenCodeId)
+            .Select(code =>
+            {
+                var tokens = Tokens(code.OpenCode);
+                return (code, score: Jaccard(topic, tokens) + Jaccard(nearMissTokens, tokens));
+            })
+            .OrderByDescending(item => item.score)
+            .ThenBy(item => item.code.OpenCodeId)
             .Take(MaxNegativeAttempts)
+            .Select(item => item.code)
             .ToList();
 
+        ExampleJudgment? best = null;
         foreach (var other in pool)
         {
-            var messages = await LoadTraceMessagesAsync(
+            var messages = await LoadTraceMessagesCachedAsync(
+                traceCache,
                 userId,
                 projectId,
                 projectVersionId,
@@ -771,14 +835,27 @@ public class GenerateAxialCodingResultHandler
             }
 
             var judged = await JudgeExampleAsync(userId, candidate, excerpt, expectedResult: false, cancellationToken);
-            if (judged?.MatchesExpected == true)
+            if (judged?.MatchesExpected != true || judged.MatchScore > MaxNegativeScore)
+            {
+                continue;
+            }
+
+            if (judged.MatchScore <= ClearNegativeScore)
             {
                 return judged.Example;
             }
+
+            if (best == null || judged.MatchScore < best.MatchScore)
+            {
+                best = judged;
+            }
         }
 
-        Logger.Information("No real negative example found for axial code {Label}", candidate.Label);
-        return null;
+        if (best == null)
+        {
+            Logger.Information("No real negative example found for axial code {Label}", candidate.Label);
+        }
+        return best?.Example;
     }
 
     // Trace loading
@@ -808,9 +885,10 @@ public class GenerateAxialCodingResultHandler
 
         var spans = GetSpanAttributes(result.Value).ToList();
 
-        // Later LLM spans repeat the earlier conversation in their prompt attributes,
-        // so use only the last span that has a completion. Fall back to all spans.
-        var llmSpans = spans.Where(s => s.ContainsKey("gen_ai.completion.0.content")).ToList();
+        // Later LLM spans repeat the earlier conversation, so use only the last span with an output.
+        var llmSpans = spans
+            .Where(s => s.ContainsKey("gen_ai.completion.0.content") || s.ContainsKey("gen_ai.output.messages"))
+            .ToList();
         var messages = ExtractMessages(llmSpans.Count > 0 ? llmSpans.TakeLast(1) : spans);
 
         if (messages.Count == 0)
@@ -825,12 +903,38 @@ public class GenerateAxialCodingResultHandler
         return messages;
     }
 
-    // Reads gen_ai.prompt.N.* and gen_ai.completion.N.* attributes from each span.
+    private async Task<IReadOnlyList<TraceMessage>?> LoadTraceMessagesCachedAsync(
+    Dictionary<Guid, IReadOnlyList<TraceMessage>?> cache,
+    Guid userId,
+    Guid projectId,
+    Guid projectVersionId,
+    Guid traceId,
+    CancellationToken cancellationToken
+)
+    {
+        if (cache.TryGetValue(traceId, out var cached))
+        {
+            return cached;
+        }
+
+        var loaded = await LoadTraceMessagesAsync(userId, projectId, projectVersionId, traceId, cancellationToken);
+        cache[traceId] = loaded;
+        return loaded;
+    }
+
+    // Reads canonical OpenTelemetry GenAI messages and the older indexed prompt/completion attributes.
     private static List<TraceMessage> ExtractMessages(IEnumerable<IReadOnlyDictionary<string, string>> spans)
     {
         var messages = new List<TraceMessage>();
         foreach (var attributes in spans)
         {
+            if (attributes.ContainsKey("gen_ai.input.messages") || attributes.ContainsKey("gen_ai.output.messages"))
+            {
+                AddOtelMessages(attributes.GetValueOrDefault("gen_ai.input.messages"), "user", messages);
+                AddOtelMessages(attributes.GetValueOrDefault("gen_ai.output.messages"), "assistant", messages);
+                continue;
+            }
+
             foreach (var prefix in new[] { "gen_ai.prompt", "gen_ai.completion" })
             {
                 var defaultRole = prefix == "gen_ai.completion" ? "assistant" : "user";
@@ -842,6 +946,71 @@ public class GenerateAxialCodingResultHandler
             }
         }
         return messages;
+    }
+
+    private static void AddOtelMessages(string? json, string defaultRole, ICollection<TraceMessage> messages)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                Logger.Warning("OpenTelemetry GenAI messages attribute was not a JSON array");
+                return;
+            }
+
+            foreach (var message in document.RootElement.EnumerateArray())
+            {
+                if (message.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var role =
+                    message.TryGetProperty("role", out var roleElement)
+                    && roleElement.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(roleElement.GetString())
+                        ? roleElement.GetString()!.Trim()
+                        : defaultRole;
+                var content = GetOtelTextContent(message);
+                if (!string.IsNullOrWhiteSpace(content))
+                {
+                    messages.Add(new TraceMessage(role, content));
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            Logger.Warning(ex, "Could not parse OpenTelemetry GenAI messages attribute");
+        }
+    }
+
+    private static string GetOtelTextContent(JsonElement message)
+    {
+        if (!message.TryGetProperty("parts", out var parts) || parts.ValueKind != JsonValueKind.Array)
+        {
+            return message.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.String
+                ? content.GetString() ?? string.Empty
+                : string.Empty;
+        }
+
+        return string.Concat(
+            parts.EnumerateArray()
+                .Where(part =>
+                    part.ValueKind == JsonValueKind.Object
+                    && part.TryGetProperty("type", out var type)
+                    && type.ValueKind == JsonValueKind.String
+                    && type.GetString() == "text"
+                    && part.TryGetProperty("content", out var partContent)
+                    && partContent.ValueKind == JsonValueKind.String
+                )
+                .Select(part => part.GetProperty("content").GetString())
+        );
     }
 
     private static IEnumerable<IReadOnlyDictionary<string, string>> GetSpanAttributes(GetTraceResponse trace) =>
@@ -859,11 +1028,29 @@ public class GenerateAxialCodingResultHandler
             });
 
     // The example contains only real trace messages (last user and assistant message, clipped).
+    // Keeps the start and the end of a long message: the start shows the formatting and tone,
+    // the end is where sources, closing questions and sign-offs live.
+    private static string Clip(string text, int max)
+    {
+        text = text.Trim();
+        if (text.Length <= max)
+        {
+            return text;
+        }
+
+        const string marker = " […] ";
+        var keep = max - marker.Length;
+        var head = keep * 2 / 3;
+        var tail = keep - head;
+        return text[..head].TrimEnd() + marker + text[^tail..].TrimStart();
+    }
+
+    private static string Truncate(string text, int max) =>
+        text.Length <= max ? text : text[..(max - 1)].TrimEnd() + "…";
+
+    // The example contains only real trace messages (last user and assistant message).
     private static ExampleResult? BuildExcerptExample(IReadOnlyList<TraceMessage> messages)
     {
-        static string Clip(string text) =>
-            text.Length > MaxExcerptChars ? text[..MaxExcerptChars].TrimEnd() : text.Trim();
-
         var user = messages.LastOrDefault(m => m.Role == "user")?.Content;
         var assistant = messages.LastOrDefault(m => m.Role == "assistant")?.Content;
         if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(assistant))
@@ -871,13 +1058,10 @@ public class GenerateAxialCodingResultHandler
             return null;
         }
 
-        var userExcerpt = Clip(user);
-        var assistantExcerpt = Clip(assistant);
         return new ExampleResult(
-            $"User: {userExcerpt}\nAssistant: {assistantExcerpt}",
+            $"User: {Clip(user, MaxExcerptChars)}\nAssistant: {Clip(assistant, MaxExcerptChars)}",
             string.Empty,
-            userExcerpt,
-            assistantExcerpt
+            $"User: {Clip(user, MaxJudgeChars)}\nAssistant: {Clip(assistant, MaxJudgeChars)}"
         );
     }
 
@@ -896,7 +1080,7 @@ public class GenerateAxialCodingResultHandler
 
         var result = await DoLlmCall(
             userId,
-            [new(ChatRole.System, system), new(ChatRole.User, example.Trace)],
+            [new(ChatRole.System, system), new(ChatRole.User, example.JudgeInput)],
             cancellationToken
         );
         if (result.IsError)
@@ -927,11 +1111,7 @@ public class GenerateAxialCodingResultHandler
                 && score is >= 0 and <= 100
                     ? score
                     : 0;
-            if (
-                !hasVerdict
-                || string.IsNullOrWhiteSpace(reasoning)
-                || reasoning.Length > AxialCode.MaxExampleReasoningLength
-            )
+            if (!hasVerdict || string.IsNullOrWhiteSpace(reasoning))
             {
                 Logger.Warning(
                     "Could not validate {ExampleType} example for axial code {Label}",
@@ -942,7 +1122,7 @@ public class GenerateAxialCodingResultHandler
             }
 
             return new ExampleJudgment(
-                example with { Reasoning = reasoning },
+                example with { Reasoning = Truncate(reasoning, MaxJudgedReasoningChars) },
                 verdict.GetBoolean() == expectedResult,
                 matchScore
             );

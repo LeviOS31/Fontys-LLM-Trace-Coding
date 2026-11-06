@@ -187,6 +187,10 @@ public class GetAxialCodesHandlerTests
                     Description = "User experience related",
                     Rationale = "Several open codes report users struggling with the interface",
                     JudgeGuidelines = "Mark true when the user complains about the interface",
+                    PositiveExampleTrace = "User: I cannot find the button\nAssistant: Try the menu.",
+                    PositiveExampleReasoning = "The response directly illustrates the behavior.",
+                    NegativeExampleTrace = "User: What time is it?\nAssistant: It is noon.",
+                    NegativeExampleReasoning = "The response does not illustrate the behavior.",
                     TraceIds = [traceId],
                     OpenCodeJustifications =
                     [
@@ -221,6 +225,10 @@ public class GetAxialCodesHandlerTests
         var returnedCode = Assert.Single(response.Value.AxialCodes!);
         Assert.Equal("Several open codes report users struggling with the interface", returnedCode.Rationale);
         Assert.Equal("Mark true when the user complains about the interface", returnedCode.JudgeGuidelines);
+        Assert.Equal("User: I cannot find the button\nAssistant: Try the menu.", returnedCode.PositiveExampleTrace);
+        Assert.Equal("The response directly illustrates the behavior.", returnedCode.PositiveExampleReasoning);
+        Assert.Equal("User: What time is it?\nAssistant: It is noon.", returnedCode.NegativeExampleTrace);
+        Assert.Equal("The response does not illustrate the behavior.", returnedCode.NegativeExampleReasoning);
         var justification = Assert.Single(returnedCode.OpenCodeJustifications);
         Assert.Equal(traceId, justification.TraceId);
         Assert.Equal("button is hard to find", justification.Quote);

@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Badge, Blockquote, Box, Card, Flex, Text } from '@radix-ui/themes';
-import type {
-  AxialCodeSnapshotCode,
-  AxialCodeSnapshotJustification,
-} from '../../../../shared/types/axialCodeSnapshotCode.ts';
+import { Box, Card, Flex, Text } from '@radix-ui/themes';
+import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
+import type { AxialCodeSnapshotCode } from '../../../../shared/types/axialCodeSnapshotCode.ts';
 import { colors } from '../../../../shared/styling/colors.ts';
 import styles from './AxialCodeCard.module.css';
 import ChangeKindBadge from '../ChangeKindBadge.tsx';
+import AxialCodeDetails from '../AxialCodeDetails.tsx';
 
 const ORIGIN_PREFIX: Partial<Record<NonNullable<AxialCodeSnapshotCode['changeKind']>, string>> = {
   renamed: 'Was',
@@ -26,48 +25,34 @@ function ChangeDetails({ code }: { readonly code: AxialCodeSnapshotCode }) {
   return (
     <Flex direction="column" gap="1">
       {prefix && code.derivedFrom && code.derivedFrom.length > 0 && (
-        <Text size="1" color="gray">
+        <Text size="1">
           {prefix}{' '}
-          <Text as="span" size="1" weight="bold" highContrast>
+          <Text as="span" size="1" weight="bold">
             {code.derivedFrom.join(', ')}
           </Text>
         </Text>
       )}
       {showCounts && (
-        <Flex gap="2">
+        <Flex gap="3">
           {added > 0 && (
-            <Text size="1" weight="bold" color="green">
-              +{added} open code{added > 1 ? 's' : ''}
-            </Text>
+            <Flex align="center" gap="1">
+              <Plus size={12} color="var(--green-11)" aria-hidden />
+              <Text size="1" weight="bold" color="green">
+                {added} open code{added > 1 ? 's' : ''}
+              </Text>
+            </Flex>
           )}
           {removed > 0 && (
-            <Text size="1" weight="bold" color="red">
-              −{removed} open code{removed > 1 ? 's' : ''}
-            </Text>
+            <Flex align="center" gap="1">
+              <Minus size={12} color="var(--red-11)" aria-hidden />
+              <Text size="1" weight="bold" color="red">
+                {removed} open code{removed > 1 ? 's' : ''}
+              </Text>
+            </Flex>
           )}
         </Flex>
       )}
     </Flex>
-  );
-}
-
-/** Why each grouped open code belongs to this axial code. */
-function JustificationList({
-  justifications,
-}: {
-  readonly justifications: readonly AxialCodeSnapshotJustification[];
-}) {
-  return (
-    <ul className={styles.justificationList}>
-      {justifications.map((j) => (
-        <li key={j.traceId} className={styles.justification} data-testid="axial-code-justification">
-          <Blockquote size="1">“{j.quote}”</Blockquote>
-          <Text as="p" size="2">
-            {j.justification}
-          </Text>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -79,7 +64,7 @@ interface AxialCodeCardProps {
 
 export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const justifications = code.justifications ?? [];
+  const Chevron = expanded ? ChevronUp : ChevronDown;
 
   const prevalence = Math.min(100, Math.max(0, code.prevalence));
 
@@ -115,19 +100,19 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
 
           {code.changeKind && <ChangeDetails code={code} />}
 
-          <Text size="2" color="gray" style={{ lineHeight: 1.5 }}>
+          <Text size="2" style={{ lineHeight: 1.5 }}>
             {code.description}
           </Text>
 
           <Flex gap="4">
-            <Text size="1" color="gray">
-              <Text as="span" size="1" weight="bold" highContrast>
+            <Text size="1">
+              <Text as="span" size="1" weight="bold">
                 {code.prevalence}%
               </Text>{' '}
               prevalence
             </Text>
-            <Text size="1" color="gray">
-              <Text as="span" size="1" weight="bold" highContrast>
+            <Text size="1">
+              <Text as="span" size="1" weight="bold">
                 {code.openCodeCount}
               </Text>{' '}
               open codes
@@ -154,47 +139,7 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
             />
           </Box>
 
-          {expanded && (
-            <Flex
-              direction="column"
-              gap="2"
-              pt="3"
-              style={{ borderTop: '1px dashed var(--gray-5)' }}
-            >
-              {code.rationale && (
-                <Flex direction="column" gap="1" data-testid="axial-code-rationale">
-                  <Text size="1" color="gray" className={styles.sectionLabel}>
-                    Why this code exists
-                  </Text>
-                  <Text as="p" size="2">
-                    {code.rationale}
-                  </Text>
-                </Flex>
-              )}
-
-              {justifications.length > 0 ? (
-                <>
-                  <Text size="1" color="gray" className={styles.sectionLabel}>
-                    Why these open codes belong here
-                  </Text>
-                  <JustificationList justifications={justifications} />
-                </>
-              ) : (
-                <>
-                  <Text size="1" color="gray" className={styles.sectionLabel}>
-                    Open codes
-                  </Text>
-                  <Flex wrap="wrap" gap="1">
-                    {code.sampleOpenCodes.map((c, index) => (
-                      <Badge key={`${c}-${index}`} variant="surface" color="gray" size="1">
-                        {c}
-                      </Badge>
-                    ))}
-                  </Flex>
-                </>
-              )}
-            </Flex>
-          )}
+          {expanded && <AxialCodeDetails code={code} />}
 
           <Text
             asChild
@@ -205,12 +150,14 @@ export default function AxialCodeCard({ code, onHover, snap }: AxialCodeCardProp
             <button
               type="button"
               className={styles.textBtn}
+              aria-expanded={expanded}
               onClick={(e) => {
                 e.stopPropagation();
                 setExpanded((v) => !v);
               }}
             >
-              {expanded ? 'Collapse ↑' : 'Expand details ↓'}
+              {expanded ? 'Collapse' : 'Expand details'}
+              <Chevron size={14} aria-hidden />
             </button>
           </Text>
         </Flex>

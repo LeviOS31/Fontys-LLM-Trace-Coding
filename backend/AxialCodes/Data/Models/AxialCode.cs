@@ -6,6 +6,10 @@ namespace AxialCodes.Data.Models;
 public class AxialCode
 {
 
+        // "User: ...\nAssistant: ..." with two excerpts of at most 500 chars each, plus the labels.
+        public const int MaxExampleTraceLength = 1100;
+        public const int MaxExampleReasoningLength = 1000;
+
         public required Guid AxialCodingResultId { get; init; }
         public required AxialCodingResult? AxialCodingResult { get; init; }
 
@@ -44,6 +48,10 @@ internal sealed class AxialCodeEntityConfiguration : IEntityTypeConfiguration<Ax
                 builder.Property(x => x.Description);
                 builder.Property(x => x.Feedback);
                 builder.Property(x => x.JudgeGuidelines);
+                builder.Property(x => x.PositiveExampleTrace).HasMaxLength(AxialCode.MaxExampleTraceLength);
+                builder.Property(x => x.PositiveExampleReasoning).HasMaxLength(AxialCode.MaxExampleReasoningLength);
+                builder.Property(x => x.NegativeExampleTrace).HasMaxLength(AxialCode.MaxExampleTraceLength);
+                builder.Property(x => x.NegativeExampleReasoning).HasMaxLength(AxialCode.MaxExampleReasoningLength);
 
                 builder.PrimitiveCollection(x => x.TraceIds);
 

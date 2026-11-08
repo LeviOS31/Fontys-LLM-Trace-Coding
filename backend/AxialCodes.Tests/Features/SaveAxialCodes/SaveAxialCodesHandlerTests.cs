@@ -1,6 +1,7 @@
 ﻿using AxialCodes.Data;
 using AxialCodes.Data.Models;
 using AxialCodes.Features.SaveAxialCodes;
+using JudgeTemplates.Contracts.Features.DeleteJudgeTemplatesOfAxialCodes;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -83,22 +84,36 @@ public class SaveAxialCodesHandlerTests
     }
 
     [Fact]
-    public async Task WhenActiveResultsExist_ActivatesTargetAndDeactivatesOthers()
+    public async Task WhenApproved_DeletesOldResultsAndTheirJudgeTemplatesAndActivatesTarget()
     {
         // Arrange
         var request = CreateRequest();
         var targetResult = CreateResult(request.AxialCodingResultId, request.ProjectVersionId, isActive: false);
-        var activeResult = CreateResult(Guid.NewGuid(), request.ProjectVersionId, isActive: true);
-        var mockSet = new List<AxialCodingResult> { targetResult, activeResult }.BuildMockDbSet();
+        var previousAxialCodeId = Guid.NewGuid();
+        var draftAxialCodeId = Guid.NewGuid();
+        var previouslyApproved = CreateResult(
+            Guid.NewGuid(),
+            request.ProjectVersionId,
+            isActive: true,
+            axialCodeIds: [previousAxialCodeId]
+        );
+        var unapprovedDraft = CreateResult(
+            Guid.NewGuid(),
+            request.ProjectVersionId,
+            isActive: false,
+            axialCodeIds: [draftAxialCodeId]
+        );
+        var mockSet = new List<AxialCodingResult>
+        {
+            targetResult,
+            previouslyApproved,
+            unapprovedDraft,
+        }.BuildMockDbSet();
         var mockContext = CreateMockContext();
         mockContext.AxialCodingResults.Returns(mockSet);
         mockContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
 
-        var mediator = Substitute.For<IMediator>();
-        mediator
-            .Send(Arg.Any<GetProjectQuery>(), Arg.Any<CancellationToken>())
-            .Returns(CreateProjectResponse(request.ProjectVersionId));
-
+        var mediator = CreateMediator(request.ProjectVersionId);
         var transaction = SetupTransaction(mockContext);
         var handler = new SaveAxialCodesHandler(mediator, mockContext);
 
@@ -108,9 +123,87 @@ public class SaveAxialCodesHandlerTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.True(targetResult.IsActive);
-        Assert.False(activeResult.IsActive);
+        mockSet
+            .Received(1)
+            .RemoveRange(
+                Arg.Is<IEnumerable<AxialCodingResult>>(results =>
+                    results.Count() == 2 && results.Contains(previouslyApproved) && results.Contains(unapprovedDraft)
+                )
+            );
+        await mediator
+            .Received(1)
+            .Send(
+                Arg.Is<DeleteJudgeTemplatesOfAxialCodesRequest>(r =>
+                    r.ProjectVersionId == request.ProjectVersionId
+                    && r.AxialCodeIds.Count == 2
+                    && r.AxialCodeIds.Contains(previousAxialCodeId)
+                    && r.AxialCodeIds.Contains(draftAxialCodeId)
+                ),
+                Arg.Any<CancellationToken>()
+            );
         await mockContext.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
         await transaction.Received(1).CommitAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task WhenDeletingJudgeTemplatesFails_ReturnErrorAndKeepOldResults()
+    {
+        // Arrange
+        var request = CreateRequest();
+        var targetResult = CreateResult(request.AxialCodingResultId, request.ProjectVersionId, isActive: false);
+        var previouslyApproved = CreateResult(
+            Guid.NewGuid(),
+            request.ProjectVersionId,
+            isActive: true,
+            axialCodeIds: [Guid.NewGuid()]
+        );
+        var mockSet = new List<AxialCodingResult> { targetResult, previouslyApproved }.BuildMockDbSet();
+        var mockContext = CreateMockContext();
+        mockContext.AxialCodingResults.Returns(mockSet);
+
+        var mediator = CreateMediator(request.ProjectVersionId);
+        mediator
+            .Send(Arg.Any<DeleteJudgeTemplatesOfAxialCodesRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ErrorCode.DatabaseError);
+        SetupTransaction(mockContext);
+        var handler = new SaveAxialCodesHandler(mediator, mockContext);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCode.DatabaseError, result.ErrorCode);
+        Assert.False(targetResult.IsActive);
+        mockSet.DidNotReceive().RemoveRange(Arg.Any<IEnumerable<AxialCodingResult>>());
+        await mockContext.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task WhenNoOtherResultsExist_DoesNotDeleteAnything()
+    {
+        // Arrange
+        var request = CreateRequest();
+        var targetResult = CreateResult(request.AxialCodingResultId, request.ProjectVersionId, isActive: false);
+        var mockSet = new List<AxialCodingResult> { targetResult }.BuildMockDbSet();
+        var mockContext = CreateMockContext();
+        mockContext.AxialCodingResults.Returns(mockSet);
+        mockContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+
+        var mediator = CreateMediator(request.ProjectVersionId);
+        SetupTransaction(mockContext);
+        var handler = new SaveAxialCodesHandler(mediator, mockContext);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.True(targetResult.IsActive);
+        mockSet.DidNotReceive().RemoveRange(Arg.Any<IEnumerable<AxialCodingResult>>());
+        await mediator
+            .DidNotReceive()
+            .Send(Arg.Any<DeleteJudgeTemplatesOfAxialCodesRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -179,7 +272,12 @@ public class SaveAxialCodesHandlerTests
         };
     }
 
-    private static AxialCodingResult CreateResult(Guid resultId, Guid versionId, bool isActive)
+    private static AxialCodingResult CreateResult(
+        Guid resultId,
+        Guid versionId,
+        bool isActive,
+        IEnumerable<Guid>? axialCodeIds = null
+    )
     {
         return new AxialCodingResult
         {
@@ -187,8 +285,30 @@ public class SaveAxialCodesHandlerTests
             ProjectVersionId = versionId,
             IsActive = isActive,
             CreatedAt = DateTimeOffset.UnixEpoch,
-            AxialCodes = Array.Empty<AxialCode>(),
+            AxialCodes = (axialCodeIds ?? [])
+                .Select(id => new AxialCode
+                {
+                    AxialCodeId = id,
+                    AxialCodingResultId = resultId,
+                    AxialCodingResult = null,
+                    Label = "Label",
+                    Description = "Description",
+                    TraceIds = [],
+                })
+                .ToList(),
         };
+    }
+
+    private static IMediator CreateMediator(Guid versionId)
+    {
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetProjectQuery>(), Arg.Any<CancellationToken>())
+            .Returns(CreateProjectResponse(versionId));
+        mediator
+            .Send(Arg.Any<DeleteJudgeTemplatesOfAxialCodesRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new DeleteJudgeTemplatesOfAxialCodesResponse());
+        return mediator;
     }
 
     private static GetProjectResponse CreateProjectResponse(Guid versionId)

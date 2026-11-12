@@ -10,6 +10,7 @@ public record SetLlmConfigRequest : IRequest<Result<SetLlmConfigResponse>>
     public required string? ProviderName { get; init; }
     public required Uri? Endpoint { get; init; }
     public required string? ModelName { get; init; }
+    public string? ApiKey { get; init; }
 }
 
 public sealed class SetLlmConfigRequestValidator : AbstractValidator<SetLlmConfigRequest>

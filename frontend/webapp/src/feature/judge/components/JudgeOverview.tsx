@@ -7,6 +7,7 @@ import {
 } from '../hooks/judgeUtils';
 import JudgeRunCard from './JudgeRunCard';
 import { SectionHead, SummaryStat } from './Primitives';
+import { Search } from 'lucide-react';
 
 type Props = {
   readonly runs: JudgeRunListItem[];
@@ -50,6 +51,26 @@ export default function JudgeOverview({
             <SummaryStat label="Failed" value={overall.failedCount} />
           </Grid>
         </Card>
+      </Box>
+
+      <Box
+        style={{
+          background: `var(--gray-2)`,
+          border: `1px solid var(--gray-6)`,
+          borderRadius: 'var(--radius-3)',
+          padding: '14px 18px',
+        }}>
+        <input 
+          type='text'
+          placeholder='Search'
+          style={{
+            width: '80%',
+            border: 'none',
+            background: 'transparent',
+            fontSize: '1.25em'
+          }}
+        />
+        <Search></Search>
       </Box>
 
       <Box pb="9">

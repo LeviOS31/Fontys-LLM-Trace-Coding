@@ -31,7 +31,9 @@ public class SetLlmConfigHandler : IRequestHandler<SetLlmConfigRequest, Result<S
                         updates
                             .SetProperty(c => c.Provider, request.ProviderName)
                             .SetProperty(c => c.Endpoint, request.Endpoint)
-                            .SetProperty(c => c.Model, request.ModelName),
+                            .SetProperty(c => c.Model, request.ModelName)
+                            .SetProperty(c => c.ApiKey, request.ApiKey),
+                            
                     cancellationToken
                 );
 
@@ -52,6 +54,7 @@ public class SetLlmConfigHandler : IRequestHandler<SetLlmConfigRequest, Result<S
             ProviderName = request.ProviderName,
             Endpoint = request.Endpoint,
             ModelName = request.ModelName,
+            ApiKey = request.ApiKey,
         };
     }
 }

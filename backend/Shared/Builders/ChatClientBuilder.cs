@@ -59,6 +59,7 @@ public class ChatClientBuilder : IChatClientBuilder
         {
             "ollama" => BuildOllamaClient(),
             "openrouter" => BuildOpenAiCompatibleClient("openrouter"),
+            "gemini" => BuildOpenAiCompatibleClient("gemini"),
             _ => ErrorCode.LlmConfigError,
         };
     }

@@ -7,11 +7,9 @@ import JudgeOverview from '../JudgeOverview';
 
 afterEach(cleanup);
 
-const makeRun = (id: string, templateName: string): JudgeRunListItem => ({
+const makeRun = (id: string): JudgeRunListItem => ({
   judgeRunId: id,
-  axialCodeId: `axial-${id}`,
   createdAt: '2025-01-15T12:00:00Z',
-  templateName,
   totalCount: 5,
   trueCount: 3,
   falseCount: 2,
@@ -30,10 +28,12 @@ type Overrides = Partial<React.ComponentProps<typeof JudgeOverview>>;
 
 function renderOverview(overrides: Overrides = {}) {
   const props = {
-    runs: [makeRun('run-1', 'Reliability'), makeRun('run-2', 'Latency')],
+    collectionName: 'Judge Collection',
+    runs: [makeRun('run-1'), makeRun('run-2')],
     totals,
     hasMore: false,
     loading: false,
+    onBack: vi.fn(),
     onLoadMore: vi.fn(),
     onSelect: vi.fn(),
     ...overrides,
@@ -73,9 +73,15 @@ describe('JudgeOverview', () => {
 
   it('renders one card per run and forwards selection', () => {
     const { onSelect } = renderOverview();
-    expect(screen.getAllByRole('button')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: /Latency/ }));
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: /run-2/ }));
     expect(onSelect).toHaveBeenCalledWith('run-2');
+  });
+
+  it('returns to the collection list', () => {
+    const { onBack } = renderOverview();
+    fireEvent.click(screen.getByRole('button', { name: /All judge collections/ }));
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 
   it('shows an empty-state message when there are no runs', () => {

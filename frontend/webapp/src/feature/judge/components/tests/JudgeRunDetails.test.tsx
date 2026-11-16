@@ -12,9 +12,7 @@ afterEach(() => {
 
 const run: JudgeRunListItem = {
   judgeRunId: 'run-1',
-  axialCodeId: 'a1',
   createdAt: '2025-01-15T12:00:00Z',
-  templateName: 'Reliability',
   totalCount: 3,
   trueCount: 2,
   falseCount: 1,
@@ -64,9 +62,9 @@ function statValue(label: string) {
 }
 
 describe('JudgeRunDetails', () => {
-  it('shows the template name, run id and summary statistics', () => {
+  it('shows the run label, run id and summary statistics', () => {
     renderDetails();
-    expect(screen.getByText('Reliability')).toBeInTheDocument();
+    expect(screen.getByText('Judge run')).toBeInTheDocument();
     expect(screen.getByText('run-1')).toBeInTheDocument();
     expect(statValue('Results')).toBe('3');
     expect(statValue('Verdict true')).toBe('2 (66.7%)');
@@ -94,9 +92,7 @@ describe('JudgeRunDetails', () => {
 
   it('shows an empty message when the judge returned no results', () => {
     renderDetails({ results: [] });
-    expect(
-      screen.getByText('The judge returned no results for this axial code.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('This judge run contains no judged traces.')).toBeInTheDocument();
   });
 
   it('switches to the raw JSON view', () => {

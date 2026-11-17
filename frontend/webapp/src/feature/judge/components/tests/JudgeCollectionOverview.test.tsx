@@ -12,6 +12,10 @@ const collection: JudgeCollection = {
   name: 'Judge Collection 1',
   versionId: 'version-1',
   createdAt: '2025-01-15T12:00:00Z',
+  runCount: 1,
+  traceCount: 2,
+  succesCount: 3,
+  failCount: 4
 };
 
 function renderOverview(collections: JudgeCollection[] = [collection], loading = false) {

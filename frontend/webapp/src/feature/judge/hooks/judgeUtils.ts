@@ -10,6 +10,10 @@ export type JudgeCollection = {
   name: string;
   versionId: string;
   createdAt: string;
+  runCount: number;
+  traceCount: number;
+  succesCount: number;
+  failCount: number;
 };
 
 // verdict and reasoning are null when the trace failed.

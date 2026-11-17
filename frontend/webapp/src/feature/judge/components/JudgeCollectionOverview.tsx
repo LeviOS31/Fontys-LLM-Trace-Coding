@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
-import { AlertDialog, Box, Button, Card, Flex, Text, TextField } from '@radix-ui/themes';
+import { AlertDialog, Box, Select, Button, Card, Flex, Text, TextField } from '@radix-ui/themes';
 import { ChevronRight, Pencil, Search, Trash2 } from 'lucide-react';
 import { formatDate, type JudgeCollection } from '../hooks/judgeUtils';
 import { SectionHead } from './Primitives';
-import { Select } from 'radix-ui';
 
 type SortKey = 'runs'|'traces'|'succes'|'fail'|'name';
 
@@ -47,6 +46,13 @@ export default function JudgeCollectionOverview({
   const [deleteTarget, setDeleteTarget] = useState<JudgeCollection | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
+  const [query, setQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  
+  const collectionsfiltered = useMemo(
+    () => collections.filter((collection) => matchesQuery(collection, query)).sort(SORTERS[sortKey]),
+    [collections, query, sortKey]
+  );
 
   const beginEditing = (collection: JudgeCollection) => {
     setEditingCollectionId(collection.judgeCollectionId);
@@ -87,13 +93,6 @@ export default function JudgeCollectionOverview({
     }
   };
 
-  const [query, setQuery] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('name');
-  
-  const collectionsfiltered = useMemo(
-    () => collections.filter((collection) => matchesQuery(collection, query)).sort(SORTERS[sortKey]),
-    [collections, query, sortKey]
-  );
 
   return (
     <Box pb="9">

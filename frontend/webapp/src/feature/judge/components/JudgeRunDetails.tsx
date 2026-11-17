@@ -57,7 +57,7 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
           </Button>
         </Flex>
         <Text as="p" size="5" weight="bold" mt="3">
-          {run.templateName}
+          Judge run
         </Text>
         <Flex align="center" gap="3" mt="1" wrap="wrap">
           <Text size="2" color="gray">
@@ -126,7 +126,7 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
           </Card>
         ) : results.length === 0 ? (
           <Text as="p" size="2" color="gray">
-            The judge returned no results for this axial code.
+            This judge run contains no judged traces.
           </Text>
         ) : (
           <Flex direction="column" gap="3">

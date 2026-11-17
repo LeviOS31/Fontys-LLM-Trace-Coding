@@ -23,6 +23,7 @@ public class SetLlmConfigHandlerTests
             Provider = "old-provider",
             Model = "old-model",
             Endpoint = new Uri("http://old-endpoint"),
+            ApiKey = Guid.NewGuid().ToString(),
         };
 
         var mockDbSet = new List<ChatClientConfiguration> { config }.BuildMockDbSet();

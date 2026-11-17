@@ -48,12 +48,14 @@ public class GetLlmStatusHandlerTests
                     ProviderName = "invalid",
                     Endpoint = new Uri("http://localhost"),
                     ModelName = "",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.Build().Returns(ErrorCode.LlmConfigError);
 
         var handler = new GetLlmStatusHandler(mediator, chatClientBuilder);
@@ -84,12 +86,15 @@ public class GetLlmStatusHandlerTests
                     ProviderName = "Ollama",
                     Endpoint = new Uri("http://localhost:9999"),
                     ModelName = "dummy",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         // GetResponseAsync(string) is an extension method — mock the actual interface method instead

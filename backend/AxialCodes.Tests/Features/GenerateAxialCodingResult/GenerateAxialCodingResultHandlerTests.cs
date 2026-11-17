@@ -170,12 +170,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -240,12 +243,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -310,12 +316,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -391,6 +400,7 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
         mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
@@ -398,6 +408,8 @@ public class GenerateAxialCodingResultHandlerTests
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -478,6 +490,7 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
         mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
@@ -485,6 +498,8 @@ public class GenerateAxialCodingResultHandlerTests
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -568,6 +583,7 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
         mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
@@ -575,6 +591,8 @@ public class GenerateAxialCodingResultHandlerTests
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -678,6 +696,7 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
         mediator
@@ -699,6 +718,8 @@ public class GenerateAxialCodingResultHandlerTests
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
         chatClient
             .GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions>(), Arg.Any<CancellationToken>())
@@ -904,12 +925,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -964,6 +988,7 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
         mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
@@ -971,6 +996,8 @@ public class GenerateAxialCodingResultHandlerTests
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient

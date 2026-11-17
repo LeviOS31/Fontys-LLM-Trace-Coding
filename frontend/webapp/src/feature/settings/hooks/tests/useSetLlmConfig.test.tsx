@@ -21,6 +21,7 @@ describe('useSetLlmConfig', () => {
       providerName: 'Test provider',
       endpoint: 'https://api.example.com',
       modelName: 'test-model',
+      apiKey: 'aaaaaaaaaa'
     };
     vi.mocked(setLlmConfig).mockResolvedValue(config);
     const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -50,12 +51,13 @@ describe('useSetLlmConfig', () => {
       providerName: null,
       endpoint: null,
       modelName: null,
+      apiKey: null
     });
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     );
     const { result } = renderHook(() => useSetLlmConfig(), { wrapper });
-    const cleared = { providerName: null, endpoint: null, modelName: null };
+    const cleared = { providerName: null, endpoint: null, modelName: null, apiKey: null};
 
     await act(async () => {
       await result.current.mutateAsync(cleared);

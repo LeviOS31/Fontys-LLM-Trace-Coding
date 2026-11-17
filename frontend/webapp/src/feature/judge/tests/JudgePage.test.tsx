@@ -155,6 +155,10 @@ const makeCollection = (id: string, name: string): JudgeCollection => ({
   name,
   versionId: 'v1',
   createdAt: '2025-01-15T12:00:00Z',
+  runCount: 1,
+  traceCount: 2,
+  succesCount: 3,
+  failCount: 4
 });
 
 const makeRun = (id: string): JudgeRunSummary => ({

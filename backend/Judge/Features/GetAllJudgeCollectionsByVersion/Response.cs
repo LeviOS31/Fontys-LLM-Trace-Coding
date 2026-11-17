@@ -15,5 +15,9 @@ namespace Judge.Features.GetAllJudgeCollectionsByVersion
         public required string Name { get; init; }
         public required Guid VersionId { get; init; }
         public required DateTimeOffset CreatedAt { get; init; }
+        public required int RunCount { get; init; }
+        public required int TraceCount { get; init; }
+        public required int SuccesCount { get; init; }
+        public required int FailCount { get; init; }
     }
 }

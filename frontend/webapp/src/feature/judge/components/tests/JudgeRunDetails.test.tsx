@@ -12,6 +12,8 @@ afterEach(() => {
 
 const run: JudgeRunListItem = {
   judgeRunId: 'run-1',
+  judgeTemplateId: 'template-1',
+  name: 'Template name',
   createdAt: '2025-01-15T12:00:00Z',
   totalCount: 3,
   trueCount: 2,
@@ -39,12 +41,13 @@ const results: JudgeResult[] = [
 type Overrides = Partial<React.ComponentProps<typeof JudgeRunDetails>>;
 
 function renderDetails(overrides: Overrides = {}) {
-  const props = {
+  const props: React.ComponentProps<typeof JudgeRunDetails> = {
     run,
+    projectId: 'project-1',
+    versionId: 'version-1',
     results,
     resultsLoading: false,
     onBack: vi.fn(),
-    onDelete: vi.fn(),
     ...overrides,
   };
   render(
@@ -64,7 +67,7 @@ function statValue(label: string) {
 describe('JudgeRunDetails', () => {
   it('shows the run label, run id and summary statistics', () => {
     renderDetails();
-    expect(screen.getByText('Judge run')).toBeInTheDocument();
+    expect(screen.getByText('Template name')).toBeInTheDocument();
     expect(screen.getByText('run-1')).toBeInTheDocument();
     expect(statValue('Results')).toBe('3');
     expect(statValue('Verdict true')).toBe('2 (66.7%)');
@@ -106,22 +109,6 @@ describe('JudgeRunDetails', () => {
     const { onBack } = renderDetails();
     fireEvent.click(screen.getByRole('button', { name: /All judge runs/ }));
     expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  describe('delete', () => {
-    it('calls onDelete after the user confirms', () => {
-      vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
-      const { onDelete } = renderDetails();
-      fireEvent.click(screen.getByRole('button', { name: /Delete run/ }));
-      expect(onDelete).toHaveBeenCalledTimes(1);
-    });
-
-    it('does nothing when the user cancels', () => {
-      vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
-      const { onDelete } = renderDetails();
-      fireEvent.click(screen.getByRole('button', { name: /Delete run/ }));
-      expect(onDelete).not.toHaveBeenCalled();
-    });
   });
 
   describe('copy', () => {

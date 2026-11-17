@@ -2,6 +2,7 @@ import { BASE_URL } from './api.ts';
 import type { ImportTraceCollectionDto } from '../types/trace.dto.ts';
 import type {
   GetTracesQuery,
+  TraceDetailView,
   TraceCollectionOverview,
   TraceGroupDetail,
   TraceGroupSummaryItem,
@@ -119,6 +120,22 @@ export async function getTraceGroup(
 
   const response = await fetch(url.toString(), { method: 'GET' });
   if (!response.ok) throw new ApiError('Failed to fetch trace', response.status);
+  return await response.json();
+}
+
+export async function getTrace(
+  projectId: string,
+  projectVersionId: string,
+  traceId: string,
+  signal?: AbortSignal
+): Promise<Pick<TraceDetailView, 'traceId' | 'traceScopes'>> {
+  const url = new URL(
+    `/v1/projects/${projectId}/versions/${projectVersionId}/traces/${traceId}`,
+    BASE_URL
+  );
+
+  const response = await fetch(url.toString(), { method: 'GET', signal });
+  if (!response.ok) throw new ApiError(`Failed to fetch trace ${traceId}`, response.status);
   return await response.json();
 }
 

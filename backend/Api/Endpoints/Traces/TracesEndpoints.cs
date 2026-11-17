@@ -3,6 +3,7 @@ using Api.Endpoints.Traces.HelperFunctions;
 using Api.Extensions;
 using Mediator;
 using Microsoft.AspNetCore.Mvc;
+using Traces.Contracts.Features.GetTrace;
 using Traces.Contracts.Features.GetVersionOpencode;
 using Traces.Dtos;
 using Traces.Features.DeleteTraceCollection;
@@ -91,6 +92,33 @@ public static class TracesEndpoints
                 }
             )
             .WithTags("Traces");
+
+        app.MapGet(
+                "/v1/projects/{projectId:guid}/versions/{versionId:guid}/traces/{traceId:guid}",
+                async Task<IResult> (
+                    Guid projectId,
+                    Guid versionId,
+                    Guid traceId,
+                    IMediator mediator,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var result = await mediator.Send(
+                        new GetTraceQuery
+                        {
+                            ProjectId = projectId,
+                            ProjectVersionId = versionId,
+                            TraceId = traceId,
+                            UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get from claims
+                        },
+                        cancellationToken
+                    );
+
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("Traces")
+            .WithSummary("Get a trace by ID");
 
         app.MapGet(
                 "/v1/projects/{projectId:guid}/versions/{versionId:guid}/traces/collections",

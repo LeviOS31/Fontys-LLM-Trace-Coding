@@ -7,8 +7,9 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import { isTyping } from '../../../shared/util/shortcutHelpers';
 import { useUpdateSearchParam } from '../hooks/useUpdateSearchParam';
 import { TraceTreeNav } from './trace/TraceTreeNav';
-import { extractSpanMessages } from './trace/GenAIMessages';
-import { getRetrievedSourcesForUserSpan, type RetrievedSource } from './trace/retrievalSources';
+import { getLlmMessages, type LlmMessage } from './LLM/traceMessages';
+
+export type { LlmMessage, LlmRole } from './LLM/traceMessages';
 
 const LlmContent = lazy(() => import('./LLM/LlmContent').then((m) => ({ default: m.LlmContent })));
 const TraceContentOverview = lazy(() =>
@@ -29,41 +30,6 @@ export type PageParams = {
   traceGroupId: string;
 };
 
-export type LlmRole = 'user' | 'assistant' | 'system';
-export type LlmMessage = {
-  role: LlmRole;
-  content: string;
-  index: number;
-  relatedTraceId: string;
-  relatedSpanId: string;
-  modelName?: string;
-  amountOfSpans?: number;
-  retrievedSources?: RetrievedSource[];
-};
-
-function mergeRetrievedSources(
-  current: RetrievedSource[] = [],
-  added: RetrievedSource[] = []
-): RetrievedSource[] {
-  const sources = new Map(current.map((source) => [source.sourceFile, source]));
-  for (const source of added) {
-    const existing = sources.get(source.sourceFile);
-    if (!existing) {
-      sources.set(source.sourceFile, source);
-      continue;
-    }
-    existing.retrievalSpanIds = [
-      ...new Set([...existing.retrievalSpanIds, ...source.retrievalSpanIds]),
-    ];
-    for (const chunk of source.chunks) {
-      if (!chunk.id || !existing.chunks.some((currentChunk) => currentChunk.id === chunk.id)) {
-        existing.chunks.push(chunk);
-      }
-    }
-  }
-  return [...sources.values()];
-}
-
 function scrollToRetrievedSource(traceId: string, spanId: string, sourceFile: string): void {
   requestAnimationFrame(() => {
     const target = document.querySelector(
@@ -72,74 +38,6 @@ function scrollToRetrievedSource(traceId: string, spanId: string, sourceFile: st
     );
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
-}
-
-function getLlmMessages(traceGroup: ReturnType<typeof useTraceGroup>['data']): LlmMessage[] {
-  const msgs: LlmMessage[] = [];
-  const attr = (attributes: { key: string; value: string }[], key: string) =>
-    attributes.find((a) => a.key === key)?.value;
-
-  for (const trace of traceGroup?.traces ?? []) {
-    const spans = trace.traceScopes.flatMap((scope) => scope.spans);
-    const amountOfSpans = trace.traceScopes.reduce((acc, s) => acc + s.spans.length, 0);
-    const outputOnly: LlmMessage[] = [];
-
-    for (const scope of trace.traceScopes) {
-      for (const span of scope.spans) {
-        const extracted = extractSpanMessages(span.attributes);
-        if (!extracted) continue;
-
-        const modelName =
-          attr(span.attributes, 'gen_ai.request.model') ||
-          attr(span.attributes, 'gen_ai.response.model');
-
-        extracted.messages.forEach((message, index) => {
-          const entry: LlmMessage = {
-            ...message,
-            index,
-            relatedTraceId: trace.traceId,
-            relatedSpanId: span.traceScopeSpanId,
-            modelName,
-            amountOfSpans,
-            ...(message.role === 'user'
-              ? {
-                  retrievedSources: getRetrievedSourcesForUserSpan(
-                    spans,
-                    span.traceScopeSpanId,
-                    message.content
-                  ),
-                }
-              : {}),
-          };
-          // Spans without input messages have no reliable index; handled after this loop.
-          if (!extracted.hasInput) {
-            outputOnly.push(entry);
-            return;
-          }
-          // Dedupe: an earlier trace/span already owns this message at this position.
-          const duplicate = msgs.find(
-            (m) => m.content === entry.content && m.role === entry.role && m.index === entry.index
-          );
-          if (duplicate) {
-            duplicate.retrievedSources = mergeRetrievedSources(
-              duplicate.retrievedSources,
-              entry.retrievedSources
-            );
-          } else {
-            msgs.push(entry);
-          }
-        });
-      }
-    }
-
-    // Output-only spans often repeat an answer that another span already recorded.
-    for (const entry of outputOnly) {
-      const duplicate = msgs.some((m) => m.content === entry.content && m.role === entry.role);
-      if (!duplicate) msgs.push(entry);
-    }
-  }
-
-  return msgs;
 }
 
 export default function TraceGroupPage() {
@@ -151,7 +49,10 @@ export default function TraceGroupPage() {
     isError: isDetailError,
   } = useTraceGroup(id!, traceGroupId!, versionId!);
 
-  const llmMessages = useMemo(() => getLlmMessages(selectedTraceGroup), [selectedTraceGroup]);
+  const llmMessages = useMemo(
+    () => getLlmMessages(selectedTraceGroup?.traces),
+    [selectedTraceGroup]
+  );
   const messageAnchors = useMemo(
     () =>
       llmMessages.filter(

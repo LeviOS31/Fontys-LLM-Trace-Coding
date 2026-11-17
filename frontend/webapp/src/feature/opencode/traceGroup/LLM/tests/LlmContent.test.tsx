@@ -85,6 +85,27 @@ describe('LLM chat content', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
+  it('closes the retrieved source dialog with its close button', async () => {
+    renderMessages([
+      message('Summarize this source', {
+        role: 'user',
+        retrievedSources: [
+          {
+            sourceFile: 'docs/guide.md',
+            retrievalSpanIds: ['retrieval-1'],
+            chunks: [],
+          },
+        ],
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /docs\/guide\.md/ }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close file modal' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('keeps long retrieved source names on one line and truncates them', () => {
     const sourceFile = 'docs/a-very-long-source-file-name-that-should-not-wrap-across-lines.md';
     renderMessages([

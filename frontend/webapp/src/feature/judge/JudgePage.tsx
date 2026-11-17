@@ -309,6 +309,8 @@ export default function JudgePage() {
       {selectedRun && selectedCollection ? (
         <JudgeRunDetails
           run={selectedRun}
+          projectId={projectId}
+          versionId={versionId}
           results={results}
           resultsLoading={resultsLoading}
           onBack={() => setSelectedRunId(null)}

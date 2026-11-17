@@ -41,8 +41,10 @@ const results: JudgeResult[] = [
 type Overrides = Partial<React.ComponentProps<typeof JudgeRunDetails>>;
 
 function renderDetails(overrides: Overrides = {}) {
-  const props = {
+  const props: React.ComponentProps<typeof JudgeRunDetails> = {
     run,
+    projectId: 'project-1',
+    versionId: 'version-1',
     results,
     resultsLoading: false,
     onBack: vi.fn(),

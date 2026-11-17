@@ -10,20 +10,32 @@ import {
 } from '../hooks/judgeUtils';
 import ResultCard from './ResultCard';
 import { SectionHead, SummaryStat } from './Primitives';
+import JudgeTraceDialog from './JudgeTraceDialog';
 
 type View = 'formatted' | 'raw';
 
 type Props = {
   readonly run: JudgeRunListItem;
+  readonly projectId: string;
+  readonly versionId: string;
   readonly results: JudgeResult[] | null;
   readonly resultsLoading: boolean;
   readonly onBack: () => void;
   readonly onDelete: () => void;
 };
 
-export default function JudgeRunDetails({ run, results, resultsLoading, onBack, onDelete }: Props) {
+export default function JudgeRunDetails({
+  run,
+  projectId,
+  versionId,
+  results,
+  resultsLoading,
+  onBack,
+  onDelete,
+}: Props) {
   const [view, setView] = useState<View>('formatted');
   const [copied, setCopied] = useState(false);
+  const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
 
   const stats = statsFromCounts(run);
   const rawJson = JSON.stringify({ judgeRunId: run.judgeRunId, results }, null, 2);
@@ -131,11 +143,19 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
         ) : (
           <Flex direction="column" gap="3">
             {results.map((r) => (
-              <ResultCard key={r.traceId} result={r} />
+              <ResultCard key={r.traceId} result={r} onOpen={() => setSelectedTraceId(r.traceId)} />
             ))}
           </Flex>
         )}
       </Box>
+      {selectedTraceId && (
+        <JudgeTraceDialog
+          projectId={projectId}
+          versionId={versionId}
+          traceId={selectedTraceId}
+          onClose={() => setSelectedTraceId(null)}
+        />
+      )}
     </>
   );
 }

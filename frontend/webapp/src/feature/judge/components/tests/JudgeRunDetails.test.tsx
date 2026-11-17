@@ -12,6 +12,8 @@ afterEach(() => {
 
 const run: JudgeRunListItem = {
   judgeRunId: 'run-1',
+  judgeTemplateId: 'template-1',
+  name: 'Template name',
   createdAt: '2025-01-15T12:00:00Z',
   totalCount: 3,
   trueCount: 2,
@@ -64,7 +66,7 @@ function statValue(label: string) {
 describe('JudgeRunDetails', () => {
   it('shows the run label, run id and summary statistics', () => {
     renderDetails();
-    expect(screen.getByText('Judge run')).toBeInTheDocument();
+    expect(screen.getByText('Template name')).toBeInTheDocument();
     expect(screen.getByText('run-1')).toBeInTheDocument();
     expect(statValue('Results')).toBe('3');
     expect(statValue('Verdict true')).toBe('2 (66.7%)');

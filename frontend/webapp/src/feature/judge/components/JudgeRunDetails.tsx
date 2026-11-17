@@ -57,7 +57,7 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
           </Button>
         </Flex>
         <Text as="p" size="5" weight="bold" mt="3">
-          Judge run
+          {run.name ?? 'Judge run'}
         </Text>
         <Flex align="center" gap="3" mt="1" wrap="wrap">
           <Text size="2" color="gray">

@@ -9,6 +9,8 @@ afterEach(cleanup);
 
 const makeRun = (id: string): JudgeRunListItem => ({
   judgeRunId: id,
+  judgeTemplateId: null,
+  name: `Template ${id}`,
   createdAt: '2025-01-15T12:00:00Z',
   totalCount: 5,
   trueCount: 3,

@@ -9,6 +9,8 @@ afterEach(cleanup);
 
 const run: JudgeRunListItem = {
   judgeRunId: 'run-1',
+  judgeTemplateId: 'template-1',
+  name: 'Template name',
   createdAt: '2025-01-15T12:00:00Z',
   totalCount: 3,
   trueCount: 2,
@@ -28,7 +30,7 @@ const renderCard = (overrides: Partial<JudgeRunListItem> = {}, onSelect = vi.fn(
 describe('JudgeRunCard', () => {
   it('shows the run label, date, id and counts', () => {
     renderCard();
-    expect(screen.getByText('Judge run')).toBeInTheDocument();
+    expect(screen.getByText('Template name')).toBeInTheDocument();
     expect(screen.getByText(formatDate(run.createdAt))).toBeInTheDocument();
     expect(screen.getByText('run-1')).toBeInTheDocument();
     expect(screen.getByText('3 results')).toBeInTheDocument();

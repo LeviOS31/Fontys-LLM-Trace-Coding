@@ -1,4 +1,4 @@
-﻿namespace Api.Endpoints.Judge.Dtos
+namespace Api.Endpoints.Judge.Dtos
 {
     public class JudgeBodyDto
     {

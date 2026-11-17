@@ -57,6 +57,15 @@ export default function JudgePage() {
     [projectId, versionId]
   );
 
+  const collectionUrl = useCallback(
+    (judgeCollectionId: string) =>
+      new URL(
+        `/v1/projects/${projectId}/versions/${versionId}/judgecollection/${judgeCollectionId}`,
+        BASE_URL
+      ),
+    [projectId, versionId]
+  );
+
   const runListUrl = useCallback(
     (judgeCollectionId: string) =>
       new URL(
@@ -175,7 +184,14 @@ export default function JudgePage() {
   const activeTemplates = useMemo(() => templates.filter((t) => !t.isDeprecated), [templates]);
   const selectedCollection =
     collections.find((collection) => collection.judgeCollectionId === selectedCollectionId) ?? null;
-  const runs: JudgeRunListItem[] = summaries;
+  const runs: JudgeRunListItem[] = summaries.map((summary) => ({
+    ...summary,
+    name:
+      templates.find(
+        (template) =>
+          template.id.toLowerCase() === summary.judgeTemplateId?.toLowerCase()
+      )?.name ?? null,
+  }));
   const selectedRun = runs.find((run) => run.judgeRunId === selectedRunId) ?? null;
   const hasMore = summaries.length < totals.runs;
   const selectedTemplates = activeTemplates.filter((template) => templateIds.includes(template.id));
@@ -233,6 +249,35 @@ export default function JudgePage() {
     }
   };
 
+  const renameCollection = async (judgeCollectionId: string, name: string) => {
+    setError(null);
+    try {
+      const res = await fetch(collectionUrl(judgeCollectionId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        setError({
+          message: `Could not rename judge collection (${res.status}).`,
+          raw: await res.text(),
+        });
+        return false;
+      }
+
+      setCollections((current) =>
+        current.map((collection) =>
+          collection.judgeCollectionId === judgeCollectionId ? { ...collection, name } : collection
+        )
+      );
+      return true;
+    } catch (err) {
+      setError({ message: 'Could not rename judge collection.', raw: String(err) });
+      return false;
+    }
+  };
+
   return (
     <Flex direction="column" gap="4">
       <Flex align="start" justify="between">
@@ -284,6 +329,7 @@ export default function JudgePage() {
         <JudgeCollectionOverview
           collections={collections}
           loading={collectionsLoading}
+          onRename={renameCollection}
           onSelect={(judgeCollectionId) => {
             setError(null);
             setSelectedCollectionId(judgeCollectionId);

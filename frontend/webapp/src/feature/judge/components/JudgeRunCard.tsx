@@ -20,7 +20,7 @@ export default function JudgeRunCard({ run, onSelect }: Props) {
         <Flex align="center" justify="between" gap="4">
           <Box>
             <Text as="p" size="3" weight="bold">
-              Judge run
+              {run.name ?? 'Judge run'}
             </Text>
             <Text as="p" size="1" color="gray" mt="1">
               {formatDate(run.createdAt)}

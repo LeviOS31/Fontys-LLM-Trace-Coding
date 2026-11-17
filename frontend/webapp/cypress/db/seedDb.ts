@@ -171,6 +171,7 @@ export interface SeedAxialCode {
   label: string;
   description: string;
   traceIds: string[];
+  rationale?: string;
   judgeGuidelines?: string;
   openCodeJustifications?: SeedOpenCodeJustification[];
 }
@@ -194,13 +195,14 @@ export async function seedAxialCodingResults(results: SeedAxialCodingResult[]): 
       );
       for (const code of result.axialCodes) {
         await client.query(
-          `INSERT INTO "AxialCode" ("AxialCodeId", "AxialCodingResultId", "Label", "Description", "TraceIds", "JudgeGuidelines") VALUES ($1, $2, $3, $4, $5::uuid[], $6)`,
+          `INSERT INTO "AxialCode" ("AxialCodeId", "AxialCodingResultId", "Label", "Description", "TraceIds", "Rationale", "JudgeGuidelines") VALUES ($1, $2, $3, $4, $5::uuid[], $6, $7)`,
           [
             code.axialCodeId,
             result.axialCodingResultId,
             code.label,
             code.description,
             code.traceIds,
+            code.rationale ?? null,
             code.judgeGuidelines ?? null,
           ]
         );

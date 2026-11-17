@@ -6,7 +6,6 @@ namespace Projects.Data.Models
     public class AssessmentCriteria
     {
         public const int MinLength = 1;
-        public const int MaxLength = 256;
 
         public required Guid CriteriaId { get; init; }
         public required Guid ProjectId { get; init; }
@@ -19,7 +18,7 @@ namespace Projects.Data.Models
         public void Configure(EntityTypeBuilder<AssessmentCriteria> builder)
         {
             builder.HasKey(x => x.CriteriaId);
-            builder.Property(x => x.Criteria).HasMaxLength(AssessmentCriteria.MaxLength).IsRequired();
+            builder.Property(x => x.Criteria).IsRequired();
             builder.Property(x => x.ProjectId).IsRequired();
             builder.HasOne(x => x.project).WithMany(x => x.AssessmentCriteria).HasForeignKey(x => x.ProjectId).IsRequired();
         }

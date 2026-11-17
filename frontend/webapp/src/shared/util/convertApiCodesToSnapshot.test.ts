@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { convertApiCodesToSnapshot } from './convertApiCodesToSnapshot';
 
 describe('convertApiCodesToSnapshot', () => {
-  it('maps judge guidelines and open code justifications', () => {
+  it('maps the rationale and open code justifications', () => {
     const snapshot = convertApiCodesToSnapshot(
       [
         {
           label: 'Usability',
           description: 'Users struggle with the interface',
-          judgeGuidelines: 'Mark true when the user cannot find a feature',
+          rationale: 'Several open codes report users unable to find features',
           traceIds: ['trace-1'],
           openCodeJustifications: [
             {
@@ -25,7 +25,7 @@ describe('convertApiCodesToSnapshot', () => {
     );
 
     const [code] = snapshot.codes;
-    expect(code.judgeGuidelines).toBe('Mark true when the user cannot find a feature');
+    expect(code.rationale).toBe('Several open codes report users unable to find features');
     expect(code.justifications).toEqual([
       {
         traceId: 'trace-1',
@@ -35,7 +35,7 @@ describe('convertApiCodesToSnapshot', () => {
     ]);
   });
 
-  it('defaults to no judge guidelines and no justifications for codes generated before they existed', () => {
+  it('defaults to no rationale and no justifications for codes generated before they existed', () => {
     const snapshot = convertApiCodesToSnapshot(
       [{ label: 'Usability', description: 'Users struggle', traceIds: ['trace-1'] }],
       'A',
@@ -44,7 +44,7 @@ describe('convertApiCodesToSnapshot', () => {
     );
 
     const [code] = snapshot.codes;
-    expect(code.judgeGuidelines).toBeNull();
+    expect(code.rationale).toBeNull();
     expect(code.justifications).toEqual([]);
   });
 });

@@ -6,6 +6,7 @@ namespace Judge.Features.DeleteJudgeRun;
 
 public record DeleteJudgeRunRequest : IRequest<Result<DeleteJudgeRunResponse>>
 {
+    public required Guid JudgeCollectionId { get; init; }
     public required Guid ProjectId { get; init; }
     public required Guid ProjectVersionId { get; init; }
     public required Guid JudgeRunId { get; init; }
@@ -21,6 +22,7 @@ public sealed class DeleteJudgeRunRequestValidator : AbstractValidator<DeleteJud
 {
     public DeleteJudgeRunRequestValidator()
     {
+        RuleFor(x => x.JudgeCollectionId).NotEmpty();
         RuleFor(x => x.ProjectId).NotEmpty();
         RuleFor(x => x.ProjectVersionId).NotEmpty();
         RuleFor(x => x.JudgeRunId).NotEmpty();

@@ -50,6 +50,7 @@ public class GetLlmConfigHandler : IRequestHandler<GetLlmConfigQuery, Result<Get
             ProviderName = existingConfig.Provider,
             Endpoint = existingConfig.Endpoint,
             ModelName = existingConfig.Model,
+            ApiKey = existingConfig.ApiKey,
         };
     }
 }

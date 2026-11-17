@@ -2,7 +2,7 @@ import { Badge, Box, Button, Dialog, Flex, Heading, Text, ScrollArea } from '@ra
 import type { LlmMessage } from '../TraceGroupPage';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, X } from 'lucide-react';
 import type { Plugin } from 'prettier';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -422,6 +422,7 @@ export function LlmContent({
                       radius="full"
                       color="gray"
                       data-source-file={source.sourceFile}
+                      style={{ maxWidth: '100%', minWidth: 0 }}
                       onClick={() =>
                         setSelectedSource({
                           sourceFile: source.sourceFile,
@@ -429,12 +430,21 @@ export function LlmContent({
                         })
                       }
                     >
-                      <Flex align="center" gap="2" wrap="wrap">
-                        <FileText size={14} />
-                        <Text size="2" weight="medium">
+                      <Flex align="center" gap="2" wrap="nowrap" style={{ minWidth: 0 }}>
+                        <FileText size={14} style={{ flexShrink: 0 }} />
+                        <Text
+                          size="2"
+                          weight="medium"
+                          style={{
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           {source.sourceFile}
                         </Text>
-                        <Badge size="1" color="gray">
+                        <Badge size="1" color="gray" style={{ flexShrink: 0 }}>
                           {source.chunks.length} chunk{source.chunks.length === 1 ? '' : 's'}
                         </Badge>
                       </Flex>
@@ -453,10 +463,23 @@ export function LlmContent({
         }}
       >
         <Dialog.Content maxWidth="760px" style={{ maxHeight: '80vh', overflow: 'auto' }}>
-          <Dialog.Title>{selectedSource?.sourceFile}</Dialog.Title>
-          <Dialog.Description size="2" color="gray" mb="4">
-            Retrieved source content
-          </Dialog.Description>
+          <Flex align="start" justify="between" gap="3" mb="4">
+            <Box style={{ minWidth: 0 }}>
+              <Dialog.Title>{selectedSource?.sourceFile}</Dialog.Title>
+              <Dialog.Description size="2" color="gray">
+                Retrieved source content
+              </Dialog.Description>
+            </Box>
+            <Button
+              type="button"
+              variant="ghost"
+              color="gray"
+              aria-label="Close file modal"
+              onClick={() => setSelectedSource(null)}
+            >
+              <X size={16} />
+            </Button>
+          </Flex>
           <Flex direction="column" gap="3">
             {selectedSource?.chunks.map((chunk, chunkIndex) => (
               <Box

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AxialCodes.Data;
 using AxialCodes.Data.Models;
 using AxialCodes.Features.GenerateAxialCodingResult;
@@ -10,7 +11,9 @@ using NSubstitute.ExceptionExtensions;
 using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
 using Shared.Interfaces;
+using Traces.Contracts.Features.GetTrace;
 using Traces.Contracts.Features.GetVersionOpencode;
+using Traces.Enums;
 
 namespace AxialCodes.Tests.Features.GenerateAxialCodingResult;
 
@@ -167,12 +170,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -237,12 +243,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -307,12 +316,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -321,7 +333,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,99],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ])
             );
@@ -388,12 +400,16 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
+        mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -402,7 +418,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"rationale\":\"Unsupported rationale\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -474,12 +490,16 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
+        mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -488,7 +508,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"rationale\":\"Unsupported rationale\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -563,12 +583,16 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
+        mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -577,7 +601,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"rationale\":\"Unsupported rationale\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -609,6 +633,7 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.Equal("L1", axialCode.Label);
         Assert.Equal("D1", axialCode.Description);
         Assert.Equal([traceId1, traceId2], axialCode.TraceIds);
+        Assert.Equal("R1", axialCode.Rationale);
         Assert.Equal("Mark true when the assistant mentions A or B", axialCode.JudgeGuidelines);
         var justifications = axialCode.OpenCodeJustifications!.ToList();
         Assert.Equal(2, justifications.Count);
@@ -625,11 +650,189 @@ public class GenerateAxialCodingResultHandlerTests
     }
 
     [Fact]
+    public async Task WhenNoTraceMatchesGuidelines_UsesNominatedTraceAndStillCreatesExamples()
+    {
+        var traceId1 = Guid.NewGuid();
+        var traceId2 = Guid.NewGuid();
+        var traceId3 = Guid.NewGuid();
+        var mockSet = new List<AxialCodingResult>().BuildMockDbSet();
+        var mockContext = Substitute.For<AxialCodeDbContext>(new DbContextOptionsBuilder<AxialCodeDbContext>().Options);
+        mockContext.AxialCodingResults.Returns(mockSet);
+        mockContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+
+        var mediator = Substitute.For<IMediator>();
+        var chatClientBuilder = Substitute.For<IChatClientBuilder>();
+        var chatClient = Substitute.For<IChatClient>();
+        mediator
+            .Send(Arg.Any<GetVersionOpencodeQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new GetVersionOpencodeResponse
+                {
+                    Opencodes =
+                    [
+                        new GetVersionOpencodeResponse.OpencodeViewModel
+                        {
+                            TraceId = traceId1,
+                            OpenCode = "The response asks for clarification.",
+                        },
+                        new GetVersionOpencodeResponse.OpencodeViewModel
+                        {
+                            TraceId = traceId2,
+                            OpenCode = "The response uses clear headings and bullet points.",
+                        },
+                        new GetVersionOpencodeResponse.OpencodeViewModel
+                        {
+                            TraceId = traceId3,
+                            OpenCode = "The response is one unstructured sentence.",
+                        },
+                    ],
+                }
+            );
+        mediator
+            .Send(Arg.Any<GetLlmConfigQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new GetLlmConfigResponse
+                {
+                    ProviderName = "openai",
+                    Endpoint = new Uri("https://fake-llm.local"),
+                    ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
+                }
+            );
+        mediator
+            .Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                var query = call.Arg<GetTraceQuery>();
+                return query.TraceId switch
+                {
+                    var id when id == traceId1 => CreateTraceResponse(traceId1, "Could you clarify your request?"),
+                    var id when id == traceId2 => CreateTraceResponse(
+                        traceId2,
+                        "## Planning tips\n\n- Set a goal\n- Review your progress"
+                    ),
+                    _ => CreateTraceResponse(traceId3, "This is one unstructured sentence."),
+                };
+            });
+
+        chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
+        chatClientBuilder.Build().Returns(Result.Success(chatClient));
+        chatClient
+            .GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "[{\"label\":\"Clear formatting\",\"description\":\"The response uses clear formatting.\",\"rationale\":\"The cited observations describe formatting through bullets, headings and clarity.\",\"judgeGuidelines\":\"Mark true when: the response uses headings or bullet points to organize content.\\nMark false when: the response is an unstructured sentence.\\nBorderline cases: the response has some organization but inconsistent structure.\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"asks for clarification\",\"justification\":\"This response asks for clarification.\"},{\"openCodeId\":2,\"quote\":\"clear headings and bullet points\",\"justification\":\"This response uses headings and bullet points.\"}]}]"
+                    ),
+                ]),
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "{\"checks\":[{\"index\":0,\"supported\":true,\"rationale\":\"The category is grounded in the open codes.\"}]}"
+                    ),
+                ]),
+                new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"It is a single clarification question without headings or bullets.\",\"result\":false,\"matchScore\":10}")]),
+                new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"The response has a heading but no bullet points.\",\"result\":false,\"matchScore\":10}")]),
+                new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"The advice is one unstructured sentence without a heading or bullets.\",\"result\":false}")])
+            );
+
+        var handler = new GenerateAxialCodingResultHandler(mockContext, mediator, chatClientBuilder);
+        var request = new GenerateAxialCodingResultRequest
+        {
+            ProjectId = Guid.NewGuid(),
+            ProjectVersionId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            Feedback = null,
+            AxialCodes = null,
+        };
+
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var axialCode = Assert.Single(result.Value.AxialCodes!);
+        Assert.Equal("User: What are some planning tips?\nAssistant: Could you clarify your request?", axialCode.PositiveExampleTrace);
+        Assert.Contains("closest available real trace", axialCode.PositiveExampleReasoning);
+        Assert.NotNull(axialCode.NegativeExampleTrace);
+        Assert.Equal("The advice is one unstructured sentence without a heading or bullets.", axialCode.NegativeExampleReasoning);
+    }
+
+    private static GetTraceResponse CreateTraceResponse(Guid traceId, string assistantResponse) =>
+        new()
+        {
+            TraceId = traceId,
+            TraceCollectionId = Guid.NewGuid(),
+            CollectionName = "Test",
+            CollectionCreatedAt = DateTime.UtcNow,
+            TraceResources = [],
+            TraceScopes =
+            [
+                new Traces.Contracts.Features.GetTrace.TraceScopesView
+                {
+                    Name = "test",
+                    Version = "1",
+                    Spans =
+                    [
+                        new Traces.Contracts.Features.GetTrace.TraceScopeSpanView
+                        {
+                            TraceScopeSpanId = Guid.NewGuid(),
+                            Name = "test",
+                            SpanKind = "internal",
+                            StartTimeUnixNano = 1,
+                            EndTimeUnixNano = 2,
+                            Attributes =
+                            [
+                                new SpanAttributeView
+                                {
+                                    Key = "gen_ai.input.messages",
+                                    Value = JsonSerializer.Serialize(
+                                        new[]
+                                        {
+                                            new
+                                            {
+                                                role = "user",
+                                                parts = new[]
+                                                {
+                                                    new { type = "text", content = "What are some planning tips?" },
+                                                },
+                                            },
+                                        }
+                                    ),
+                                    TraceAttributeType = TraceAttributeType.String,
+                                },
+                                new SpanAttributeView
+                                {
+                                    Key = "gen_ai.output.messages",
+                                    Value = JsonSerializer.Serialize(
+                                        new[]
+                                        {
+                                            new
+                                            {
+                                                role = "assistant",
+                                                parts = new[] { new { type = "text", content = assistantResponse } },
+                                            },
+                                        }
+                                    ),
+                                    TraceAttributeType = TraceAttributeType.String,
+                                },
+                            ],
+                            Events = [],
+                        },
+                    ],
+                },
+            ],
+        };
+
+    [Fact]
     public async Task WhenLlmOmitsJustification_ReturnLlmError()
     {
         // Arrange
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\" \"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\" \"}]}]"
         );
 
         // Act
@@ -646,7 +849,7 @@ public class GenerateAxialCodingResultHandlerTests
     {
         // Arrange
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
         );
 
         // Act
@@ -659,14 +862,11 @@ public class GenerateAxialCodingResultHandlerTests
     }
 
     [Fact]
-    public async Task WhenJudgeGuidelinesTooLong_ReturnLlmError()
+    public async Task WhenLlmOmitsRationale_ReturnLlmError()
     {
         // Arrange
-        var tooLongCriteria = new string('x', AxialCode.MaxJudgeGuidelinesLength + 1);
         var (handler, mockContext) = CreateHandlerWithLlmResponse(
-            "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\""
-                + tooLongCriteria
-                + "\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+            "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\" \",\"judgeGuidelines\":\"Mark true when the assistant mentions A\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
         );
 
         // Act
@@ -725,12 +925,15 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -785,12 +988,16 @@ public class GenerateAxialCodingResultHandlerTests
                     ProviderName = "openai",
                     Endpoint = new Uri("https://fake-llm.local"),
                     ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
                 }
             );
+        mediator.Send(Arg.Any<GetTraceQuery>(), Arg.Any<CancellationToken>()).Returns(ErrorCode.NoPermission);
 
         chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
         chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
         chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+
         chatClientBuilder.Build().Returns(Result.Success(chatClient));
 
         chatClient
@@ -799,7 +1006,7 @@ public class GenerateAxialCodingResultHandlerTests
                 new ChatResponse([
                     new ChatMessage(
                         ChatRole.Assistant,
-                        "[{\"label\":\"L1\",\"description\":\"D1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
+                        "[{\"label\":\"L1\",\"description\":\"D1\",\"rationale\":\"R1\",\"judgeGuidelines\":\"Mark true when the assistant mentions A or B\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1,2],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"},{\"openCodeId\":2,\"quote\":\"Open code B\",\"justification\":\"The open code mentions B\"}]},{\"label\":\"Unsupported\",\"description\":\"Unsupported claim\",\"rationale\":\"Unsupported rationale\",\"judgeGuidelines\":\"Mark true when the claim is unsupported\",\"positiveExampleOpenCodeId\":1,\"openCodeIds\":[1],\"evidence\":[{\"openCodeId\":1,\"quote\":\"Open code A\",\"justification\":\"The open code mentions A\"}]}]"
                     ),
                 ]),
                 new ChatResponse([
@@ -824,6 +1031,7 @@ public class GenerateAxialCodingResultHandlerTests
                 {
                     Label = "Old",
                     Description = "Old Desc",
+                    Rationale = "Old rationale",
                     JudgeGuidelines = "Old guidelines",
                     TraceIds = [traceId1],
                 },
@@ -837,13 +1045,15 @@ public class GenerateAxialCodingResultHandlerTests
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value.AxialCodes);
         await mockContext.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
-        // The previous judge guidelines are sent to the LLM so they can be revised.
+        // The previous rationale and judge guidelines are sent to the LLM so they can be revised.
         await chatClient
             .Received()
             .GetResponseAsync(
                 Arg.Is<IEnumerable<ChatMessage>>(messages =>
                     messages.Any(m =>
-                        m.Role == ChatRole.User && m.Text.Contains("\"judgeGuidelines\":\"Old guidelines\"")
+                        m.Role == ChatRole.User
+                        && m.Text.Contains("\"rationale\":\"Old rationale\"")
+                        && m.Text.Contains("\"judgeGuidelines\":\"Old guidelines\"")
                     )
                 ),
                 Arg.Any<ChatOptions>(),

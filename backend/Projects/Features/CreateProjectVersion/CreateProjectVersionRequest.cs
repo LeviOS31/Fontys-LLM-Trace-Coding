@@ -22,9 +22,8 @@ namespace Projects.Features.CreateProjectVersion
             RuleFor(x => x.ProjectId).NotEmpty();
             RuleFor(x => x.Name)
                 .NotEmpty()
-                .MinimumLength(ProjectVersion.MinNameLength)
-                .MaximumLength(ProjectVersion.MaxNameLength);
-            RuleFor(x => x.Description).NotEmpty().MaximumLength(ProjectVersion.MaxDescriptionLength);
+                .MinimumLength(ProjectVersion.MinNameLength);
+            RuleFor(x => x.Description).NotEmpty();
         }
     }
 }

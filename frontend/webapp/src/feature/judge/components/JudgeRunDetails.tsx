@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Card, Code, Flex, Grid, SegmentedControl, Text } from '@radix-ui/themes';
-import { ArrowLeft, Check, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy } from 'lucide-react';
 import {
   formatDate,
   formatPercent,
@@ -10,20 +10,30 @@ import {
 } from '../hooks/judgeUtils';
 import ResultCard from './ResultCard';
 import { SectionHead, SummaryStat } from './Primitives';
+import JudgeTraceDialog from './JudgeTraceDialog';
 
 type View = 'formatted' | 'raw';
 
 type Props = {
   readonly run: JudgeRunListItem;
+  readonly projectId: string;
+  readonly versionId: string;
   readonly results: JudgeResult[] | null;
   readonly resultsLoading: boolean;
   readonly onBack: () => void;
-  readonly onDelete: () => void;
 };
 
-export default function JudgeRunDetails({ run, results, resultsLoading, onBack, onDelete }: Props) {
+export default function JudgeRunDetails({
+  run,
+  projectId,
+  versionId,
+  results,
+  resultsLoading,
+  onBack,
+}: Props) {
   const [view, setView] = useState<View>('formatted');
   const [copied, setCopied] = useState(false);
+  const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
 
   const stats = statsFromCounts(run);
   const rawJson = JSON.stringify({ judgeRunId: run.judgeRunId, results }, null, 2);
@@ -39,10 +49,6 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
     }
   };
 
-  const confirmDelete = () => {
-    if (window.confirm('Delete this judge run? This cannot be undone.')) onDelete();
-  };
-
   return (
     <>
       <Box>
@@ -51,13 +57,9 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
             <ArrowLeft size={14} />
             All judge runs
           </Button>
-          <Button variant="soft" color="red" size="1" onClick={confirmDelete}>
-            <Trash2 size={14} />
-            Delete run
-          </Button>
         </Flex>
         <Text as="p" size="5" weight="bold" mt="3">
-          {run.templateName}
+          {run.name ?? 'Judge run'}
         </Text>
         <Flex align="center" gap="3" mt="1" wrap="wrap">
           <Text size="2" color="gray">
@@ -126,16 +128,24 @@ export default function JudgeRunDetails({ run, results, resultsLoading, onBack, 
           </Card>
         ) : results.length === 0 ? (
           <Text as="p" size="2" color="gray">
-            The judge returned no results for this axial code.
+            This judge run contains no judged traces.
           </Text>
         ) : (
           <Flex direction="column" gap="3">
             {results.map((r) => (
-              <ResultCard key={r.traceId} result={r} />
+              <ResultCard key={r.traceId} result={r} onOpen={() => setSelectedTraceId(r.traceId)} />
             ))}
           </Flex>
         )}
       </Box>
+      {selectedTraceId && (
+        <JudgeTraceDialog
+          projectId={projectId}
+          versionId={versionId}
+          traceId={selectedTraceId}
+          onClose={() => setSelectedTraceId(null)}
+        />
+      )}
     </>
   );
 }

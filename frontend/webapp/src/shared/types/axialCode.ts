@@ -12,8 +12,20 @@ export interface AxialCode {
   label: string;
   description: string;
   traceIds: string[];
-  /** Guidelines for the judge to decide whether an unseen trace shows this behaviour. Absent for codes generated before they existed. */
+  /** Why this code was created. Absent for codes generated before it existed. */
+  rationale?: string | null;
+  /**
+   * Instructions for judging an unseen trace. Never shown to the user, but it must stay on this
+   * type: regeneration sends the previous codes back to the backend, which passes it to the model.
+   * Absent for codes generated before it existed.
+   */
   judgeGuidelines?: string | null;
+  /** Real trace excerpt that fits this code ("User: ...\nAssistant: ..."). */
+  positiveExampleTrace?: string | null;
+  positiveExampleReasoning?: string | null;
+  /** Real trace excerpt that does not fit this code. Null when none could be found. */
+  negativeExampleTrace?: string | null;
+  negativeExampleReasoning?: string | null;
   openCodeJustifications?: OpenCodeJustification[] | null;
   feedback?: string | null;
 }

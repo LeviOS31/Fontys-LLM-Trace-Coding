@@ -22,6 +22,27 @@ namespace Judge.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Judge.Data.Models.JudgeCollection", b =>
+                {
+                    b.Property<Guid>("JudgeCollectionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProjectVersionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("JudgeCollectionId");
+
+                    b.ToTable("JudgeCollections");
+                });
+
             modelBuilder.Entity("Judge.Data.Models.JudgeRun", b =>
                 {
                     b.Property<Guid>("JudgeRunId")
@@ -37,10 +58,7 @@ namespace Judge.Migrations
                     b.Property<int>("FalseCount")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ProjectVersionId")
+                    b.Property<Guid>("JudgeCollectionId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ResultsJson")
@@ -55,10 +73,25 @@ namespace Judge.Migrations
 
                     b.HasKey("JudgeRunId");
 
-                    b.HasIndex("ProjectId", "ProjectVersionId", "CreatedAt")
-                        .IsDescending(false, false, true);
+                    b.HasIndex("JudgeCollectionId");
 
                     b.ToTable("JudgeRuns");
+                });
+
+            modelBuilder.Entity("Judge.Data.Models.JudgeRun", b =>
+                {
+                    b.HasOne("Judge.Data.Models.JudgeCollection", "JudgeCollection")
+                        .WithMany("judgeRuns")
+                        .HasForeignKey("JudgeCollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JudgeCollection");
+                });
+
+            modelBuilder.Entity("Judge.Data.Models.JudgeCollection", b =>
+                {
+                    b.Navigation("judgeRuns");
                 });
 #pragma warning restore 612, 618
         }

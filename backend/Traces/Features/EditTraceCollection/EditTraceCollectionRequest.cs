@@ -22,7 +22,6 @@ public sealed class EditTraceCollectionRequestValidator : AbstractValidator<Edit
         RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.Name)
             .NotEmpty()
-            .MaximumLength(TraceCollection.MaxNameLength)
             .MinimumLength(TraceCollection.MinNameLength);
     }
 }

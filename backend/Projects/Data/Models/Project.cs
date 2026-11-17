@@ -8,8 +8,6 @@ namespace Projects.Data.Models;
 public class Project : IUserOwned
 {
     public const int MinNameLength = 3;
-    public const int MaxNameLength = 64;
-    public const int MaxDescriptionLength = 256;
 
     public required Guid ProjectId { get; set; }
     public required Guid UserId { get; set; }
@@ -24,8 +22,8 @@ internal sealed class ProjectEntityConfiguration : IEntityTypeConfiguration<Proj
     public void Configure(EntityTypeBuilder<Project> builder)
     {
         builder.HasKey(x => x.ProjectId);
-        builder.Property(x => x.Name).HasMaxLength(Project.MaxNameLength);
-        builder.Property(x => x.Description).HasMaxLength(Project.MaxDescriptionLength);
+        builder.Property(x => x.Name);
+        builder.Property(x => x.Description);
         builder.HasMany(x => x.AssessmentCriteria).WithOne(x=>x.project).HasForeignKey(x => x.ProjectId).IsRequired();
         builder.HasMany(x => x.versions).WithOne(x => x.project).HasForeignKey(x => x.ProjectId).IsRequired();
     }

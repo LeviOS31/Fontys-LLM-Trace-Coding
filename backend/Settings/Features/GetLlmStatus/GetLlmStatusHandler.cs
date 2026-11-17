@@ -80,6 +80,7 @@ public class GetLlmStatusHandler : IRequestHandler<GetLlmStatusQuery, Result<Get
             .WithProvider(llmConfigResult.Value.ProviderName)
             .WithEndpoint(llmConfigResult.Value.Endpoint)
             .WithModel(llmConfigResult.Value.ModelName)
+            .WithApiKey(llmConfigResult.Value.ApiKey)
             .Build();
     }
 }

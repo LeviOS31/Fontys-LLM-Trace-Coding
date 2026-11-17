@@ -5,6 +5,10 @@ using Judge.Features.ListJudgeRuns;
 using Judge.Features.DeleteJudgeRun;
 using Judge.Features.GetJudgeRun;
 using Mediator;
+using Judge.Features.GetJudgeCollection;
+using Judge.Features.GetAllJudgeCollectionsByVersion;
+using Judge.Features.DeleteJudgeCollection;
+using Judge.Features.UpdateJudgeCollection;
 
 namespace Api.Endpoints.Judge;
 
@@ -26,7 +30,8 @@ public static class JudgeEndpoints
                         UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
                         ProjectId = projectId,
                         ProjectVersionId = projectVersionId,
-                        AxialCodeIds = body.AxialCodeIds,
+                        JudgeTemplateIds = body.JudgeTemplateIds,
+                        TraceCollectionIds = body.TraceCollectionIds,
                     };
                     var result = await mediator.Send(request);
 
@@ -36,10 +41,11 @@ public static class JudgeEndpoints
             .WithTags("Judge");
 
         app.MapGet(
-        "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-runs",
+        "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollections/{judgeCollectionId:guid}/judge-runs",
         async (
             Guid projectId,
             Guid projectVersionId,
+            Guid judgeCollectionId,
             IMediator mediator,
             int limit = 20,
             int offset = 0
@@ -49,8 +55,7 @@ public static class JudgeEndpoints
                 new ListJudgeRunsRequest
                 {
                     UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
-                    ProjectId = projectId,
-                    ProjectVersionId = projectVersionId,
+                    JudgeCollectionId = judgeCollectionId,
                     Limit = limit,
                     Offset = offset,
                 }
@@ -61,8 +66,8 @@ public static class JudgeEndpoints
     .WithTags("Judge");
 
         app.MapGet(
-                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-runs/{judgeRunId:guid}",
-                async (Guid projectId, Guid projectVersionId, Guid judgeRunId, IMediator mediator) =>
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}/judge-runs/{judgeRunId:guid}",
+                async (Guid projectId, Guid projectVersionId, Guid judgeCollectionId, Guid judgeRunId, IMediator mediator) =>
                 {
                     var result = await mediator.Send(
                         new GetJudgeRunRequest
@@ -70,6 +75,7 @@ public static class JudgeEndpoints
                             UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
                             ProjectId = projectId,
                             ProjectVersionId = projectVersionId,
+                            JudgeCollectionId = judgeCollectionId,
                             JudgeRunId = judgeRunId,
                         }
                     );
@@ -79,8 +85,8 @@ public static class JudgeEndpoints
             .WithTags("Judge");
 
         app.MapDelete(
-                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judge-runs/{judgeRunId:guid}",
-                async (Guid projectId, Guid projectVersionId, Guid judgeRunId, IMediator mediator) =>
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}/judge-runs/{judgeRunId:guid}",
+                async (Guid projectId, Guid projectVersionId, Guid judgeCollectionId, Guid judgeRunId, IMediator mediator) =>
                 {
                     var result = await mediator.Send(
                         new DeleteJudgeRunRequest
@@ -88,6 +94,7 @@ public static class JudgeEndpoints
                             UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get user id from token
                             ProjectId = projectId,
                             ProjectVersionId = projectVersionId,
+                            JudgeCollectionId = judgeCollectionId,
                             JudgeRunId = judgeRunId,
                         }
                     );
@@ -95,5 +102,86 @@ public static class JudgeEndpoints
                 }
             )
             .WithTags("Judge");
+        app.MapGet(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",
+            async (Guid projectId, Guid projectVersionId, Guid judgeCollectionId, IMediator mediator) =>
+            {
+                var result = await mediator.Send(
+                    new GetJudgeCollectionRequest
+                    {
+                        ProjectId = projectId,
+                        VersionId = projectVersionId,
+                        JudgeCollectionId = judgeCollectionId,
+                    }
+                );
+                return result.ToHttpResult();
+            }
+            )
+            .WithTags("Judge");
+
+        app.MapGet(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection",
+            async (Guid projectId, Guid projectVersionId, IMediator mediator) =>
+            {
+                var result = await mediator.Send(
+                    new GetAllJudgeCollectionsByVersionRequest
+                    {
+                        ProjectId = projectId,
+                        VersionId = projectVersionId,
+                    }
+                );
+                return result.ToHttpResult();
+            }
+            )
+            .WithTags("Judge");
+
+        app.MapPut(
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",
+                async Task<IResult> (
+                    Guid projectId,
+                    Guid projectVersionId,
+                    Guid judgeCollectionId,
+                    UpdateJudgeCollectionDto dto,
+                    IMediator mediator,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var result = await mediator.Send(
+                        new UpdateJudgeCollectionRequest
+                        {
+                            ProjectId = projectId,
+                            ProjectVersionId = projectVersionId,
+                            JudgeCollectionId = judgeCollectionId,
+                            Name = dto.Name,
+                        },
+                        cancellationToken
+                    );
+
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("Judge")
+            .WithName("UpdateJudgeCollection")
+            .WithSummary("Update the name of a judge collection")
+            .Produces<UpdateJudgeCollectionResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapDelete(
+            "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",
+            async (Guid projectId, Guid projectVersionId, Guid judgeCollectionId, IMediator mediator) =>
+            {
+                var result = await mediator.Send(
+                    new DeleteJudgeCollectionRequest
+                    {
+                        ProjectId = projectId,
+                        ProjectVersionId = projectVersionId,
+                        JudgeCollectionId = judgeCollectionId,
+                    }
+                );
+                return result.ToHttpResult();
+            }
+            )
+            .WithTags("Judge");
     }
 }
+   

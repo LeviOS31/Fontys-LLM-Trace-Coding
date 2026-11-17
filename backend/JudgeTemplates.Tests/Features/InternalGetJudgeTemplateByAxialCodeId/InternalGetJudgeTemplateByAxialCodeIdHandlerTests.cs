@@ -1,8 +1,8 @@
 using AxialCodes.Contracts.Features.InternalGetAllAxialCodesByVersion;
-using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
+using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplates;
 using JudgeTemplates.Data;
 using JudgeTemplates.Data.Models;
-using JudgeTemplates.Feature.InternalGetJudgeTemplateByAxialCodeId;
+using JudgeTemplates.Feature.InternalGetJudgeTemplates;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using MockQueryable.NSubstitute;
@@ -10,9 +10,9 @@ using NSubstitute;
 using Shared;
 using Shouldly;
 
-namespace JudgeTemplates.Tests.Features.InternalGetJudgeTemplateByAxialCodeId;
+namespace JudgeTemplates.Tests.Features.InternalGetJudgeTemplates;
 
-public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
+public class InternalGetJudgeTemplatesHandlerTests
 {
     private static readonly Guid _projectId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000001");
     private static readonly Guid _projectVersionId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000002");
@@ -20,9 +20,11 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
     {
         new Guid("2B1F0D44-6C2E-4D5A-9B8E-000000000003"),
     };
+
+    private static readonly List<Guid> _judgetemplateids = new List<Guid> { Guid.NewGuid() };
     private static readonly Guid _userId = new("2B1F0D44-6C2E-4D5A-9B8E-000000000004");
 
-    private static InternalGetJudgeTemplateByAxialCodeIdHandler CreateHandler(
+    private static InternalGetJudgeTemplatesHandler CreateHandler(
         string? judgeGuidelines,
         string? customContent = null
     )
@@ -31,7 +33,7 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
         {
             new()
             {
-                JudgeTemplateId = Guid.NewGuid(),
+                JudgeTemplateId = _judgetemplateids[0],
                 JudgeTemplateName = "Template",
                 JudgeTemplateDescription = "Description",
                 AxialCodeId = _axialCodeIds[0],
@@ -66,15 +68,15 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
             .Send(Arg.Any<InternalGetAllAxialCodesByVersionRequest>(), Arg.Any<CancellationToken>())
             .Returns(axialCodes);
 
-        return new InternalGetJudgeTemplateByAxialCodeIdHandler(mockContext, mediator);
+        return new InternalGetJudgeTemplatesHandler(mockContext, mediator);
     }
 
-    private static InternalGetJudgeTemplateByAxialCodeIdRequest CreateRequest() =>
+    private static InternalGetJudgeTemplatesRequest CreateRequest() =>
         new()
         {
             ProjectId = _projectId,
             ProjectVersionId = _projectVersionId,
-            AxialCodeIds = _axialCodeIds,
+            judgeIds = _judgetemplateids.ToList(),
             UserId = _userId,
         };
 
@@ -90,6 +92,11 @@ public class InternalGetJudgeTemplateByAxialCodeIdHandlerTests
         var result = await handler.Handle(CreateRequest(), CancellationToken.None);
 
         // Assert
+        if (!result.IsSuccess)
+        {
+            var a = result.ErrorCode;
+        }
+
         result.IsSuccess.ShouldBeTrue();
         result.Value.JudgeTemplates[0].Content.ShouldContain("Fabricated policies");
         result.Value.JudgeTemplates[0].Content.ShouldContain("Judging Guidelines:");

@@ -25,8 +25,8 @@ namespace Projects.Features.EditProjectVersion
             RuleFor(x => x.UserId).NotEmpty();
             RuleFor(x => x.ProjectId).NotEmpty();
             RuleFor(x => x.VersionId).NotEmpty();
-            RuleFor(x => x.Name).Length(ProjectVersion.MinNameLength, ProjectVersion.MaxNameLength);
-            RuleFor(x => x.Description).NotEmpty().Length(1, ProjectVersion.MaxDescriptionLength);
+            RuleFor(x => x.Name).NotEmpty();
+            RuleFor(x => x.Description).NotEmpty();
         }
     }
 }

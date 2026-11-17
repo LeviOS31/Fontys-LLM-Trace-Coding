@@ -1,6 +1,8 @@
 using Judge.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Projects.Contracts.Features.GetAllProjectVersions;
+using Projects.Contracts.Features.GetProject;
 using Serilog;
 using Shared;
 
@@ -11,10 +13,12 @@ public class DeleteJudgeRunHandler : IRequestHandler<DeleteJudgeRunRequest, Resu
     private static readonly ILogger Logger = Log.ForContext<DeleteJudgeRunHandler>();
 
     private readonly JudgeDbContext _dbContext;
+    private readonly IMediator _mediator;
 
-    public DeleteJudgeRunHandler(JudgeDbContext dbContext)
+    public DeleteJudgeRunHandler(JudgeDbContext dbContext, IMediator mediator)
     {
         _dbContext = dbContext;
+        _mediator = mediator;
     }
 
     public async ValueTask<Result<DeleteJudgeRunResponse>> Handle(
@@ -22,13 +26,39 @@ public class DeleteJudgeRunHandler : IRequestHandler<DeleteJudgeRunRequest, Resu
         CancellationToken cancellationToken
     )
     {
+        var judgecollection = await _dbContext.JudgeCollections.
+            Where(j => j.JudgeCollectionId == request.JudgeCollectionId && j.ProjectVersionId == request.ProjectVersionId).
+            FirstOrDefaultAsync(
+                cancellationToken
+            );
+
+        if (judgecollection is null)
+        {
+            return ErrorCode.EntityNotFound;
+        }
+
+        var getAllVersionRequest = new GetAllProjectVersionsQuery
+        {
+            ProjectId = request.ProjectId,
+        };
+
+        var getAllVersionResult = await _mediator.Send(getAllVersionRequest, cancellationToken);
+
+        if (!getAllVersionResult.IsSuccess)
+        {
+            return getAllVersionResult.ErrorCode;
+        }
+
+        if (!getAllVersionResult.Value.Versions.Any(v => v.VersionId == request.ProjectVersionId))
+        {
+            return ErrorCode.EntityNotFound;
+        }
+
         try
         {
             var run = await _dbContext.JudgeRuns.FirstOrDefaultAsync(
                 r =>
-                    r.JudgeRunId == request.JudgeRunId
-                    && r.ProjectId == request.ProjectId
-                    && r.ProjectVersionId == request.ProjectVersionId,
+                    r.JudgeRunId == request.JudgeRunId,
                 cancellationToken
             );
             if (run is null)

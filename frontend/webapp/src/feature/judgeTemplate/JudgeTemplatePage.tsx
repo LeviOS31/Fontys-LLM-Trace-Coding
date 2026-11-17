@@ -4,6 +4,11 @@ import { Box, Flex, Kbd, Text, TextField } from '@radix-ui/themes';
 import { Scale, Search } from 'lucide-react';
 import { useGetJudgeTemplates } from './hooks/useGetJudgeTemplates.ts';
 import { useCreateJudgeTemplate } from './hooks/useCreateJudgeTemplate.ts';
+import {
+  getAxialCodesWithoutTemplate,
+  judgeTemplatePayload,
+  useCreateAllJudgeTemplates,
+} from './hooks/useCreateAllJudgeTemplates.ts';
 import { useDeleteJudgeTemplate } from './hooks/useDeleteJudgeTemplate.ts';
 import { useUpdateJudgeTemplate } from './hooks/useUpdateJudgeTemplate.ts';
 import { useRestoreJudgeTemplateVersion } from './hooks/useRestoreJudgeTemplateVersion.ts';
@@ -38,6 +43,11 @@ export default function JudgeTemplatePage() {
     projectId ?? '',
     versionId ?? ''
   );
+  const {
+    mutate: createAll,
+    isPending: isCreatingAll,
+    data: createAllResult,
+  } = useCreateAllJudgeTemplates(projectId ?? '', versionId ?? '');
   const { mutate: updateTemplate, isPending: isSaving } = useUpdateJudgeTemplate(
     projectId ?? '',
     versionId ?? ''
@@ -49,6 +59,7 @@ export default function JudgeTemplatePage() {
 
   const templates = judgeTemplatesData?.judgeTemplates ?? [];
   const axialCodes = axialCodesData?.axialCodes ?? [];
+  const axialCodesWithoutTemplate = getAxialCodesWithoutTemplate(axialCodes, templates);
 
   const editing = templates.find((t) => t.id === editingId) ?? null;
 
@@ -76,12 +87,10 @@ export default function JudgeTemplatePage() {
     if (scopeAxial === 'all') return;
     const axial = axialCodes.find((a) => a.axialCodeId === scopeAxial);
     if (!axial?.axialCodeId) return;
-    generate({
-      axialCodeId: axial.axialCodeId,
-      name: `Judge template - ${axial.label}`,
-      description: axial.description,
-    });
+    generate({ axialCodeId: axial.axialCodeId, ...judgeTemplatePayload(axial) });
   };
+
+  const handleCreateAll = () => createAll(axialCodesWithoutTemplate);
 
   const handleSave = (id: string, content: string) => {
     updateTemplate({ judgeTemplateId: id, content }, { onSuccess: () => setEditingId(null) });
@@ -162,6 +171,13 @@ export default function JudgeTemplatePage() {
         onCreate={handleCreate}
         isCreating={isCreating}
         selectRef={axialSelectRef}
+        // Unknown until both lists load: an unloaded template list would make every code look uncovered.
+        missingCount={
+          judgeTemplatesData && axialCodes.length > 0 ? axialCodesWithoutTemplate.length : null
+        }
+        onCreateAll={handleCreateAll}
+        isCreatingAll={isCreatingAll}
+        createAllResult={createAllResult}
       />
 
       {/* Search */}

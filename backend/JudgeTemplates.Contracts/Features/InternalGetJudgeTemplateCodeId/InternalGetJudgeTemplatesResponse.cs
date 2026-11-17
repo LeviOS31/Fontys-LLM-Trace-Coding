@@ -1,6 +1,6 @@
-namespace JudgeTemplates.Contracts.Features.InternalGetJudgeTemplateByAxialCodeId;
+namespace JudgeTemplates.Contracts.Features.InternalGetJudgeTemplates;
 
-public record InternalGetJudgeTemplateByAxialCodeIdResponse
+public record InternalGetJudgeTemplatesResponse
 {
     public required JudgeTemplateViewModel[] JudgeTemplates { get; init; }
 }

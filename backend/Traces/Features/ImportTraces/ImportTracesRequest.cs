@@ -23,8 +23,7 @@ public sealed class ImportTracesRequestValidator : AbstractValidator<ImportTrace
 
         RuleFor(x => x.Name)
             .NotEmpty()
-            .MinimumLength(TraceCollection.MinNameLength)
-            .MaximumLength(TraceCollection.MaxNameLength);
+            .MinimumLength(TraceCollection.MinNameLength);
 
         const long maxFileSize = 500 * 1024 * 1024;
         RuleFor(x => x.File)

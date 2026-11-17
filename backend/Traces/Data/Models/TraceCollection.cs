@@ -6,7 +6,6 @@ namespace Traces.Data.Models;
 public class TraceCollection
 {
     public const int MinNameLength = 3;
-    public const int MaxNameLength = 64;
 
     public required Guid TraceCollectionId { get; init; }
     public required Guid ProjectVersionId { get; init; }
@@ -21,7 +20,7 @@ internal sealed class TraceCollectionEntityConfiguration : IEntityTypeConfigurat
     {
         builder.HasKey(x => x.TraceCollectionId);
         builder.Property(x => x.ProjectVersionId);
-        builder.Property(x => x.Name).HasMaxLength(TraceCollection.MaxNameLength);
+        builder.Property(x => x.Name);
         builder.Property(x => x.CreatedAt);
         builder.HasMany(x => x.Traces).WithOne(x => x.TraceCollection).HasForeignKey(x => x.TraceCollectionId);
     }

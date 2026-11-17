@@ -3,11 +3,13 @@ import { Navigate, useParams } from 'react-router';
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { Gavel } from 'lucide-react';
 import { BASE_URL } from '../../shared/api/api';
+import JudgeCollectionOverview from './components/JudgeCollectionOverview';
 import JudgeOverview from './components/JudgeOverview';
 import JudgeRunDetails from './components/JudgeRunDetails';
-import RunJudgePanel from './components/JudgeRunPanel';
+import RunJudgePanel, { type JudgeMode } from './components/JudgeRunPanel';
 import {
   isJudgeResponse,
+  type JudgeCollection,
   type JudgeResult,
   type JudgeRunListItem,
   type JudgeRunSummary,
@@ -17,7 +19,8 @@ import {
 } from './hooks/judgeUtils';
 
 type PageParams = { id: string; versionId: string };
-type ListResponse = { judgeRuns: JudgeRunSummary[]; totals: JudgeRunTotals };
+type CollectionListResponse = { judgeCollections: JudgeCollection[] };
+type RunListResponse = { judgeRuns: JudgeRunSummary[]; totals: JudgeRunTotals };
 
 const PAGE_SIZE = 20;
 const EMPTY_TOTALS: JudgeRunTotals = {
@@ -31,14 +34,18 @@ const EMPTY_TOTALS: JudgeRunTotals = {
 export default function JudgePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
-  // All templates, including deprecated ones, so older runs can still show a name.
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
   const [templateIds, setTemplateIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<JudgeMode>('run');
+  const [selectedTraceCollectionIds, setSelectedTraceCollectionIds] = useState<string[]>([]);
+
+  const [collections, setCollections] = useState<JudgeCollection[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
   const [summaries, setSummaries] = useState<JudgeRunSummary[]>([]);
   const [totals, setTotals] = useState<JudgeRunTotals>(EMPTY_TOTALS);
   const [listLoading, setListLoading] = useState(false);
-
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [results, setResults] = useState<JudgeResult[] | null>(null);
   const [resultsLoading, setResultsLoading] = useState(false);
@@ -46,64 +53,123 @@ export default function JudgePage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<RunError | null>(null);
 
-  const runsUrl = useCallback(
-    (suffix = '') =>
-      new URL(`/v1/projects/${projectId}/versions/${versionId}/judge-runs${suffix}`, BASE_URL),
+  const collectionListUrl = useCallback(
+    () => new URL(`/v1/projects/${projectId}/versions/${versionId}/judgecollection`, BASE_URL),
+    [projectId, versionId]
+  );
+
+  const collectionUrl = useCallback(
+    (judgeCollectionId: string) =>
+      new URL(
+        `/v1/projects/${projectId}/versions/${versionId}/judgecollection/${judgeCollectionId}`,
+        BASE_URL
+      ),
+    [projectId, versionId]
+  );
+
+  const runListUrl = useCallback(
+    (judgeCollectionId: string) =>
+      new URL(
+        `/v1/projects/${projectId}/versions/${versionId}/judgecollections/${judgeCollectionId}/judge-runs`,
+        BASE_URL
+      ),
+    [projectId, versionId]
+  );
+
+  const runUrl = useCallback(
+    (judgeCollectionId: string, judgeRunId: string) =>
+      new URL(
+        `/v1/projects/${projectId}/versions/${versionId}/judgecollection/${judgeCollectionId}/judge-runs/${judgeRunId}`,
+        BASE_URL
+      ),
     [projectId, versionId]
   );
 
   useEffect(() => {
     if (!projectId || !versionId) return;
-    fetch(new URL(`/v1/projects/${projectId}/versions/${versionId}/judge-templates`, BASE_URL))
+    const endpoint = `${BASE_URL.replace(/\/$/, '')}/v1/projects/${projectId}/versions/${versionId}/judge-templates`;
+    fetch(endpoint)
       .then((r) => r.json())
       .then((d: { judgeTemplates: JudgeTemplate[] }) => setTemplates(d.judgeTemplates));
   }, [projectId, versionId]);
 
-  // offset 0 replaces the list, a higher offset appends the next page.
-  const loadRuns = useCallback(
-    async (offset = 0, signal?: AbortSignal) => {
+  const loadCollections = useCallback(
+    async (signal?: AbortSignal) => {
       if (!projectId || !versionId) return;
+      setCollectionsLoading(true);
+      try {
+        const res = await fetch(collectionListUrl(), { signal });
+        if (!res.ok) throw new Error(`Failed to load collections (${res.status})`);
+        const data: CollectionListResponse = await res.json();
+        setCollections(
+          [...data.judgeCollections].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        );
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setError({ message: 'Could not load judge collections.', raw: String(err) });
+        }
+      } finally {
+        if (!signal?.aborted) setCollectionsLoading(false);
+      }
+    },
+    [projectId, versionId, collectionListUrl]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadCollections(controller.signal);
+    return () => controller.abort();
+  }, [loadCollections]);
+
+  const loadRuns = useCallback(
+    async (judgeCollectionId: string, offset = 0, signal?: AbortSignal) => {
       setListLoading(true);
       try {
-        const url = runsUrl();
+        const url = runListUrl(judgeCollectionId);
         url.searchParams.set('limit', String(PAGE_SIZE));
         url.searchParams.set('offset', String(offset));
         const res = await fetch(url, { signal });
         if (!res.ok) throw new Error(`Failed to load runs (${res.status})`);
-        const d: ListResponse = await res.json();
-        setSummaries((prev) => (offset === 0 ? d.judgeRuns : [...prev, ...d.judgeRuns]));
-        setTotals(d.totals);
+        const data: RunListResponse = await res.json();
+        setSummaries((prev) => (offset === 0 ? data.judgeRuns : [...prev, ...data.judgeRuns]));
+        setTotals(data.totals);
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           setError({ message: 'Could not load judge runs.', raw: String(err) });
         }
       } finally {
-        setListLoading(false);
+        if (!signal?.aborted) setListLoading(false);
       }
     },
-    [projectId, versionId, runsUrl]
+    [runListUrl]
   );
 
   useEffect(() => {
-    const controller = new AbortController();
-    loadRuns(0, controller.signal);
-    return () => controller.abort();
-  }, [loadRuns]);
+    setSummaries([]);
+    setTotals(EMPTY_TOTALS);
+    setSelectedRunId(null);
+    if (!selectedCollectionId) return;
 
-  // The full results are only fetched for the run that is opened.
+    const controller = new AbortController();
+    loadRuns(selectedCollectionId, 0, controller.signal);
+    return () => controller.abort();
+  }, [selectedCollectionId, loadRuns]);
+
   useEffect(() => {
-    if (!selectedRunId || !projectId || !versionId) {
+    if (!selectedRunId || !selectedCollectionId) {
       setResults(null);
       return;
     }
     const controller = new AbortController();
     setResults(null);
     setResultsLoading(true);
-    fetch(runsUrl(`/${selectedRunId}`), { signal: controller.signal })
+    fetch(runUrl(selectedCollectionId, selectedRunId), { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load run (${res.status})`);
-        const d: { results: JudgeResult[] } = await res.json();
-        setResults(d.results);
+        const data: { results: JudgeResult[] } = await res.json();
+        setResults(data.results);
       })
       .catch((err) => {
         if ((err as Error).name !== 'AbortError') {
@@ -114,59 +180,51 @@ export default function JudgePage() {
         if (!controller.signal.aborted) setResultsLoading(false);
       });
     return () => controller.abort();
-  }, [selectedRunId, projectId, versionId, runsUrl]);
+  }, [selectedRunId, selectedCollectionId, runUrl]);
 
   const activeTemplates = useMemo(() => templates.filter((t) => !t.isDeprecated), [templates]);
-
-  const runs: JudgeRunListItem[] = useMemo(
-    () =>
-      summaries.map((s) => ({
-        ...s,
-        templateName:
-          (
-            templates.find((t) => t.axialCodeId === s.axialCodeId && !t.isDeprecated) ??
-            templates.find((t) => t.axialCodeId === s.axialCodeId)
-          )?.name ?? 'Unknown template',
-      })),
-    [summaries, templates]
-  );
-
-  const selectedRun = runs.find((r) => r.judgeRunId === selectedRunId) ?? null;
+  const selectedCollection =
+    collections.find((collection) => collection.judgeCollectionId === selectedCollectionId) ?? null;
+  const runs: JudgeRunListItem[] = summaries.map((summary) => ({
+    ...summary,
+    name:
+      templates.find(
+        (template) =>
+          template.id.toLowerCase() === summary.judgeTemplateId?.toLowerCase()
+      )?.name ?? null,
+  }));
+  const selectedRun = runs.find((run) => run.judgeRunId === selectedRunId) ?? null;
   const hasMore = summaries.length < totals.runs;
-  let selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
+
+  // Judge run: every active template. Template testing: only the ones picked in the select.
+  const selectedTemplates =
+    mode === 'run' ? activeTemplates : activeTemplates.filter((t) => templateIds.includes(t.id));
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
   const runJudge = async () => {
-
-    selectedTemplates = activeTemplates.filter((t) => templateIds.includes(t.id));
-
-    if (!selectedTemplates || selectedTemplates.length === 0) return;
+    if (selectedTemplates.length === 0) return;
     setRunning(true);
     setError(null);
 
-    const axialCodeIds : string[] = [];
-
-    selectedTemplates.forEach((template) => {
-        axialCodeIds.push(template.axialCodeId);
-    })
+    //const axialCodeIds = selectedTemplates.map((template) => template.axialCodeId);
 
     try {
-      const url = new URL(
-        `/v1/projects/${projectId}/versions/${versionId}/judge`,
-        BASE_URL
-      );
-      
+      const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
       const res = await fetch(url.toString(), {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify({ axialCodeIds }) 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          judgeTemplateIds: selectedTemplates.map((template) => template.id),
+          traceCollectionIds: selectedTraceCollectionIds,
+        }),
       });
-      const data = await res.json();
+      const data: unknown = await res.json();
 
       if (res.ok && isJudgeResponse(data)) {
-        await loadRuns(0);
-        setSelectedRunId(data.judgeRunId);
+        await loadCollections();
+        setSelectedRunId(null);
+        setSelectedCollectionId(data.judgeCollectionId);
       } else {
         setError({
           message: res.ok
@@ -182,18 +240,79 @@ export default function JudgePage() {
     }
   };
 
-  const deleteRun = async (judgeRunId: string) => {
+  const deleteRun = async (judgeRunId: string): Promise<boolean> => {
+    if (!selectedCollectionId) return false;
     setError(null);
     try {
-      const res = await fetch(runsUrl(`/${judgeRunId}`), { method: 'DELETE' });
+      const res = await fetch(runUrl(selectedCollectionId, judgeRunId), { method: 'DELETE' });
       if (!res.ok) {
         setError({ message: `Could not delete run (${res.status}).`, raw: await res.text() });
-        return;
+        return false;
       }
       setSelectedRunId(null);
-      await loadRuns(0);
+      await loadRuns(selectedCollectionId, 0);
+      return true;
     } catch (err) {
       setError({ message: 'Could not delete run.', raw: String(err) });
+      return false;
+    }
+  };
+
+  const renameCollection = async (judgeCollectionId: string, name: string) => {
+    setError(null);
+    try {
+      const res = await fetch(collectionUrl(judgeCollectionId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        setError({
+          message: `Could not rename judge collection (${res.status}).`,
+          raw: await res.text(),
+        });
+        return false;
+      }
+
+      setCollections((current) =>
+        current.map((collection) =>
+          collection.judgeCollectionId === judgeCollectionId ? { ...collection, name } : collection
+        )
+      );
+      return true;
+    } catch (err) {
+      setError({ message: 'Could not rename judge collection.', raw: String(err) });
+      return false;
+    }
+  };
+
+  const deleteCollection = async (judgeCollectionId: string) => {
+    setError(null);
+    try {
+      const res = await fetch(collectionUrl(judgeCollectionId), { method: 'DELETE' });
+      if (!res.ok) {
+        setError({
+          message: `Could not delete judge collection (${res.status}).`,
+          raw: await res.text(),
+        });
+        return false;
+      }
+
+      setCollections((current) =>
+        current.filter((collection) => collection.judgeCollectionId !== judgeCollectionId)
+      );
+      if (selectedCollectionId === judgeCollectionId) {
+        setSelectedCollectionId(null);
+        setSelectedRunId(null);
+        setSummaries([]);
+        setTotals(EMPTY_TOTALS);
+        setResults(null);
+      }
+      return true;
+    } catch (err) {
+      setError({ message: 'Could not delete judge collection.', raw: String(err) });
+      return false;
     }
   };
 
@@ -208,36 +327,59 @@ export default function JudgePage() {
             </Text>
           </Flex>
           <Text as="p" size="2" mt="1" color="gray" ml="6" style={{ maxWidth: 720 }}>
-            Run the judge on an axial code and review earlier runs for this version.
+            Run the judge on selected traces and review results by collection and run.
           </Text>
         </Box>
       </Flex>
 
       <RunJudgePanel
         templates={activeTemplates}
-        onTemplateChange={ (updatedIds : string[]) => setTemplateIds(updatedIds)}
+        onTemplateChange={(updatedIds: string[]) => setTemplateIds(updatedIds)}
+        mode={mode}
+        onModeChange={(m) => {
+          setMode(m);
+          setTemplateIds([]);
+        }}
+        projectId={projectId}
+        versionId={versionId}
+        onCollectionChange={setSelectedTraceCollectionIds}
         onRun={runJudge}
-        canRun={!running && Boolean(selectedTemplates.length > 0)}
+        canRun={!running && selectedTemplates.length > 0 && selectedTraceCollectionIds.length > 0}
         loading={running}
         error={error}
       />
 
-      {selectedRun ? (
+      {selectedRun && selectedCollection ? (
         <JudgeRunDetails
           run={selectedRun}
+          projectId={projectId}
+          versionId={versionId}
           results={results}
           resultsLoading={resultsLoading}
           onBack={() => setSelectedRunId(null)}
-          onDelete={() => deleteRun(selectedRun.judgeRunId)}
         />
-      ) : (
+      ) : selectedCollection ? (
         <JudgeOverview
+          collectionName={selectedCollection.name}
           runs={runs}
           totals={totals}
           hasMore={hasMore}
           loading={listLoading}
-          onLoadMore={() => loadRuns(summaries.length)}
+          onBack={() => setSelectedCollectionId(null)}
+          onLoadMore={() => loadRuns(selectedCollection.judgeCollectionId, summaries.length)}
           onSelect={setSelectedRunId}
+          onDelete={deleteRun}
+        />
+      ) : (
+        <JudgeCollectionOverview
+          collections={collections}
+          loading={collectionsLoading}
+          onRename={renameCollection}
+          onDelete={deleteCollection}
+          onSelect={(judgeCollectionId) => {
+            setError(null);
+            setSelectedCollectionId(judgeCollectionId);
+          }}
         />
       )}
     </Flex>

@@ -46,6 +46,7 @@ public static class SettingsEndpoints
                         ProviderName = dto.ProviderName,
                         Endpoint = dto.Endpoint,
                         ModelName = dto.ModelName,
+                        ApiKey = dto.ApiKey
                     };
 
                     var result = await mediator.Send(request);

@@ -22,8 +22,7 @@ public sealed class EditProjectRequestValidator : AbstractValidator<EditProjectR
 
         RuleFor(x => x.ProjectId).NotEmpty();
 
-        RuleFor(x => x.Name).Length(Project.MinNameLength, Project.MaxNameLength);
+        RuleFor(x => x.Name).NotEmpty();
 
-        RuleFor(x => x.Description).MaximumLength(Project.MaxDescriptionLength);
     }
 }

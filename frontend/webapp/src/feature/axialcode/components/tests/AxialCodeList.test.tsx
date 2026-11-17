@@ -1,5 +1,7 @@
 import '@testing-library/jest-dom/vitest';
+import { Theme } from '@radix-ui/themes';
 import { render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Snapshot } from '../../../../shared/types/snapshot';
 import AxialCodeList from '../AxialCodeList';
@@ -50,8 +52,15 @@ const snapshot: Snapshot = {
 };
 
 describe('AxialCodeList', () => {
+  const renderList = (props: Partial<ComponentProps<typeof AxialCodeList>> = {}) =>
+    render(
+      <Theme>
+        <AxialCodeList snapshot={snapshot} {...props} />
+      </Theme>
+    );
+
   it('renders all codes and the comparison label with count', () => {
-    render(<AxialCodeList snapshot={snapshot} isB isComparison />);
+    renderList({ isB: true, isComparison: true });
 
     expect(screen.getByText('Version B · 2 of 2')).toBeInTheDocument();
     expect(screen.getAllByTestId('code-card').map((node) => node.textContent)).toEqual([
@@ -61,7 +70,7 @@ describe('AxialCodeList', () => {
   });
 
   it('uses the A snapshot identity outside comparison mode', () => {
-    render(<AxialCodeList snapshot={snapshot} />);
+    renderList();
 
     expect(screen.queryByText(/Version B ·/)).not.toBeInTheDocument();
     expect(screen.getAllByTestId('code-card')[0]).toHaveTextContent('A:Reliability');

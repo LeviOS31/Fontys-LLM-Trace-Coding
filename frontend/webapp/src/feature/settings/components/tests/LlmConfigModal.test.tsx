@@ -68,6 +68,7 @@ describe('LlmConfigModal', () => {
         open
         onOpenChange={onOpenChange}
         status={{
+          apiKey: 'aaaaaaa',
           providerName: 'Provider',
           endpoint: 'https://api.example.com',
           modelName: 'model-1',
@@ -91,6 +92,7 @@ describe('LlmConfigModal', () => {
 
     expect(mutate).toHaveBeenCalledWith(
       {
+        apiKey: 'aaaaaaa',
         providerName: 'Provider X',
         endpoint: 'https://api.example.com/v1',
         modelName: 'model-x',
@@ -107,6 +109,7 @@ describe('LlmConfigModal', () => {
         open
         onOpenChange={vi.fn()}
         status={{
+          apiKey: 'aaaaaaa',
           providerName: 'Provider',
           endpoint: 'https://api.example.com',
           modelName: 'model-1',
@@ -124,7 +127,7 @@ describe('LlmConfigModal', () => {
     expect(save).toBeEnabled();
     fireEvent.click(save);
     expect(mutate).toHaveBeenCalledWith(
-      { providerName: null, endpoint: null, modelName: null },
+      {apiKey: null, providerName: null, endpoint: null, modelName: null },
       expect.any(Object)
     );
   });

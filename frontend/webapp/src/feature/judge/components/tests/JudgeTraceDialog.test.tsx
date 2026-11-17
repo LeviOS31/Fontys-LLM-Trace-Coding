@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import JudgeTraceDialog from '../JudgeTraceDialog';
 
+vi.mock('../../../../shared/api/api.ts', () => ({ BASE_URL: 'http://localhost' }));
+
 vi.mock('../../../opencode/traceGroup/LLM/LlmContent', () => ({
   LlmContent: ({ llmMessages }: { llmMessages: Array<{ content: string }> }) => (
     <div data-testid="llm-content">{llmMessages.map((message) => message.content).join(' ')}</div>

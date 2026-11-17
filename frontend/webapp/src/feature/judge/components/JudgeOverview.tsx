@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, Grid, Text, TextField } from '@radix-ui/themes';
+import { Box, Button, Card, Flex, Grid, Text } from '@radix-ui/themes';
 import {
   formatPercent,
   statsFromCounts,
@@ -7,8 +7,7 @@ import {
 } from '../hooks/judgeUtils';
 import JudgeRunCard from './JudgeRunCard';
 import { SectionHead, SummaryStat } from './Primitives';
-import { Search, ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 
 type Props = {
   readonly collectionName: string;
@@ -35,7 +34,6 @@ export default function JudgeOverview({
 }: Props) {
   // Statistics are aggregated by the backend over every run, not just the loaded page.
   const overall = statsFromCounts(totals);
-  const [query, setQuery] = useState('');
 
   return (
     <>

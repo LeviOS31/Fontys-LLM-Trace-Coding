@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, Grid, Text } from '@radix-ui/themes';
+import { Box, Button, Card, Flex, Grid, Text, TextField } from '@radix-ui/themes';
 import {
   formatPercent,
   statsFromCounts,
@@ -8,6 +8,7 @@ import {
 import JudgeRunCard from './JudgeRunCard';
 import { SectionHead, SummaryStat } from './Primitives';
 import { Search } from 'lucide-react';
+import { useState } from 'react';
 
 type Props = {
   readonly runs: JudgeRunListItem[];
@@ -28,6 +29,7 @@ export default function JudgeOverview({
 }: Props) {
   // Statistics are aggregated by the backend over every run, not just the loaded page.
   const overall = statsFromCounts(totals);
+  const [query, setQuery] = useState('');
 
   return (
     <>
@@ -53,25 +55,17 @@ export default function JudgeOverview({
         </Card>
       </Box>
 
-      <Box
-        style={{
-          background: `var(--gray-2)`,
-          border: `1px solid var(--gray-6)`,
-          borderRadius: 'var(--radius-3)',
-          padding: '14px 18px',
-        }}>
-        <input 
-          type='text'
-          placeholder='Search'
-          style={{
-            width: '80%',
-            border: 'none',
-            background: 'transparent',
-            fontSize: '1.25em'
-          }}
-        />
-        <Search></Search>
-      </Box>
+      <TextField.Root
+        placeholder="Search judge collections…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        aria-label="Search axial codes"
+        style={{ flex: 1, minWidth: 180 }}
+      >
+        <TextField.Slot>
+          <Search size={14} />
+        </TextField.Slot>
+      </TextField.Root>
 
       <Box pb="9">
         <SectionHead title="Judge runs" subtitle="Select a run to see its results." />

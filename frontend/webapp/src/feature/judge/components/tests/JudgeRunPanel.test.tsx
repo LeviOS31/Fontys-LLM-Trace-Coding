@@ -31,6 +31,8 @@ type Overrides = Partial<React.ComponentProps<typeof RunJudgePanel>>;
 
 function renderPanel(overrides: Overrides = {}) {
   const props = {
+    mode: 'testing' as const,
+    onModeChange: vi.fn(),
     templates,
     onTemplateChange: vi.fn(),
     onCollectionChange: vi.fn(),

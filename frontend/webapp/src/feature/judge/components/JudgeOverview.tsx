@@ -19,6 +19,7 @@ type Props = {
   readonly onBack: () => void;
   readonly onLoadMore: () => void;
   readonly onSelect: (judgeRunId: string) => void;
+  readonly onDelete: (judgeRunId: string) => Promise<boolean>;
 };
 
 export default function JudgeOverview({
@@ -30,6 +31,7 @@ export default function JudgeOverview({
   onBack,
   onLoadMore,
   onSelect,
+  onDelete,
 }: Props) {
   // Statistics are aggregated by the backend over every run, not just the loaded page.
   const overall = statsFromCounts(totals);
@@ -87,7 +89,12 @@ export default function JudgeOverview({
         ) : (
           <Flex direction="column" gap="3">
             {runs.map((run) => (
-              <JudgeRunCard key={run.judgeRunId} run={run} onSelect={onSelect} />
+              <JudgeRunCard
+                key={run.judgeRunId}
+                run={run}
+                onSelect={onSelect}
+                onDelete={onDelete}
+              />
             ))}
             {hasMore && (
               <Button variant="soft" color="gray" onClick={onLoadMore} disabled={loading}>

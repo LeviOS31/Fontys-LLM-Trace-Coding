@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   JudgeCollection,
+  JudgeRunListItem,
   JudgeResult,
   JudgeRunSummary,
   JudgeRunTotals,
@@ -59,20 +60,27 @@ vi.mock('../components/JudgeCollectionOverview.tsx', () => ({
     collections,
     loading,
     onSelect,
+    onRename,
+    onDelete,
   }: {
     collections: JudgeCollection[];
     loading: boolean;
     onSelect: (id: string) => void;
+    onRename: (id: string, name: string) => Promise<boolean>;
+    onDelete: (id: string) => Promise<boolean>;
   }) => (
     <div data-testid="collections">
       {loading && <span>Loading collections</span>}
       {collections.map((collection) => (
-        <button
-          key={collection.judgeCollectionId}
-          onClick={() => onSelect(collection.judgeCollectionId)}
-        >
-          {collection.name}
-        </button>
+        <div key={collection.judgeCollectionId}>
+          <button onClick={() => onSelect(collection.judgeCollectionId)}>{collection.name}</button>
+          <button onClick={() => void onRename(collection.judgeCollectionId, 'Renamed collection')}>
+            Rename {collection.name}
+          </button>
+          <button onClick={() => void onDelete(collection.judgeCollectionId)}>
+            Delete {collection.name}
+          </button>
+        </div>
       ))}
     </div>
   ),
@@ -86,20 +94,27 @@ vi.mock('../components/JudgeOverview.tsx', () => ({
     onBack,
     onLoadMore,
     onSelect,
+    onDelete,
   }: {
     collectionName: string;
-    runs: JudgeRunSummary[];
+    runs: JudgeRunListItem[];
     hasMore: boolean;
     onBack: () => void;
     onLoadMore: () => void;
     onSelect: (id: string) => void;
+    onDelete: (id: string) => Promise<boolean>;
   }) => (
     <div data-testid="overview">
       <h2>{collectionName}</h2>
       {runs.map((run) => (
-        <button key={run.judgeRunId} onClick={() => onSelect(run.judgeRunId)}>
-          {`Judge run (${run.judgeRunId})`}
-        </button>
+        <div key={run.judgeRunId}>
+          <button onClick={() => onSelect(run.judgeRunId)}>
+            {`${run.name ?? 'Judge run'} (${run.judgeRunId})`}
+          </button>
+          <button onClick={() => void onDelete(run.judgeRunId)}>
+            {`Delete ${run.name ?? 'Judge run'} (${run.judgeRunId})`}
+          </button>
+        </div>
       ))}
       {hasMore && <button onClick={onLoadMore}>Load more</button>}
       <button onClick={onBack}>All judge collections</button>
@@ -113,20 +128,17 @@ vi.mock('../components/JudgeRunDetails.tsx', () => ({
     results,
     resultsLoading,
     onBack,
-    onDelete,
   }: {
     run: { judgeRunId: string };
     results: JudgeResult[] | null;
     resultsLoading: boolean;
     onBack: () => void;
-    onDelete: () => void;
   }) => (
     <div data-testid="details">
       <span>{run.judgeRunId}</span>
       <span>{results ? `${results.length} results` : 'no results'}</span>
       {resultsLoading && <span>loading results</span>}
       <button onClick={onBack}>Back to runs</button>
-      <button onClick={onDelete}>Delete run</button>
     </div>
   ),
 }));
@@ -147,6 +159,7 @@ const makeCollection = (id: string, name: string): JudgeCollection => ({
 
 const makeRun = (id: string): JudgeRunSummary => ({
   judgeRunId: id,
+  judgeTemplateId: id === 'run-1' ? 't1' : 't2',
   createdAt: '2025-01-15T12:00:00Z',
   totalCount: 3,
   trueCount: 2,
@@ -198,6 +211,12 @@ beforeEach(() => {
     }
     if (url.pathname.endsWith('/judgecollection') && method === 'GET') {
       return respond(collectionReply);
+    }
+    if (/\/judgecollection\/[^/]+$/.test(url.pathname) && method === 'PUT') {
+      return respond({ body: {} });
+    }
+    if (/\/judgecollection\/[^/]+$/.test(url.pathname) && method === 'DELETE') {
+      return respond({ body: {} });
     }
     if (url.pathname.endsWith('/judge') && method === 'POST') return respond(postReply);
     if (/\/judgecollection\/[^/]+\/judge-runs\/[^/]+$/.test(url.pathname)) {
@@ -259,6 +278,32 @@ describe('JudgePage', () => {
     ).toBe(true);
   });
 
+  it('saves a renamed collection and updates its displayed name', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename Judge Collection 1' }));
+
+    expect(await screen.findByRole('button', { name: 'Renamed collection' })).toBeInTheDocument();
+    const [[url, init]] = callsWithMethod('PUT');
+    expect(String(url)).toBe(
+      'http://localhost/v1/projects/p1/versions/v1/judgecollection/collection-1'
+    );
+    expect(JSON.parse(String(init?.body))).toEqual({ name: 'Renamed collection' });
+  });
+
+  it('deletes a judge collection and removes it from the list', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Judge Collection 1' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Judge Collection 1' })).not.toBeInTheDocument()
+    );
+    const [[url, init]] = callsWithMethod('DELETE');
+    expect(String(url)).toBe(
+      'http://localhost/v1/projects/p1/versions/v1/judgecollection/collection-1'
+    );
+    expect(init?.method).toBe('DELETE');
+  });
+
   it('only offers active templates to the panel', async () => {
     renderPage();
     await screen.findByRole('button', { name: 'Judge Collection 1' });
@@ -300,7 +345,7 @@ describe('JudgePage', () => {
   it('navigates from collections to runs to judged traces and back', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Judge run (run-1)' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reliability (run-1)' }));
 
     expect(await screen.findByTestId('details')).toBeInTheDocument();
     expect(await screen.findByText('0 results')).toBeInTheDocument();
@@ -323,7 +368,7 @@ describe('JudgePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
 
-    expect(await screen.findByRole('button', { name: 'Judge run (run-2)' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Latency (run-2)' })).toBeInTheDocument();
     expect(
       calls().some(([input]) =>
         String(input).endsWith('/judgecollections/collection-1/judge-runs?limit=20&offset=1')
@@ -331,21 +376,19 @@ describe('JudgePage', () => {
     ).toBe(true);
   });
 
-  it('deletes a run from its collection and refreshes that collection', async () => {
+  it('deletes a run from its card and refreshes the collection', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Judge run (run-1)' }));
-    await screen.findByTestId('details');
-
     listReply = { body: { judgeRuns: [], totals: makeTotals(0) } };
-    fireEvent.click(screen.getByRole('button', { name: 'Delete run' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Reliability (run-1)' }));
 
-    await waitFor(() => expect(screen.getByTestId('overview')).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Reliability (run-1)' })).not.toBeInTheDocument());
+    expect(screen.getByTestId('overview')).toBeInTheDocument();
     const [[deleteUrl]] = callsWithMethod('DELETE');
     expect(String(deleteUrl)).toBe(
       'http://localhost/v1/projects/p1/versions/v1/judgecollection/collection-1/judge-runs/run-1'
     );
-    expect(screen.queryByRole('button', { name: 'Judge run (run-1)' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reliability (run-1)' })).not.toBeInTheDocument();
   });
 
   it('shows an error when the judge request fails', async () => {

@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Judge.Data;
+using Judge.Features.JudgeTracesForAxialCode;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -40,15 +42,15 @@ public class ListJudgeRunsHandler : IRequestHandler<ListJudgeRunsRequest, Result
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
-            // Projection: ResultsJson is never read from the database here.
-            var runs = await query
+            var runData = await query
                 .OrderByDescending(r => r.CreatedAt)
                 .ThenByDescending(r => r.JudgeRunId)
                 .Skip(request.Offset)
                 .Take(request.Limit)
-                .Select(r => new JudgeRunSummaryViewModel
+                .Select(r => new
                 {
                     JudgeRunId = r.JudgeRunId,
+                    r.ResultsJson,
                     CreatedAt = r.CreatedAt,
                     TotalCount = r.TotalCount,
                     TrueCount = r.TrueCount,
@@ -56,6 +58,17 @@ public class ListJudgeRunsHandler : IRequestHandler<ListJudgeRunsRequest, Result
                     FailedCount = r.FailedCount,
                 })
                 .ToListAsync(cancellationToken);
+
+            var runs = runData.Select(r => new JudgeRunSummaryViewModel
+            {
+                JudgeRunId = r.JudgeRunId,
+                JudgeTemplateId = GetJudgeTemplateId(r.ResultsJson),
+                CreatedAt = r.CreatedAt,
+                TotalCount = r.TotalCount,
+                TrueCount = r.TrueCount,
+                FalseCount = r.FalseCount,
+                FailedCount = r.FailedCount,
+            }).ToList();
 
             return new ListJudgeRunsResponse
             {
@@ -75,5 +88,32 @@ public class ListJudgeRunsHandler : IRequestHandler<ListJudgeRunsRequest, Result
             Logger.Error(ex, "Error listing judge runs for collection {JudgeCollectionId}", request.JudgeCollectionId);
             return ErrorCode.DatabaseError;
         }
+    }
+
+    private static Guid? GetJudgeTemplateId(string resultsJson)
+    {
+        using var document = JsonDocument.Parse(resultsJson);
+        var results = document.RootElement;
+        if (results.ValueKind != JsonValueKind.Array)
+        {
+            throw new JsonException("Judge run results must be an array.");
+        }
+
+        if (results.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        // Every trace in a run uses the same template, so the first result identifies it.
+        var firstResult = results[0];
+        if (
+            !firstResult.TryGetProperty(nameof(TraceJudgeResultViewModel.JudgeTemplateId), out var id)
+            && !firstResult.TryGetProperty("judgeTemplateId", out id)
+        )
+        {
+            throw new JsonException("Judge run results do not contain a judge template ID.");
+        }
+
+        return id.GetGuid();
     }
 }

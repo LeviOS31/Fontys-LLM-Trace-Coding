@@ -6,7 +6,7 @@ import { BASE_URL } from '../../shared/api/api';
 import JudgeCollectionOverview from './components/JudgeCollectionOverview';
 import JudgeOverview from './components/JudgeOverview';
 import JudgeRunDetails from './components/JudgeRunDetails';
-import RunJudgePanel from './components/JudgeRunPanel';
+import RunJudgePanel, { type JudgeMode } from './components/JudgeRunPanel';
 import {
   isJudgeResponse,
   type JudgeCollection,
@@ -36,6 +36,7 @@ export default function JudgePage() {
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
   const [templateIds, setTemplateIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<JudgeMode>('run');
   const [selectedTraceCollectionIds, setSelectedTraceCollectionIds] = useState<string[]>([]);
 
   const [collections, setCollections] = useState<JudgeCollection[]>([]);
@@ -178,14 +179,20 @@ export default function JudgePage() {
   const runs: JudgeRunListItem[] = summaries;
   const selectedRun = runs.find((run) => run.judgeRunId === selectedRunId) ?? null;
   const hasMore = summaries.length < totals.runs;
-  const selectedTemplates = activeTemplates.filter((template) => templateIds.includes(template.id));
+
+  // Judge run: every active template. Template testing: only the ones picked in the select.
+  const selectedTemplates =
+    mode === 'run' ? activeTemplates : activeTemplates.filter((t) => templateIds.includes(t.id));
 
   if (!projectId || !versionId) return <Navigate to="/404" replace />;
 
   const runJudge = async () => {
-    if (selectedTemplates.length === 0 || selectedTraceCollectionIds.length === 0) return;
+    if (selectedTemplates.length === 0) return;
     setRunning(true);
     setError(null);
+
+    //const axialCodeIds = selectedTemplates.map((template) => template.axialCodeId);
+
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
       const res = await fetch(url.toString(), {
@@ -251,7 +258,12 @@ export default function JudgePage() {
 
       <RunJudgePanel
         templates={activeTemplates}
-        onTemplateChange={setTemplateIds}
+        onTemplateChange={(updatedIds: string[]) => setTemplateIds(updatedIds)}
+        mode={mode}
+        onModeChange={(m) => {
+          setMode(m);
+          setTemplateIds([]);
+        }}
         projectId={projectId}
         versionId={versionId}
         onCollectionChange={setSelectedTraceCollectionIds}

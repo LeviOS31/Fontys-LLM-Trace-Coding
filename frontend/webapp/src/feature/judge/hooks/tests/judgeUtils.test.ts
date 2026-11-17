@@ -19,11 +19,19 @@ const result = (overrides: Partial<JudgeResult> = {}): JudgeResult => ({
 });
 
 describe('isJudgeResponse', () => {
-  it('accepts an object with a results array', () => {
-    expect(isJudgeResponse({ judgeRunId: 'run-1', results: [] })).toBe(true);
+  it('accepts a collection id with a results array', () => {
+    expect(isJudgeResponse({ judgeCollectionId: 'collection-1', results: [] })).toBe(true);
   });
 
-  it.each([null, undefined, 'text', 42, {}, { results: 'nope' }])('rejects %j', (value) => {
+  it.each([
+    null,
+    undefined,
+    'text',
+    42,
+    {},
+    { judgeRunId: 'run-1', results: [] },
+    { judgeCollectionId: 'collection-1', results: 'nope' },
+  ])('rejects %j', (value) => {
     expect(isJudgeResponse(value)).toBe(false);
   });
 });

@@ -5,6 +5,13 @@ export type JudgeTemplate = {
   isDeprecated: boolean;
 };
 
+export type JudgeCollection = {
+  judgeCollectionId: string;
+  name: string;
+  versionId: string;
+  createdAt: string;
+};
+
 // verdict and reasoning are null when the trace failed.
 export type JudgeResult = {
   judgeTemplateId?: string;
@@ -16,12 +23,11 @@ export type JudgeResult = {
 };
 
 // Response of the POST that runs the judge.
-export type JudgeResponse = { judgeRunId: string; results: JudgeResult[] };
+export type JudgeResponse = { judgeCollectionId: string; results: JudgeResult[][] };
 
 // One row of the paged run list. The counts are computed by the backend.
 export type JudgeRunSummary = {
   judgeRunId: string;
-  axialCodeId: string;
   createdAt: string;
   totalCount: number;
   trueCount: number;
@@ -29,8 +35,7 @@ export type JudgeRunSummary = {
   failedCount: number;
 };
 
-// A list row plus the template name, which is resolved on the client.
-export type JudgeRunListItem = JudgeRunSummary & { templateName: string };
+export type JudgeRunListItem = JudgeRunSummary;
 
 export type JudgeRunTotals = {
   runs: number;
@@ -43,8 +48,9 @@ export type JudgeRunTotals = {
 export type RunError = { message: string; raw: string };
 
 export const isJudgeResponse = (value: unknown): value is JudgeResponse => {
-  const obj = value as JudgeResponse | null;
-  return !!obj && typeof obj === 'object' && Array.isArray(obj.results);
+  if (!value || typeof value !== 'object') return false;
+  const obj = value as Partial<JudgeResponse>;
+  return typeof obj.judgeCollectionId === 'string' && Array.isArray(obj.results);
 };
 
 export const isOk = (r: JudgeResult) => r.status.toLowerCase() === 'success';

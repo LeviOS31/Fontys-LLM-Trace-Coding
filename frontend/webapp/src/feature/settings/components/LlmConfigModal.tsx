@@ -27,6 +27,7 @@ export function LlmConfigModal({ open, onOpenChange, status }: LlmConfigModalPro
   const [providerName, setProviderName] = useState('');
   const [endpoint, setEndpoint] = useState('');
   const [modelName, setModelName] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [resetError, setResetError] = useState(false);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export function LlmConfigModal({ open, onOpenChange, status }: LlmConfigModalPro
     setProviderName(status?.providerName ?? '');
     setEndpoint(status?.endpoint ?? '');
     setModelName(status?.modelName ?? '');
+    setApiKey(status?.apiKey ??  '')
     setResetError(false);
     reset();
   }, [open, reset, status]);
@@ -42,6 +44,7 @@ export function LlmConfigModal({ open, onOpenChange, status }: LlmConfigModalPro
   const trimmedProvider = providerName.trim();
   const trimmedEndpoint = endpoint.trim();
   const trimmedModel = modelName.trim();
+  const trimmedApiKey = apiKey.trim();
 
   const isClearing = !trimmedProvider && !trimmedEndpoint && !trimmedModel;
   const hasAllValues = !!trimmedProvider && !!trimmedEndpoint && !!trimmedModel;
@@ -64,11 +67,13 @@ export function LlmConfigModal({ open, onOpenChange, status }: LlmConfigModalPro
           providerName: null,
           endpoint: null,
           modelName: null,
+          apiKey: null,
         }
       : {
           providerName: trimmedProvider,
           endpoint: trimmedEndpoint,
           modelName: trimmedModel,
+          apiKey: trimmedApiKey
         };
 
     mutate(payload, {
@@ -87,6 +92,7 @@ export function LlmConfigModal({ open, onOpenChange, status }: LlmConfigModalPro
     setProviderName(defaultLlmConfig.providerName ?? '');
     setEndpoint(defaultLlmConfig.endpoint ?? '');
     setModelName(defaultLlmConfig.modelName ?? '');
+    setApiKey(defaultLlmConfig.apiKey ?? '')
   };
 
   return (
@@ -153,6 +159,19 @@ export function LlmConfigModal({ open, onOpenChange, status }: LlmConfigModalPro
             placeholder="e.g. gpt-4"
             value={modelName}
             onChange={(e) => setModelName(e.target.value)}
+            autoComplete="off"
+            disabled={isPending}
+          />
+        </Flex>
+
+        <Flex direction="column" gap="1">
+          <Text as="label" size="2" weight="medium" htmlFor="llm-model">
+            Api Key
+          </Text>
+          <TextField.Root
+            id="llm-apikey"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
             autoComplete="off"
             disabled={isPending}
           />

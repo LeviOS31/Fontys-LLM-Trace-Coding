@@ -9,9 +9,7 @@ afterEach(cleanup);
 
 const run: JudgeRunListItem = {
   judgeRunId: 'run-1',
-  axialCodeId: 'a1',
   createdAt: '2025-01-15T12:00:00Z',
-  templateName: 'Reliability',
   totalCount: 3,
   trueCount: 2,
   falseCount: 1,
@@ -28,9 +26,9 @@ const renderCard = (overrides: Partial<JudgeRunListItem> = {}, onSelect = vi.fn(
 };
 
 describe('JudgeRunCard', () => {
-  it('shows the template name, date, id and counts', () => {
+  it('shows the run label, date, id and counts', () => {
     renderCard();
-    expect(screen.getByText('Reliability')).toBeInTheDocument();
+    expect(screen.getByText('Judge run')).toBeInTheDocument();
     expect(screen.getByText(formatDate(run.createdAt))).toBeInTheDocument();
     expect(screen.getByText('run-1')).toBeInTheDocument();
     expect(screen.getByText('3 results')).toBeInTheDocument();

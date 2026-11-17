@@ -294,6 +294,7 @@ public class JudgeTracesForAxialCodeHandler
             .WithProvider(llmConfigResult.Value.ProviderName)
             .WithEndpoint(llmConfigResult.Value.Endpoint)
             .WithModel(llmConfigResult.Value.ModelName)
+            .WithApiKey(llmConfigResult.Value.ApiKey)
             .Build();
     }
 }

@@ -33,6 +33,7 @@ public class GetLlmConfigHandlerTests
                 Provider = "openai",
                 Model = "gpt-4",
                 Endpoint = new Uri("https://api.openai.com"),
+                ApiKey = Guid.NewGuid().ToString(),
             },
         };
 

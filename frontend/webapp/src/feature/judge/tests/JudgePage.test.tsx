@@ -1,9 +1,10 @@
 import '@testing-library/jest-dom/vitest';
 import { Theme } from '@radix-ui/themes';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
+  JudgeCollection,
   JudgeResult,
   JudgeRunSummary,
   JudgeRunTotals,
@@ -34,14 +35,16 @@ vi.mock('../components/JudgeRunPanel.tsx', () => ({
   }) => (
     <div>
       <ul aria-label="panel templates">
-        {templates.map((t) => (
-          <li key={t.id}>{t.name}</li>
+        {templates.map((template) => (
+          <li key={template.id}>{template.name}</li>
         ))}
       </ul>
       <button onClick={() => onTemplateChange(['t1', 't2'])}>Pick templates</button>
       <button onClick={() => onTemplateChange(['t3'])}>Pick deprecated</button>
-      <button onClick={() => onCollectionChange(['c1', 'c2'])}>Pick collections</button>
-      <button onClick={() => onCollectionChange([])}>Clear collections</button>
+      <button onClick={() => onCollectionChange(['trace-c1', 'trace-c2'])}>
+        Pick trace collections
+      </button>
+      <button onClick={() => onCollectionChange([])}>Clear trace collections</button>
       <button disabled={!canRun} onClick={onRun}>
         Run
       </button>
@@ -51,25 +54,55 @@ vi.mock('../components/JudgeRunPanel.tsx', () => ({
   ),
 }));
 
+vi.mock('../components/JudgeCollectionOverview.tsx', () => ({
+  default: ({
+    collections,
+    loading,
+    onSelect,
+  }: {
+    collections: JudgeCollection[];
+    loading: boolean;
+    onSelect: (id: string) => void;
+  }) => (
+    <div data-testid="collections">
+      {loading && <span>Loading collections</span>}
+      {collections.map((collection) => (
+        <button
+          key={collection.judgeCollectionId}
+          onClick={() => onSelect(collection.judgeCollectionId)}
+        >
+          {collection.name}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 vi.mock('../components/JudgeOverview.tsx', () => ({
   default: ({
+    collectionName,
     runs,
     hasMore,
+    onBack,
     onLoadMore,
     onSelect,
   }: {
-    runs: { judgeRunId: string; templateName: string }[];
+    collectionName: string;
+    runs: JudgeRunSummary[];
     hasMore: boolean;
+    onBack: () => void;
     onLoadMore: () => void;
     onSelect: (id: string) => void;
   }) => (
     <div data-testid="overview">
-      {runs.map((r) => (
-        <button key={r.judgeRunId} onClick={() => onSelect(r.judgeRunId)}>
-          {`${r.templateName} (${r.judgeRunId})`}
+      <h2>{collectionName}</h2>
+      {runs.map((run) => (
+        <button key={run.judgeRunId} onClick={() => onSelect(run.judgeRunId)}>
+          {`Judge run (${run.judgeRunId})`}
         </button>
       ))}
       {hasMore && <button onClick={onLoadMore}>Load more</button>}
+      <button onClick={onBack}>All judge collections</button>
     </div>
   ),
 }));
@@ -82,33 +115,38 @@ vi.mock('../components/JudgeRunDetails.tsx', () => ({
     onBack,
     onDelete,
   }: {
-    run: { templateName: string };
+    run: { judgeRunId: string };
     results: JudgeResult[] | null;
     resultsLoading: boolean;
     onBack: () => void;
     onDelete: () => void;
   }) => (
     <div data-testid="details">
-      <span>{run.templateName}</span>
+      <span>{run.judgeRunId}</span>
       <span>{results ? `${results.length} results` : 'no results'}</span>
       {resultsLoading && <span>loading results</span>}
-      <button onClick={onBack}>Back</button>
-      <button onClick={onDelete}>Delete</button>
+      <button onClick={onBack}>Back to runs</button>
+      <button onClick={onDelete}>Delete run</button>
     </div>
   ),
 }));
 
 const templates: JudgeTemplate[] = [
-  // Deprecated duplicate of a1 listed first: the active template must win.
   { id: 't4', axialCodeId: 'a1', name: 'Reliability (old)', isDeprecated: true },
   { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false },
   { id: 't2', axialCodeId: 'a2', name: 'Latency', isDeprecated: false },
   { id: 't3', axialCodeId: 'a3', name: 'Retired', isDeprecated: true },
 ];
 
-const makeRun = (id: string, axialCodeId: string): JudgeRunSummary => ({
+const makeCollection = (id: string, name: string): JudgeCollection => ({
+  judgeCollectionId: id,
+  name,
+  versionId: 'v1',
+  createdAt: '2025-01-15T12:00:00Z',
+});
+
+const makeRun = (id: string): JudgeRunSummary => ({
   judgeRunId: id,
-  axialCodeId,
   createdAt: '2025-01-15T12:00:00Z',
   totalCount: 3,
   trueCount: 2,
@@ -127,6 +165,7 @@ const makeTotals = (runs: number): JudgeRunTotals => ({
 const fetchMock = vi.fn();
 
 type Reply = { status?: number; body?: unknown; reject?: boolean };
+let collectionReply: Reply;
 let listReply: Reply;
 let nextPageReply: Reply;
 let postReply: Reply;
@@ -142,9 +181,12 @@ function respond({ status = 200, body = {}, reject }: Reply) {
 }
 
 beforeEach(() => {
-  listReply = { body: { judgeRuns: [makeRun('run-1', 'a1')], totals: makeTotals(1) } };
+  collectionReply = {
+    body: { judgeCollections: [makeCollection('collection-1', 'Judge Collection 1')] },
+  };
+  listReply = { body: { judgeRuns: [makeRun('run-1')], totals: makeTotals(1) } };
   nextPageReply = { body: { judgeRuns: [], totals: makeTotals(1) } };
-  postReply = { body: { judgeRunId: 'run-2', results: [] } };
+  postReply = { body: { judgeCollectionId: 'collection-2', results: [] } };
 
   fetchMock.mockReset();
   fetchMock.mockImplementation((input: unknown, init?: RequestInit) => {
@@ -154,11 +196,14 @@ beforeEach(() => {
     if (url.pathname.endsWith('/judge-templates')) {
       return respond({ body: { judgeTemplates: templates } });
     }
+    if (url.pathname.endsWith('/judgecollection') && method === 'GET') {
+      return respond(collectionReply);
+    }
     if (url.pathname.endsWith('/judge') && method === 'POST') return respond(postReply);
-    if (/\/judge-runs\/[^/]+$/.test(url.pathname)) {
+    if (/\/judgecollection\/[^/]+\/judge-runs\/[^/]+$/.test(url.pathname)) {
       return respond({ body: method === 'DELETE' ? {} : { results: [] } });
     }
-    if (url.pathname.endsWith('/judge-runs')) {
+    if (/\/judgecollections\/[^/]+\/judge-runs$/.test(url.pathname)) {
       return respond(url.searchParams.get('offset') === '0' ? listReply : nextPageReply);
     }
     return respond({ status: 404 });
@@ -190,10 +235,9 @@ function renderPage(path = '/projects/p1/versions/v1/judge') {
 const calls = () => fetchMock.mock.calls as [unknown, RequestInit | undefined][];
 const callsWithMethod = (method: string) => calls().filter(([, init]) => init?.method === method);
 
-// Running needs both an active template and at least one trace collection.
 const pickSelection = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Pick collections' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Pick trace collections' }));
 };
 
 describe('JudgePage', () => {
@@ -202,9 +246,22 @@ describe('JudgePage', () => {
     expect(screen.getByText('Not found')).toBeInTheDocument();
   });
 
+  it('starts with judge collections and loads runs after selecting a collection', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
+
+    expect(await screen.findByTestId('overview')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Judge Collection 1' })).toBeInTheDocument();
+    expect(
+      calls().some(([input]) =>
+        String(input).includes('/judgecollections/collection-1/judge-runs?limit=20&offset=0')
+      )
+    ).toBe(true);
+  });
+
   it('only offers active templates to the panel', async () => {
     renderPage();
-    await screen.findByRole('button', { name: 'Reliability (run-1)' });
+    await screen.findByRole('button', { name: 'Judge Collection 1' });
     const list = screen.getByRole('list', { name: 'panel templates' });
     expect(list).toHaveTextContent('Reliability');
     expect(list).toHaveTextContent('Latency');
@@ -212,178 +269,92 @@ describe('JudgePage', () => {
     expect(list).not.toHaveTextContent('(old)');
   });
 
-  it('requests the first page of runs with the page size', async () => {
+  it('posts the selected IDs and opens the new collection after the judge completes', async () => {
     renderPage();
-    await screen.findByTestId('overview');
-    const listCall = calls().find(([url]) => String(url).endsWith('judge-runs?limit=20&offset=0'));
-    expect(listCall).toBeDefined();
-  });
+    await screen.findByRole('button', { name: 'Judge Collection 1' });
+    pickSelection();
 
-  describe('template names', () => {
-    it('prefers the active template for an axial code', async () => {
-      renderPage();
-      expect(
-        await screen.findByRole('button', { name: 'Reliability (run-1)' })
-      ).toBeInTheDocument();
-    });
+    collectionReply = {
+      body: {
+        judgeCollections: [
+          makeCollection('collection-2', 'Judge Collection 2'),
+          makeCollection('collection-1', 'Judge Collection 1'),
+        ],
+      },
+    };
+    listReply = { body: { judgeRuns: [makeRun('run-2')], totals: makeTotals(1) } };
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
-    it('falls back to a deprecated template when no active one exists', async () => {
-      listReply = { body: { judgeRuns: [makeRun('run-1', 'a3')], totals: makeTotals(1) } };
-      renderPage();
-      expect(await screen.findByRole('button', { name: 'Retired (run-1)' })).toBeInTheDocument();
-    });
+    expect(await screen.findByTestId('overview')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Judge Collection 2' })).toBeInTheDocument();
 
-    it('shows "Unknown template" when nothing matches', async () => {
-      listReply = { body: { judgeRuns: [makeRun('run-1', 'zzz')], totals: makeTotals(1) } };
-      renderPage();
-      expect(
-        await screen.findByRole('button', { name: 'Unknown template (run-1)' })
-      ).toBeInTheDocument();
+    const [[postUrl, postInit]] = callsWithMethod('POST');
+    expect(String(postUrl)).toBe('http://localhost/v1/projects/p1/versions/v1/judge');
+    expect(postInit?.headers).toEqual({ 'Content-Type': 'application/json' });
+    expect(JSON.parse(String(postInit?.body))).toEqual({
+      judgeTemplateIds: ['t1', 't2'],
+      traceCollectionIds: ['trace-c1', 'trace-c2'],
     });
   });
 
-  describe('running the judge', () => {
-    it('cannot run until an active template and a trace collection are selected', async () => {
-      renderPage();
-      await screen.findByTestId('overview');
-      const run = screen.getByRole('button', { name: 'Run' });
-      expect(run).toBeDisabled();
+  it('navigates from collections to runs to judged traces and back', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Judge run (run-1)' }));
 
-      // A deprecated template is not selectable, so it does not enable running.
-      fireEvent.click(screen.getByRole('button', { name: 'Pick deprecated' }));
-      expect(run).toBeDisabled();
+    expect(await screen.findByTestId('details')).toBeInTheDocument();
+    expect(await screen.findByText('0 results')).toBeInTheDocument();
+    expect(
+      calls().some(([input]) =>
+        String(input).endsWith('/judgecollection/collection-1/judge-runs/run-1')
+      )
+    ).toBe(true);
 
-      // Templates alone are not enough: a trace collection is needed too.
-      fireEvent.click(screen.getByRole('button', { name: 'Pick templates' }));
-      expect(run).toBeDisabled();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Pick collections' }));
-      expect(run).toBeEnabled();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Clear collections' }));
-      expect(run).toBeDisabled();
-    });
-
-    it('posts the axial code ids and trace collection ids, reloads the list and opens the new run', async () => {
-      renderPage();
-      await screen.findByTestId('overview');
-      pickSelection();
-
-      postReply = { body: { judgeRunId: 'run-2', results: [] } };
-      listReply = {
-        body: {
-          judgeRuns: [makeRun('run-2', 'a2'), makeRun('run-1', 'a1')],
-          totals: makeTotals(2),
-        },
-      };
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-
-      const details = await screen.findByTestId('details');
-      expect(within(details).getByText('Latency')).toBeInTheDocument();
-      expect(await within(details).findByText('0 results')).toBeInTheDocument();
-
-      const [[postUrl, postInit]] = callsWithMethod('POST');
-      expect(String(postUrl)).toBe('http://localhost/v1/projects/p1/versions/v1/judge');
-      expect(postInit?.headers).toEqual({ 'Content-Type': 'application/json' });
-      expect(JSON.parse(String(postInit?.body))).toEqual({
-        judgeTemplateIds: ['t1', 't2'],
-        traceCollectionIds: ['c1', 'c2'],
-      });
-    });
-
-    it('shows the status code when the request fails', async () => {
-      postReply = { status: 500, body: { detail: 'boom' } };
-      renderPage();
-      await screen.findByTestId('overview');
-      pickSelection();
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-
-      expect(await screen.findByRole('alert')).toHaveTextContent('Request failed (500).');
-      expect(screen.queryByTestId('details')).not.toBeInTheDocument();
-      expect(screen.queryByText('running')).not.toBeInTheDocument();
-    });
-
-    it('reports an unexpected response shape', async () => {
-      postReply = { body: { unexpected: true } };
-      renderPage();
-      await screen.findByTestId('overview');
-      pickSelection();
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        'The judge returned an unexpected response.'
-      );
-    });
-
-    it('reports a network failure', async () => {
-      postReply = { reject: true };
-      renderPage();
-      await screen.findByTestId('overview');
-      pickSelection();
-      fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-
-      expect(await screen.findByRole('alert')).toHaveTextContent('Request failed.');
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Back to runs' }));
+    expect(screen.getByTestId('overview')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'All judge collections' }));
+    expect(screen.getByTestId('collections')).toBeInTheDocument();
   });
 
-  describe('run list', () => {
-    it('shows an error when the runs cannot be loaded', async () => {
-      listReply = { status: 500 };
-      renderPage();
-      expect(await screen.findByRole('alert')).toHaveTextContent('Could not load judge runs.');
-    });
+  it('loads the next run page for the selected collection', async () => {
+    listReply = { body: { judgeRuns: [makeRun('run-1')], totals: makeTotals(2) } };
+    nextPageReply = { body: { judgeRuns: [makeRun('run-2')], totals: makeTotals(2) } };
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
 
-    it('appends the next page when loading more', async () => {
-      listReply = { body: { judgeRuns: [makeRun('run-1', 'a1')], totals: makeTotals(2) } };
-      nextPageReply = { body: { judgeRuns: [makeRun('run-2', 'a2')], totals: makeTotals(2) } };
-      renderPage();
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
-
-      expect(await screen.findByRole('button', { name: 'Latency (run-2)' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Reliability (run-1)' })).toBeInTheDocument();
-      expect(calls().some(([url]) => String(url).endsWith('judge-runs?limit=20&offset=1'))).toBe(
-        true
-      );
-      // Everything is loaded now, so the button disappears.
-      expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
-    });
-
-    it('does not offer more when every run is loaded', async () => {
-      renderPage();
-      await screen.findByTestId('overview');
-      expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
-    });
+    expect(await screen.findByRole('button', { name: 'Judge run (run-2)' })).toBeInTheDocument();
+    expect(
+      calls().some(([input]) =>
+        String(input).endsWith('/judgecollections/collection-1/judge-runs?limit=20&offset=1')
+      )
+    ).toBe(true);
   });
 
-  describe('run details', () => {
-    it('opens a run, loads its results and returns to the overview', async () => {
-      renderPage();
-      fireEvent.click(await screen.findByRole('button', { name: 'Reliability (run-1)' }));
+  it('deletes a run from its collection and refreshes that collection', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Judge Collection 1' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Judge run (run-1)' }));
+    await screen.findByTestId('details');
 
-      expect(await screen.findByTestId('details')).toBeInTheDocument();
-      expect(await screen.findByText('0 results')).toBeInTheDocument();
-      expect(calls().some(([url]) => String(url).endsWith('/judge-runs/run-1'))).toBe(true);
+    listReply = { body: { judgeRuns: [], totals: makeTotals(0) } };
+    fireEvent.click(screen.getByRole('button', { name: 'Delete run' }));
 
-      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-      expect(screen.getByTestId('overview')).toBeInTheDocument();
-      expect(screen.queryByTestId('details')).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByTestId('overview')).toBeInTheDocument());
+    const [[deleteUrl]] = callsWithMethod('DELETE');
+    expect(String(deleteUrl)).toBe(
+      'http://localhost/v1/projects/p1/versions/v1/judgecollection/collection-1/judge-runs/run-1'
+    );
+    expect(screen.queryByRole('button', { name: 'Judge run (run-1)' })).not.toBeInTheDocument();
+  });
 
-    it('deletes the run and returns to the refreshed overview', async () => {
-      renderPage();
-      fireEvent.click(await screen.findByRole('button', { name: 'Reliability (run-1)' }));
-      await screen.findByTestId('details');
+  it('shows an error when the judge request fails', async () => {
+    postReply = { status: 500, body: { detail: 'boom' } };
+    renderPage();
+    await screen.findByRole('button', { name: 'Judge Collection 1' });
+    pickSelection();
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
-      listReply = { body: { judgeRuns: [], totals: makeTotals(0) } };
-      fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-
-      await waitFor(() => expect(screen.getByTestId('overview')).toBeInTheDocument());
-      const [[deleteUrl]] = callsWithMethod('DELETE');
-      expect(String(deleteUrl)).toBe(
-        'http://localhost/v1/projects/p1/versions/v1/judge-runs/run-1'
-      );
-      expect(screen.queryByRole('button', { name: 'Reliability (run-1)' })).not.toBeInTheDocument();
-    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Request failed (500).');
   });
 });

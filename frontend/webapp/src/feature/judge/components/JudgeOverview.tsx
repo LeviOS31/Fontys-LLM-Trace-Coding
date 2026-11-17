@@ -7,21 +7,26 @@ import {
 } from '../hooks/judgeUtils';
 import JudgeRunCard from './JudgeRunCard';
 import { SectionHead, SummaryStat } from './Primitives';
+import { ArrowLeft } from 'lucide-react';
 
 type Props = {
+  readonly collectionName: string;
   readonly runs: JudgeRunListItem[];
   readonly totals: JudgeRunTotals;
   readonly hasMore: boolean;
   readonly loading: boolean;
+  readonly onBack: () => void;
   readonly onLoadMore: () => void;
   readonly onSelect: (judgeRunId: string) => void;
 };
 
 export default function JudgeOverview({
+  collectionName,
   runs,
   totals,
   hasMore,
   loading,
+  onBack,
   onLoadMore,
   onSelect,
 }: Props) {
@@ -30,10 +35,15 @@ export default function JudgeOverview({
 
   return (
     <>
+      <Button variant="ghost" color="gray" size="2" onClick={onBack} style={{ alignSelf: 'start' }}>
+        <ArrowLeft size={14} />
+        All judge collections
+      </Button>
+
       <Box>
         <SectionHead
-          title="Overview"
-          subtitle="Statistics across all judge runs for this version."
+          title={collectionName}
+          subtitle="Statistics across the judge runs in this collection."
         />
         <Card>
           <Grid columns={{ initial: '2', sm: '5' }} gap="4">
@@ -53,7 +63,7 @@ export default function JudgeOverview({
       </Box>
 
       <Box pb="9">
-        <SectionHead title="Judge runs" subtitle="Select a run to see its results." />
+        <SectionHead title="Judge runs" subtitle="Select a run to see its judged traces." />
         {runs.length === 0 ? (
           <Text as="p" size="2" color="gray">
             {loading

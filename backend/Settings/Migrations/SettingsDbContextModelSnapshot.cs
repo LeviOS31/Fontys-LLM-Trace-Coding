@@ -28,6 +28,9 @@ namespace Settings.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ApiKey")
+                        .HasColumnType("text");
+
                     b.Property<string>("Endpoint")
                         .HasColumnType("text");
 

@@ -11,6 +11,7 @@ public class ChatClientConfiguration
     public required string? Provider { get; set; }
     public required Uri? Endpoint { get; set; }
     public required string? Model { get; set; }
+    public required string? ApiKey {get; set; }
 }
 
 internal sealed class ChatClientConfigurationEntityConfiguration : IEntityTypeConfiguration<ChatClientConfiguration>
@@ -28,11 +29,13 @@ internal sealed class ChatClientConfigurationEntityConfiguration : IEntityTypeCo
         builder.Property(x => x.Provider);
         builder.Property(x => x.Endpoint);
         builder.Property(x => x.Model);
+        builder.Property(x => x.ApiKey);
 
         // Seed data
         var provider = _configuration["AI:Provider"]!;
         var endpoint = new Uri(_configuration[$"AI:{provider}:Endpoint"]!);
         var model = _configuration[$"AI:{provider}:Model"]!;
+        var apikey = _configuration["AI:ApiKey"];
 
         builder.HasData(
             new ChatClientConfiguration
@@ -41,6 +44,7 @@ internal sealed class ChatClientConfigurationEntityConfiguration : IEntityTypeCo
                 Provider = provider,
                 Endpoint = endpoint,
                 Model = model,
+                ApiKey = apikey,
             }
         );
     }

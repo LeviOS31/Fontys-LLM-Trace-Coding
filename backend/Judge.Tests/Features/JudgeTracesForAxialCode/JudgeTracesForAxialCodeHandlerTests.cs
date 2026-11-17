@@ -120,6 +120,7 @@ public class JudgeTracesForAxialCodeHandlerTests
                         ProviderName = "openai",
                         Endpoint = new Uri("http://localhost"),
                         ModelName = "test-model",
+                        ApiKey = Guid.NewGuid().ToString(),
                     }
             );
 
@@ -162,6 +163,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         public IChatClientBuilder WithProvider(string? provider) => this;
         public IChatClientBuilder WithEndpoint(Uri? endpoint) => this;
         public IChatClientBuilder WithModel(string? model) => this;
+        public IChatClientBuilder WithApiKey(string? key) => this;
         public Result<IChatClient> Build() => new StubChatClient(client);
     }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Box, Button, Card, Flex, Text, TextField } from '@radix-ui/themes';
-import { ChevronRight, Pencil } from 'lucide-react';
+import { AlertDialog, Box, Button, Card, Flex, Text, TextField } from '@radix-ui/themes';
+import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { formatDate, type JudgeCollection } from '../hooks/judgeUtils';
 import { SectionHead } from './Primitives';
 
@@ -9,6 +9,7 @@ type Props = {
   readonly loading: boolean;
   readonly onSelect: (judgeCollectionId: string) => void;
   readonly onRename: (judgeCollectionId: string, name: string) => Promise<boolean>;
+  readonly onDelete: (judgeCollectionId: string) => Promise<boolean>;
 };
 
 export default function JudgeCollectionOverview({
@@ -16,10 +17,14 @@ export default function JudgeCollectionOverview({
   loading,
   onSelect,
   onRename,
+  onDelete,
 }: Props) {
   const [editingCollectionId, setEditingCollectionId] = useState<string | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<JudgeCollection | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(false);
 
   const beginEditing = (collection: JudgeCollection) => {
     setEditingCollectionId(collection.judgeCollectionId);
@@ -45,6 +50,21 @@ export default function JudgeCollectionOverview({
     }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
+    try {
+      if (await onDelete(deleteTarget.judgeCollectionId)) {
+        setDeleteTarget(null);
+      } else {
+        setDeleteError(true);
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Box pb="9">
       <SectionHead
@@ -64,7 +84,7 @@ export default function JudgeCollectionOverview({
 
             return (
               <Card key={collection.judgeCollectionId}>
-                <Flex align="center" justify="between" gap="3">
+                <Flex align="center" justify="between" gap="3" wrap="wrap">
                   {isEditing ? (
                     <Flex align="center" gap="2" style={{ flex: 1, minWidth: 0 }}>
                       <TextField.Root
@@ -97,7 +117,7 @@ export default function JudgeCollectionOverview({
                       aria-label={`Open ${collection.name}`}
                       onClick={() => onSelect(collection.judgeCollectionId)}
                       style={{
-                        flex: 1,
+                        flex: '1 1 14rem',
                         minWidth: 0,
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -121,17 +141,35 @@ export default function JudgeCollectionOverview({
                     </button>
                   )}
                   {!isEditing && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      color="gray"
-                      size="2"
-                      aria-label={`Edit ${collection.name}`}
-                      onClick={() => beginEditing(collection)}
-                    >
-                      <Pencil size={14} />
-                      Edit
-                    </Button>
+                    <Flex gap="2" wrap="wrap" style={{ flexShrink: 0, marginLeft: 'auto' }}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        color="gray"
+                        size="2"
+                        aria-label={`Edit ${collection.name}`}
+                        onClick={() => beginEditing(collection)}
+                        style={{ margin: 0, whiteSpace: 'nowrap' }}
+                      >
+                        <Pencil size={14} />
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        color="red"
+                        size="2"
+                        aria-label={`Delete ${collection.name}`}
+                        onClick={() => {
+                          setDeleteError(false);
+                          setDeleteTarget(collection);
+                        }}
+                        style={{ margin: 0, whiteSpace: 'nowrap' }}
+                      >
+                        <Trash2 size={14} />
+                        Delete
+                      </Button>
+                    </Flex>
                   )}
                 </Flex>
               </Card>
@@ -139,6 +177,44 @@ export default function JudgeCollectionOverview({
           })}
         </Flex>
       )}
+      <AlertDialog.Root
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setDeleteTarget(null);
+            setDeleteError(false);
+          }
+        }}
+      >
+        <AlertDialog.Content maxWidth="450px">
+          <AlertDialog.Title>Delete judge collection?</AlertDialog.Title>
+          <AlertDialog.Description size="2">
+            This will permanently delete “{deleteTarget?.name}” and all of its judge runs. This
+            action cannot be undone.
+          </AlertDialog.Description>
+          {deleteError && (
+            <Text as="p" size="2" color="red" role="alert" mt="3">
+              Could not delete the collection. Please try again.
+            </Text>
+          )}
+          <Flex gap="3" mt="4" justify="end">
+            <AlertDialog.Cancel>
+              <Button variant="soft" color="gray" disabled={deleting}>
+                Cancel
+              </Button>
+            </AlertDialog.Cancel>
+            <Button
+              type="button"
+              variant="solid"
+              color="red"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              Delete collection
+            </Button>
+          </Flex>
+        </AlertDialog.Content>
+      </AlertDialog.Root>
     </Box>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, Button, Card, Code, Flex, Grid, SegmentedControl, Text } from '@radix-ui/themes';
-import { ArrowLeft, Check, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy } from 'lucide-react';
 import {
   formatDate,
   formatPercent,
@@ -21,7 +21,6 @@ type Props = {
   readonly results: JudgeResult[] | null;
   readonly resultsLoading: boolean;
   readonly onBack: () => void;
-  readonly onDelete: () => void;
 };
 
 export default function JudgeRunDetails({
@@ -31,7 +30,6 @@ export default function JudgeRunDetails({
   results,
   resultsLoading,
   onBack,
-  onDelete,
 }: Props) {
   const [view, setView] = useState<View>('formatted');
   const [copied, setCopied] = useState(false);
@@ -51,10 +49,6 @@ export default function JudgeRunDetails({
     }
   };
 
-  const confirmDelete = () => {
-    if (window.confirm('Delete this judge run? This cannot be undone.')) onDelete();
-  };
-
   return (
     <>
       <Box>
@@ -62,10 +56,6 @@ export default function JudgeRunDetails({
           <Button variant="ghost" color="gray" size="2" onClick={onBack}>
             <ArrowLeft size={14} />
             All judge runs
-          </Button>
-          <Button variant="soft" color="red" size="1" onClick={confirmDelete}>
-            <Trash2 size={14} />
-            Delete run
           </Button>
         </Flex>
         <Text as="p" size="5" weight="bold" mt="3">

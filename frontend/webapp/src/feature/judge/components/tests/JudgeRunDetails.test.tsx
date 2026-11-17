@@ -48,7 +48,6 @@ function renderDetails(overrides: Overrides = {}) {
     results,
     resultsLoading: false,
     onBack: vi.fn(),
-    onDelete: vi.fn(),
     ...overrides,
   };
   render(
@@ -110,22 +109,6 @@ describe('JudgeRunDetails', () => {
     const { onBack } = renderDetails();
     fireEvent.click(screen.getByRole('button', { name: /All judge runs/ }));
     expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  describe('delete', () => {
-    it('calls onDelete after the user confirms', () => {
-      vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
-      const { onDelete } = renderDetails();
-      fireEvent.click(screen.getByRole('button', { name: /Delete run/ }));
-      expect(onDelete).toHaveBeenCalledTimes(1);
-    });
-
-    it('does nothing when the user cancels', () => {
-      vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
-      const { onDelete } = renderDetails();
-      fireEvent.click(screen.getByRole('button', { name: /Delete run/ }));
-      expect(onDelete).not.toHaveBeenCalled();
-    });
   });
 
   describe('copy', () => {

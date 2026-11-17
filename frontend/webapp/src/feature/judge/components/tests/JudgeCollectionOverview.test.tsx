@@ -17,6 +17,7 @@ const collection: JudgeCollection = {
 function renderOverview(collections: JudgeCollection[] = [collection], loading = false) {
   const onSelect = vi.fn();
   const onRename = vi.fn().mockResolvedValue(true);
+  const onDelete = vi.fn().mockResolvedValue(true);
   render(
     <Theme>
       <JudgeCollectionOverview
@@ -24,10 +25,11 @@ function renderOverview(collections: JudgeCollection[] = [collection], loading =
         loading={loading}
         onSelect={onSelect}
         onRename={onRename}
+        onDelete={onDelete}
       />
     </Theme>
   );
-  return { onSelect, onRename };
+  return { onSelect, onRename, onDelete };
 }
 
 describe('JudgeCollectionOverview', () => {
@@ -47,6 +49,29 @@ describe('JudgeCollectionOverview', () => {
 
     await waitFor(() => expect(onRename).toHaveBeenCalledWith('collection-1', 'Regression checks'));
     expect(screen.queryByRole('textbox', { name: 'Collection name' })).not.toBeInTheDocument();
+  });
+
+  it('deletes a collection after confirmation', async () => {
+    const { onDelete } = renderOverview();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Judge Collection 1' }));
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByText(/all of its judge runs/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete collection' }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('collection-1'));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  it('does not delete a collection when confirmation is cancelled', async () => {
+    const { onDelete } = renderOverview();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Judge Collection 1' }));
+    await screen.findByRole('alertdialog');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(onDelete).not.toHaveBeenCalled();
   });
 
   it('does not save a blank collection name', () => {

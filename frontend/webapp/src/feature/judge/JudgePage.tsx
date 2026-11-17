@@ -233,19 +233,21 @@ export default function JudgePage() {
     }
   };
 
-  const deleteRun = async (judgeRunId: string) => {
-    if (!selectedCollectionId) return;
+  const deleteRun = async (judgeRunId: string): Promise<boolean> => {
+    if (!selectedCollectionId) return false;
     setError(null);
     try {
       const res = await fetch(runUrl(selectedCollectionId, judgeRunId), { method: 'DELETE' });
       if (!res.ok) {
         setError({ message: `Could not delete run (${res.status}).`, raw: await res.text() });
-        return;
+        return false;
       }
       setSelectedRunId(null);
       await loadRuns(selectedCollectionId, 0);
+      return true;
     } catch (err) {
       setError({ message: 'Could not delete run.', raw: String(err) });
+      return false;
     }
   };
 
@@ -274,6 +276,35 @@ export default function JudgePage() {
       return true;
     } catch (err) {
       setError({ message: 'Could not rename judge collection.', raw: String(err) });
+      return false;
+    }
+  };
+
+  const deleteCollection = async (judgeCollectionId: string) => {
+    setError(null);
+    try {
+      const res = await fetch(collectionUrl(judgeCollectionId), { method: 'DELETE' });
+      if (!res.ok) {
+        setError({
+          message: `Could not delete judge collection (${res.status}).`,
+          raw: await res.text(),
+        });
+        return false;
+      }
+
+      setCollections((current) =>
+        current.filter((collection) => collection.judgeCollectionId !== judgeCollectionId)
+      );
+      if (selectedCollectionId === judgeCollectionId) {
+        setSelectedCollectionId(null);
+        setSelectedRunId(null);
+        setSummaries([]);
+        setTotals(EMPTY_TOTALS);
+        setResults(null);
+      }
+      return true;
+    } catch (err) {
+      setError({ message: 'Could not delete judge collection.', raw: String(err) });
       return false;
     }
   };
@@ -314,7 +345,6 @@ export default function JudgePage() {
           results={results}
           resultsLoading={resultsLoading}
           onBack={() => setSelectedRunId(null)}
-          onDelete={() => deleteRun(selectedRun.judgeRunId)}
         />
       ) : selectedCollection ? (
         <JudgeOverview
@@ -326,12 +356,14 @@ export default function JudgePage() {
           onBack={() => setSelectedCollectionId(null)}
           onLoadMore={() => loadRuns(selectedCollection.judgeCollectionId, summaries.length)}
           onSelect={setSelectedRunId}
+          onDelete={deleteRun}
         />
       ) : (
         <JudgeCollectionOverview
           collections={collections}
           loading={collectionsLoading}
           onRename={renameCollection}
+          onDelete={deleteCollection}
           onSelect={(judgeCollectionId) => {
             setError(null);
             setSelectedCollectionId(judgeCollectionId);

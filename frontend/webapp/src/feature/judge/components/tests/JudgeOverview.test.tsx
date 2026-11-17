@@ -38,6 +38,7 @@ function renderOverview(overrides: Overrides = {}) {
     onBack: vi.fn(),
     onLoadMore: vi.fn(),
     onSelect: vi.fn(),
+    onDelete: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
   render(
@@ -75,8 +76,8 @@ describe('JudgeOverview', () => {
 
   it('renders one card per run and forwards selection', () => {
     const { onSelect } = renderOverview();
-    expect(screen.getAllByRole('button')).toHaveLength(3);
-    fireEvent.click(screen.getByRole('button', { name: /run-2/ }));
+    expect(screen.getAllByRole('button')).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Open Template run-2 (run-2)' }));
     expect(onSelect).toHaveBeenCalledWith('run-2');
   });
 

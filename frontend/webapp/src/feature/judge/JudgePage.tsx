@@ -53,10 +53,11 @@ export default function JudgePage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<RunError | null>(null);
 
-  const collectionListUrl = useCallback(
-    () => new URL(`/v1/projects/${projectId}/versions/${versionId}/judgecollection`, BASE_URL),
-    [projectId, versionId]
-  );
+  const collectionListUrl = useCallback(() => {
+  const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judgecollection`, BASE_URL);
+  url.searchParams.set('isEvaluation', String(mode === 'run'));
+  return url;
+}, [projectId, versionId, mode]);
 
   const runListUrl = useCallback(
     (judgeCollectionId: string) =>

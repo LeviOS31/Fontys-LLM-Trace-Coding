@@ -28,8 +28,11 @@ namespace Judge.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEvaluation")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()

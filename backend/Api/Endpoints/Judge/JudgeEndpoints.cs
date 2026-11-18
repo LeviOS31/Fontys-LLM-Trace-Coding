@@ -31,6 +31,7 @@ public static class JudgeEndpoints
                         ProjectVersionId = projectVersionId,
                         JudgeTemplateIds = body.JudgeTemplateIds,
                         TraceCollectionIds = body.TraceCollectionIds,
+                        IsEvaluation = body.IsEvaluation,
                     };
                     var result = await mediator.Send(request);
 
@@ -120,13 +121,14 @@ public static class JudgeEndpoints
 
         app.MapGet(
             "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection",
-            async (Guid projectId, Guid projectVersionId, IMediator mediator) =>
+            async (Guid projectId, Guid projectVersionId, IMediator mediator, bool isEvaluation = true) =>
             {
                 var result = await mediator.Send(
                     new GetAllJudgeCollectionsByVersionRequest
                     {
                         ProjectId = projectId,
                         VersionId = projectVersionId,
+                        IsEvaluation = isEvaluation,
                     }
                 );
                 return result.ToHttpResult();

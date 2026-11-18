@@ -47,8 +47,9 @@ namespace Judge.Features.GetAllJudgeCollectionsByVersion
             try
             {
                 var judgecollections = await _dbContext.JudgeCollections
-                     .Where(c => c.ProjectVersionId == request.VersionId)
-                     .ToListAsync(cancellationToken);
+                    .Where(c => c.ProjectVersionId == request.VersionId
+                            && c.IsEvaluation == request.IsEvaluation)
+                    .ToListAsync(cancellationToken);
 
                 return new GetAllJudgeCollectionsByVersionResponse
                 {

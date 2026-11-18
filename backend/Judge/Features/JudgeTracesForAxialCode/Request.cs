@@ -13,6 +13,7 @@ public record JudgeTracesForAxialCodeRequest : IRequest<Result<JudgeTracesForAxi
     public Guid? TraceCollectionId { get; init; }
     public Guid[]? TraceCollectionIds { get; init; }
     public Guid? TraceId { get; init; }
+    public bool IsEvaluation { get; init; } = true;
 }
 
 public sealed class JudgeTracesForAxialCodeRequestValidator : AbstractValidator<JudgeTracesForAxialCodeRequest>

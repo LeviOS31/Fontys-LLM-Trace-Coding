@@ -10,6 +10,7 @@ namespace Judge.Data.Models
         public required Guid JudgeCollectionId { get; init; }
         public required Guid ProjectVersionId { get; init; }
         public ICollection<JudgeRun> judgeRuns { get; init; } = new List<JudgeRun>();
+        public required bool IsEvaluation { get; init; }
     }
 
     internal sealed class JudgeCollectionEntityConfiguration: IEntityTypeConfiguration<JudgeCollection>

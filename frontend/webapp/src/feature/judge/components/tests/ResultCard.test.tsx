@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { Theme } from '@radix-ui/themes';
-import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JudgeResult } from '../../hooks/judgeUtils';
 import ResultCard from '../ResultCard';
 
@@ -15,12 +15,14 @@ const base: JudgeResult = {
   error: null,
 };
 
-const renderCard = (overrides: Partial<JudgeResult> = {}) =>
+const renderCard = (overrides: Partial<JudgeResult> = {}, onOpen = vi.fn()) => {
   render(
     <Theme>
-      <ResultCard result={{ ...base, ...overrides }} />
+      <ResultCard result={{ ...base, ...overrides }} onOpen={onOpen} />
     </Theme>
   );
+  return onOpen;
+};
 
 describe('ResultCard', () => {
   it('shows the trace id, verdict, status and reasoning', () => {
@@ -29,6 +31,12 @@ describe('ResultCard', () => {
     expect(screen.getByText('Verdict: true')).toBeInTheDocument();
     expect(screen.getByText('success')).toBeInTheDocument();
     expect(screen.getByText('The trace satisfies the criterion.')).toBeInTheDocument();
+  });
+
+  it('opens the trace content when the result card is clicked', () => {
+    const onOpen = renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'View LLM content for trace trace-1' }));
+    expect(onOpen).toHaveBeenCalledOnce();
   });
 
   it('colours a true, successful verdict green', () => {

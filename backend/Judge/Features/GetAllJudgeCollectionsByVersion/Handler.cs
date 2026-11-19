@@ -1,4 +1,5 @@
 ﻿using Judge.Data;
+using Judge.Data.Models;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Projects.Contracts.Features.GetAllProjectVersions;
@@ -51,12 +52,33 @@ namespace Judge.Features.GetAllJudgeCollectionsByVersion
                             && c.IsEvaluation == request.IsEvaluation)
                     .ToListAsync(cancellationToken);
 
+                Dictionary<Guid, int> runcount = new Dictionary<Guid, int>();
+                Dictionary<Guid, int> tracecounts = new Dictionary<Guid, int>();
+                Dictionary<Guid, int> succescounts = new Dictionary<Guid, int>();
+                Dictionary<Guid, int> failcounts = new Dictionary<Guid, int>();
+
+                foreach ( var judgecollection in judgecollections)
+                {
+                    List<JudgeRun> judgeruns = await _dbContext.JudgeRuns
+                         .Where(c => c.JudgeCollectionId == judgecollection.JudgeCollectionId)
+                         .ToListAsync(cancellationToken);
+
+                    runcount.Add(judgecollection.JudgeCollectionId, judgeruns.Count());
+                    tracecounts.Add(judgecollection.JudgeCollectionId, judgeruns.Sum(x => x.TotalCount));
+                    succescounts.Add(judgecollection.JudgeCollectionId, judgeruns.Sum(x => x.TrueCount));
+                    failcounts.Add(judgecollection.JudgeCollectionId, judgeruns.Sum(x => x.FalseCount));
+                }
+
                 return new GetAllJudgeCollectionsByVersionResponse
                 {
                     JudgeCollections = judgecollections.Select(c => new JudgeCollection
                     {
                         JudgeCollectionId = c.JudgeCollectionId,
                         Name = c.Name,
+                        RunCount = runcount[c.JudgeCollectionId],
+                        TraceCount = tracecounts[c.JudgeCollectionId],
+                        SuccesCount = succescounts[c.JudgeCollectionId],
+                        FailCount = failcounts[c.JudgeCollectionId],
                         VersionId = c.ProjectVersionId,
                         CreatedAt = c.CreatedAt
                     })

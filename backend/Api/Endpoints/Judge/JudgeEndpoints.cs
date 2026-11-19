@@ -8,6 +8,7 @@ using Mediator;
 using Judge.Features.GetJudgeCollection;
 using Judge.Features.GetAllJudgeCollectionsByVersion;
 using Judge.Features.DeleteJudgeCollection;
+using Judge.Features.UpdateJudgeCollection;
 
 namespace Api.Endpoints.Judge;
 
@@ -135,6 +136,37 @@ public static class JudgeEndpoints
             }
             )
             .WithTags("Judge");
+
+        app.MapPut(
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",
+                async Task<IResult> (
+                    Guid projectId,
+                    Guid projectVersionId,
+                    Guid judgeCollectionId,
+                    UpdateJudgeCollectionDto dto,
+                    IMediator mediator,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var result = await mediator.Send(
+                        new UpdateJudgeCollectionRequest
+                        {
+                            ProjectId = projectId,
+                            ProjectVersionId = projectVersionId,
+                            JudgeCollectionId = judgeCollectionId,
+                            Name = dto.Name,
+                        },
+                        cancellationToken
+                    );
+
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("Judge")
+            .WithName("UpdateJudgeCollection")
+            .WithSummary("Update the name of a judge collection")
+            .Produces<UpdateJudgeCollectionResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         app.MapDelete(
             "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/judgecollection/{judgeCollectionId:guid}",

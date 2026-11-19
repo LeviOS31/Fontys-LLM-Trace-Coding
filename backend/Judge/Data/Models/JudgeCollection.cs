@@ -1,11 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Judge.Data.Models
 {
     public class JudgeCollection
     {
-        public required String Name { get; init; }
+        public required string Name { get; set; }
         public required DateTimeOffset CreatedAt { get; init; }
         public required Guid JudgeCollectionId { get; init; }
         public required Guid ProjectVersionId { get; init; }

@@ -10,6 +10,10 @@ export type JudgeCollection = {
   name: string;
   versionId: string;
   createdAt: string;
+  runCount: number;
+  traceCount: number;
+  succesCount: number;
+  failCount: number;
 };
 
 // verdict and reasoning are null when the trace failed.
@@ -28,6 +32,7 @@ export type JudgeResponse = { judgeCollectionId: string; results: JudgeResult[][
 // One row of the paged run list. The counts are computed by the backend.
 export type JudgeRunSummary = {
   judgeRunId: string;
+  judgeTemplateId: string | null;
   createdAt: string;
   totalCount: number;
   trueCount: number;
@@ -35,7 +40,7 @@ export type JudgeRunSummary = {
   failedCount: number;
 };
 
-export type JudgeRunListItem = JudgeRunSummary;
+export type JudgeRunListItem = JudgeRunSummary & { name: string | null };
 
 export type JudgeRunTotals = {
   runs: number;

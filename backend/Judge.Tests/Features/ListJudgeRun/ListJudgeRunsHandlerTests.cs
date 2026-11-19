@@ -31,6 +31,7 @@ public class ListJudgeRunsHandlerTests
         Guid? judgeRunId = null,
         Guid? judgeCollectionId = null,
         Guid? axialCodeId = null,
+        Guid? judgeTemplateId = null,
         int total = 0,
         int trueCount = 0,
         int falseCount = 0,
@@ -40,7 +41,9 @@ public class ListJudgeRunsHandlerTests
         {
             JudgeRunId = judgeRunId ?? Guid.NewGuid(),
             JudgeCollectionId = judgeCollectionId ?? _judgeCollectionId,
-            ResultsJson = "[]",
+            ResultsJson = judgeTemplateId.HasValue
+                ? $"[{{\"JudgeTemplateId\":\"{judgeTemplateId.Value}\"}}]"
+                : "[]",
             CreatedAt = createdAt ?? _baseTime,
             TotalCount = total,
             TrueCount = trueCount,
@@ -82,8 +85,17 @@ public class ListJudgeRunsHandlerTests
         // Arrange
         var runId = Guid.NewGuid();
         var axialCodeId = Guid.NewGuid();
+        var judgeTemplateId = Guid.NewGuid();
         await using var context = await CreateContextWith(
-            CreateRun(judgeRunId: runId, axialCodeId: axialCodeId, total: 5, trueCount: 2, falseCount: 2, failed: 1)
+            CreateRun(
+                judgeRunId: runId,
+                axialCodeId: axialCodeId,
+                judgeTemplateId: judgeTemplateId,
+                total: 5,
+                trueCount: 2,
+                falseCount: 2,
+                failed: 1
+            )
         );
         var handler = new ListJudgeRunsHandler(context);
 
@@ -94,6 +106,7 @@ public class ListJudgeRunsHandlerTests
         result.IsSuccess.ShouldBeTrue();
         var run = result.Value!.JudgeRuns.Single();
         run.JudgeRunId.ShouldBe(runId);
+        run.JudgeTemplateId.ShouldBe(judgeTemplateId);
         run.CreatedAt.ShouldBe(_baseTime);
         run.TotalCount.ShouldBe(5);
         run.TrueCount.ShouldBe(2);

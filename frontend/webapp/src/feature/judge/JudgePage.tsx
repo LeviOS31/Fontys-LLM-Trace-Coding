@@ -17,6 +17,7 @@ import {
   type JudgeTemplate,
   type RunError,
 } from './hooks/judgeUtils';
+import type { RawData } from './hooks/rawDataUtils';
 
 type PageParams = { id: string; versionId: string };
 type CollectionListResponse = { judgeCollections: JudgeCollection[] };
@@ -38,6 +39,9 @@ export default function JudgePage() {
   const [templateIds, setTemplateIds] = useState<string[]>([]);
   const [mode, setMode] = useState<JudgeMode>('run');
   const [selectedTraceCollectionIds, setSelectedTraceCollectionIds] = useState<string[]>([]);
+
+  const [rawdatas] = useState<RawData[]>([]);
+  const [rawDataIds, setRawDataIds] = useState<string[]>([]);
 
   const [collections, setCollections] = useState<JudgeCollection[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
@@ -216,6 +220,7 @@ export default function JudgePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           judgeTemplateIds: selectedTemplates.map((template) => template.id),
+          rawDataIds: rawDataIds,
           traceCollectionIds: selectedTraceCollectionIds,
         }),
       });
@@ -347,6 +352,8 @@ export default function JudgePage() {
         canRun={!running && selectedTemplates.length > 0 && selectedTraceCollectionIds.length > 0}
         loading={running}
         error={error}
+        rawdatas={rawdatas}
+        onRawDataChange={(updatedIds: string[]) => setRawDataIds(updatedIds)}
       />
 
       {selectedRun && selectedCollection ? (

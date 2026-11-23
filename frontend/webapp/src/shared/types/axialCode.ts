@@ -23,7 +23,7 @@ export interface AxialCode {
   /** Real trace excerpt that fits this code ("User: ...\nAssistant: ..."). */
   positiveExampleTrace?: string | null;
   positiveExampleReasoning?: string | null;
-  /** Real trace excerpt that does not fit this code. Null when none could be found. */
+  /** Proposed real trace excerpt that does not fit this code. Requires human approval. */
   negativeExampleTrace?: string | null;
   negativeExampleReasoning?: string | null;
   openCodeJustifications?: OpenCodeJustification[] | null;

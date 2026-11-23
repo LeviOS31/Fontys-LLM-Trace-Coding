@@ -23,6 +23,16 @@ describe('useSaveAxialCodingResults', () => {
 
   it('saves the result and invalidates the current axial-code query', async () => {
     const { client, wrapper } = setup();
+    const request = {
+      axialCodingResultId: 'result-1',
+      negativeExamples: [
+        {
+          axialCodeId: 'code-1',
+          trace: 'User: Test\nAssistant: Does not fit.',
+          reasoning: 'The response does not demonstrate the behavior.',
+        },
+      ],
+    };
     vi.mocked(saveAxialCodingResults).mockResolvedValue(undefined);
     const invalidate = vi.spyOn(client, 'invalidateQueries');
     const { result } = renderHook(() => useSaveAxialCodingResults('project-1', 'version-1'), {
@@ -30,10 +40,15 @@ describe('useSaveAxialCodingResults', () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync('result-1');
+      await result.current.mutateAsync(request);
     });
 
-    expect(saveAxialCodingResults).toHaveBeenCalledWith('project-1', 'version-1', 'result-1');
+    expect(saveAxialCodingResults).toHaveBeenCalledWith(
+      'project-1',
+      'version-1',
+      'result-1',
+      request.negativeExamples
+    );
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({
         queryKey: QUERY_KEYS.axialCoding.currentAxialCodesOfVersion('version-1'),
@@ -49,9 +64,12 @@ describe('useSaveAxialCodingResults', () => {
     );
 
     await act(async () => {
-      await expect(result.current.mutateAsync('result-1')).rejects.toThrow(
-        'Axial code saving is disabled.'
-      );
+      await expect(
+        result.current.mutateAsync({
+          axialCodingResultId: 'result-1',
+          negativeExamples: [],
+        })
+      ).rejects.toThrow('Axial code saving is disabled.');
     });
     expect(saveAxialCodingResults).not.toHaveBeenCalled();
   });

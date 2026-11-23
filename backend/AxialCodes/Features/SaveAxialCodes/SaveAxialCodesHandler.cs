@@ -1,5 +1,6 @@
 ﻿using System.Data.Common;
 using AxialCodes.Data;
+using AxialCodes.Data.Models;
 using JudgeTemplates.Contracts.Features.SetAllJudgeTemplatesToDeprecated;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
@@ -49,16 +50,51 @@ public class SaveAxialCodesHandler : IRequestHandler<SaveAxialCodesRequest, Resu
         try
         {
             // Get the target axial coding result
-            var targetResult = await _dbContext.AxialCodingResults.FirstOrDefaultAsync(
+            var targetResult = await _dbContext
+                .AxialCodingResults.Include(a => a.AxialCodes)
+                .FirstOrDefaultAsync(
                 a =>
                     a.ProjectVersionId == request.ProjectVersionId
                     && a.AxialCodingResultId == request.AxialCodingResultId,
                 cancellationToken
-            );
+                );
 
             if (targetResult is null)
             {
                 return ErrorCode.EntityNotFound;
+            }
+            var targetWasActive = targetResult.IsActive;
+
+            var negativeExamples = request.NegativeExamples.ToList();
+            var axialCodes = targetResult.AxialCodes.ToList();
+            if (
+                negativeExamples.Count != axialCodes.Count
+                || negativeExamples.Select(example => example.AxialCodeId).Distinct().Count() != negativeExamples.Count
+            )
+            {
+                return ErrorCode.InvalidRequest;
+            }
+
+            var examplesById = negativeExamples.ToDictionary(example => example.AxialCodeId);
+            foreach (var axialCode in axialCodes)
+            {
+                if (!examplesById.TryGetValue(axialCode.AxialCodeId, out var example))
+                {
+                    return ErrorCode.InvalidRequest;
+                }
+
+                if (
+                    string.IsNullOrWhiteSpace(example.Trace)
+                    || example.Trace.Length > AxialCode.MaxExampleTraceLength
+                    || string.IsNullOrWhiteSpace(example.Reasoning)
+                    || example.Reasoning.Length > AxialCode.MaxExampleReasoningLength
+                )
+                {
+                    return ErrorCode.InvalidRequest;
+                }
+
+                axialCode.NegativeExampleTrace = example.Trace.Trim();
+                axialCode.NegativeExampleReasoning = example.Reasoning.Trim();
             }
 
             // Get active results
@@ -93,14 +129,11 @@ public class SaveAxialCodesHandler : IRequestHandler<SaveAxialCodesRequest, Resu
                 );
             }
 
-            if (!targetResult.IsActive)
+            targetResult.IsActive = true;
+            var activationChanges = await _dbContext.SaveChangesAsync(cancellationToken);
+            if (activationChanges == 0 && !targetWasActive)
             {
-                targetResult.IsActive = true;
-                var activationChanges = await _dbContext.SaveChangesAsync(cancellationToken);
-                if (activationChanges == 0)
-                {
-                    return ErrorCode.NoChanges;
-                }
+                return ErrorCode.NoChanges;
             }
 
             await transaction.CommitAsync(cancellationToken);

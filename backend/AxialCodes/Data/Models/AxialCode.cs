@@ -25,12 +25,11 @@ public class AxialCode
         // derived from the grouped open codes. Null for results generated before they existed.
         public string? JudgeGuidelines { get; init; }
 
-        // Excerpts of real traces used as examples in the judge prompt, with the reasoning for each verdict.
-        // Null for results generated before they existed, or when no valid example could be selected.
+        // A negative trace is a candidate until user review; active results contain only approved examples.
         public string? PositiveExampleTrace { get; init; }
         public string? PositiveExampleReasoning { get; init; }
-        public string? NegativeExampleTrace { get; init; }
-        public string? NegativeExampleReasoning { get; init; }
+        public string? NegativeExampleTrace { get; set; }
+        public string? NegativeExampleReasoning { get; set; }
 
         // Why each grouped open code belongs to this axial code.
         public ICollection<AxialCodeOpenCodeJustification> OpenCodeJustifications { get; init; } = [];

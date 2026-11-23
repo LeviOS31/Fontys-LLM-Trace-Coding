@@ -19,7 +19,8 @@ using Traces.Contracts.Features.GetVersionOpencode;
 namespace AxialCodes.Features.GenerateAxialCodingResult;
 
 public class GenerateAxialCodingResultHandler
-    : IRequestHandler<GenerateAxialCodingResultRequest, Result<GenerateAxialCodingResultResponse>>
+    : IRequestHandler<GenerateAxialCodingResultRequest, Result<GenerateAxialCodingResultResponse>>,
+        IRequestHandler<GenerateNegativeExampleRequest, Result<GenerateNegativeExampleResponse>>
 {
     private static readonly ILogger Logger = Log.ForContext<GenerateAxialCodingResultHandler>();
 
@@ -34,8 +35,6 @@ public class GenerateAxialCodingResultHandler
     private const int MaxJudgeChars = 3000;           // what the judge sees, per message
     private const int MaxJudgedReasoningChars = 800;  // leaves room for the fallback prefix under the 1000 column
     private const int MaxNegativeAttempts = 6;
-    private const int ClearNegativeScore = 15;        // at or below this a negative is accepted immediately
-    private const int MaxNegativeScore = 40;          // above this a "false" verdict is too borderline to show
 
     // The model is nondeterministic: a missing field or a paraphrased quote can succeed on a second try.
     private const int MaxGenerationAttempts = 2;
@@ -49,6 +48,9 @@ public class GenerateAxialCodingResultHandler
     );
     private static readonly Lazy<string> _axialCodingVerificationPrompt = new(() =>
         LoadPrompt("AxialCodes.Resources.Prompts.AxialCodingVerificationPrompt.txt")
+    );
+    private static readonly Lazy<string> _negativeExamplePrompt = new(() =>
+        LoadPrompt("AxialCodes.Resources.Prompts.NegativeExamplePrompt.txt")
     );
 
     private readonly AxialCodeDbContext _dbContext;
@@ -157,6 +159,7 @@ public class GenerateAxialCodingResultHandler
             AxialCodingResultId = axialCodingResult.AxialCodingResultId,
             AxialCodes = axialCodingResult.AxialCodes.Select(ac => new AxialCodeViewModel
             {
+                AxialCodeId = ac.AxialCodeId,
                 Label = ac.Label,
                 Description = ac.Description,
                 TraceIds = ac.TraceIds,
@@ -174,6 +177,77 @@ public class GenerateAxialCodingResultHandler
                 }),
             }),
         };
+    }
+
+    public async ValueTask<Result<GenerateNegativeExampleResponse>> Handle(
+        GenerateNegativeExampleRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var accessResult = await _mediator.Send(
+            new GetVersionOpencodeQuery
+            {
+                ProjectId = request.ProjectId,
+                ProjectVersionId = request.ProjectVersionId,
+                UserId = request.UserId,
+            },
+            cancellationToken
+        );
+        if (accessResult.IsError)
+        {
+            return accessResult.ErrorCode!;
+        }
+
+        var input = JsonSerializer.Serialize(
+            new
+            {
+                behavior = request.Label,
+                description = request.Description,
+                judgingGuidelines = request.JudgeGuidelines,
+                positiveExample = request.PositiveExampleTrace,
+            }
+        );
+        var result = await DoLlmCall(
+            request.UserId,
+            [new(ChatRole.System, _negativeExamplePrompt.Value), new(ChatRole.User, input)],
+            cancellationToken
+        );
+        if (result.IsError)
+        {
+            return result.ErrorCode!;
+        }
+
+        try
+        {
+            var draft = JsonSerializer.Deserialize<GenerateNegativeExampleResponse>(
+                NormalizeLlmResponse(result.Value),
+                LlmJsonOptions
+            );
+            if (
+                draft == null
+                || string.IsNullOrWhiteSpace(draft.Trace)
+                || string.IsNullOrWhiteSpace(draft.Reasoning)
+                || draft.Trace.Length > AxialCode.MaxExampleTraceLength
+                || draft.Reasoning.Length > AxialCode.MaxExampleReasoningLength
+                || !draft.Trace.Contains("User:", StringComparison.OrdinalIgnoreCase)
+                || !draft.Trace.Contains("Assistant:", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                Logger.Warning("Generated negative example did not match the expected format");
+                return ErrorCode.LlmError;
+            }
+
+            return new GenerateNegativeExampleResponse
+            {
+                Trace = draft.Trace.Trim(),
+                Reasoning = draft.Reasoning.Trim(),
+            };
+        }
+        catch (JsonException ex)
+        {
+            Logger.Warning(ex, "Could not parse generated negative example");
+            return ErrorCode.LlmError;
+        }
     }
 
     // Axial coding
@@ -428,21 +502,16 @@ public class GenerateAxialCodingResultHandler
         {
             var candidate = candidates[index];
             var positive = positives.GetValueOrDefault(index);
-            ExampleResult? negative = null;
-            if (positive != null)
-            {
-                negative = await FindRealNegativeAsync(
-                    userId,
-                    projectId,
-                    projectVersionId,
-                    candidate,
-                    positive,
-                    openCodesPayload,
-                    mapping,
-                    traceCache,
-                    cancellationToken
-                );
-            }
+            var negative = await FindRealNegativeAsync(
+                userId,
+                projectId,
+                projectVersionId,
+                candidate,
+                openCodesPayload,
+                mapping,
+                traceCache,
+                cancellationToken
+            );
             acceptedAxialCodes.Add(BuildAxialCode(candidate, mapping, positive, negative));
         }
 
@@ -467,7 +536,7 @@ public class GenerateAxialCodingResultHandler
             PositiveExampleTrace = positive?.Trace,
             PositiveExampleReasoning = positive?.Reasoning,
             NegativeExampleTrace = negative?.Trace,
-            NegativeExampleReasoning = negative?.Reasoning,
+            NegativeExampleReasoning = null,
             TraceIds = candidate.OpenCodeIds.Select(id => mapping[id]).Distinct().ToArray(),
             // Open codes are keyed by trace; keep one justification per open code.
             OpenCodeJustifications = candidate
@@ -763,16 +832,13 @@ public class GenerateAxialCodingResultHandler
         return positives;
     }
 
-    // Finds a real trace that does not exhibit the behaviour. Nothing is generated. Candidates are
-    // open-coded traces outside this axial code, ranked by overlap with the code's label, description
-    // and its "Mark false when" near miss. The judge must say false; a clearly low match score is
-    // accepted immediately, otherwise the lowest-scoring false verdict among the candidates is used.
+    // Propose one likely near-miss from another open-coded trace. The user, not the model,
+    // decides whether it is a valid negative example.
     private async Task<ExampleResult?> FindRealNegativeAsync(
         Guid userId,
         Guid projectId,
         Guid projectVersionId,
         AxialCodeLlmItem candidate,
-        ExampleResult positive,
         List<OpenCodeLlmItem> openCodes,
         Dictionary<int, Guid> mapping,
         Dictionary<Guid, IReadOnlyList<TraceMessage>?> traceCache,
@@ -812,7 +878,6 @@ public class GenerateAxialCodingResultHandler
             .Select(item => item.code)
             .ToList();
 
-        ExampleJudgment? best = null;
         foreach (var other in pool)
         {
             var messages = await LoadTraceMessagesCachedAsync(
@@ -829,33 +894,14 @@ public class GenerateAxialCodingResultHandler
             }
 
             var excerpt = BuildExcerptExample(messages);
-            if (excerpt == null || NormalizeForMatch(excerpt.Trace) == NormalizeForMatch(positive.Trace))
+            if (excerpt != null)
             {
-                continue;
-            }
-
-            var judged = await JudgeExampleAsync(userId, candidate, excerpt, expectedResult: false, cancellationToken);
-            if (judged?.MatchesExpected != true || judged.MatchScore > MaxNegativeScore)
-            {
-                continue;
-            }
-
-            if (judged.MatchScore <= ClearNegativeScore)
-            {
-                return judged.Example;
-            }
-
-            if (best == null || judged.MatchScore < best.MatchScore)
-            {
-                best = judged;
+                return excerpt;
             }
         }
 
-        if (best == null)
-        {
-            Logger.Information("No real negative example found for axial code {Label}", candidate.Label);
-        }
-        return best?.Example;
+        Logger.Information("No real negative-example candidate found for axial code {Label}", candidate.Label);
+        return null;
     }
 
     // Trace loading

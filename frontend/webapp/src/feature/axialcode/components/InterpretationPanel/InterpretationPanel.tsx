@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Badge, Box, Button, Flex, Grid, Kbd, Text } from '@radix-ui/themes';
-import { RefreshCw, Sparkles, TrendingUpDown } from 'lucide-react';
+import { Badge, Box, Button, Flex, Grid, Kbd, Spinner, Text } from '@radix-ui/themes';
+import { Sparkles, TrendingUpDown } from 'lucide-react';
 import type { AxialCode as ApiAxialCode } from '../../../../shared/types/axialCode.ts';
 import type { Snapshot } from '../../../../shared/types/snapshot.ts';
 import { useGenerateAxialCodingResults } from '../../hooks/useGenerateAxialCodingResult.ts';
@@ -301,11 +301,7 @@ export default function InterpretationPanel({
             disabled={isRegenerating || isSaving}
             onClick={() => setModalOpen(true)}
           >
-            {isRegenerating ? (
-              <RefreshCw size={14} className="ai-icon-spin" />
-            ) : (
-              <Sparkles size={14} />
-            )}
+            {isRegenerating ? <Spinner /> : <Sparkles size={14} />}
             {isRegenerating ? 'Working…' : 'Regenerate'}
             {!isRegenerating && <Kbd>G</Kbd>}
           </Button>

@@ -109,6 +109,9 @@ public class SaveAxialCodesHandlerTests
         Assert.True(result.IsSuccess);
         Assert.True(targetResult.IsActive);
         Assert.False(activeResult.IsActive);
+        var savedExample = Assert.Single(targetResult.AxialCodes);
+        Assert.Equal(request.NegativeExamples.Single().Trace, savedExample.NegativeExampleTrace);
+        Assert.Equal(request.NegativeExamples.Single().Reasoning, savedExample.NegativeExampleReasoning);
         await mockContext.Received(2).SaveChangesAsync(Arg.Any<CancellationToken>());
         await transaction.Received(1).CommitAsync(Arg.Any<CancellationToken>());
     }
@@ -139,6 +142,29 @@ public class SaveAxialCodesHandlerTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorCode.NoChanges, result.ErrorCode);
         await transaction.DidNotReceive().CommitAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task WhenNegativeExamplesDoNotCoverEveryCode_ReturnInvalidRequest()
+    {
+        var request = CreateRequest() with { NegativeExamples = [] };
+        var targetResult = CreateResult(request.AxialCodingResultId, request.ProjectVersionId, isActive: false);
+        var mockSet = new List<AxialCodingResult> { targetResult }.BuildMockDbSet();
+        var mockContext = CreateMockContext();
+        mockContext.AxialCodingResults.Returns(mockSet);
+
+        var mediator = Substitute.For<IMediator>();
+        mediator
+            .Send(Arg.Any<GetProjectQuery>(), Arg.Any<CancellationToken>())
+            .Returns(CreateProjectResponse(request.ProjectVersionId));
+
+        var handler = new SaveAxialCodesHandler(mediator, mockContext);
+
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorCode.InvalidRequest, result.ErrorCode);
+        await mockContext.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -176,6 +202,15 @@ public class SaveAxialCodesHandlerTests
             ProjectVersionId = new Guid("A1B2C3D4-0000-0000-0000-000000000002"),
             AxialCodingResultId = new Guid("A1B2C3D4-0000-0000-0000-000000000003"),
             UserId = new Guid("A1B2C3D4-0000-0000-0000-000000000004"),
+            NegativeExamples =
+            [
+                new NegativeExampleUpdate
+                {
+                    AxialCodeId = new Guid("A1B2C3D4-0000-0000-0000-000000000005"),
+                    Trace = "User: test\nAssistant: no behavior",
+                    Reasoning = "The response does not demonstrate the behavior.",
+                },
+            ],
         };
     }
 
@@ -187,7 +222,18 @@ public class SaveAxialCodesHandlerTests
             ProjectVersionId = versionId,
             IsActive = isActive,
             CreatedAt = DateTimeOffset.UnixEpoch,
-            AxialCodes = Array.Empty<AxialCode>(),
+            AxialCodes =
+            [
+                new AxialCode
+                {
+                    AxialCodingResultId = resultId,
+                    AxialCodingResult = null,
+                    AxialCodeId = new Guid("A1B2C3D4-0000-0000-0000-000000000005"),
+                    Label = "Test",
+                    Description = "Test",
+                    TraceIds = [],
+                },
+            ],
         };
     }
 

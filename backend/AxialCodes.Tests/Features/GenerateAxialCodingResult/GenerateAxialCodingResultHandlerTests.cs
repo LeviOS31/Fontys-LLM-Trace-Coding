@@ -737,8 +737,7 @@ public class GenerateAxialCodingResultHandlerTests
                     ),
                 ]),
                 new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"It is a single clarification question without headings or bullets.\",\"result\":false,\"matchScore\":10}")]),
-                new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"The response has a heading but no bullet points.\",\"result\":false,\"matchScore\":10}")]),
-                new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"The advice is one unstructured sentence without a heading or bullets.\",\"result\":false}")])
+                new ChatResponse([new ChatMessage(ChatRole.Assistant, "{\"reasoning\":\"The response has a heading but no bullet points.\",\"result\":false,\"matchScore\":10}")])
             );
 
         var handler = new GenerateAxialCodingResultHandler(mockContext, mediator, chatClientBuilder);
@@ -757,8 +756,79 @@ public class GenerateAxialCodingResultHandlerTests
         var axialCode = Assert.Single(result.Value.AxialCodes!);
         Assert.Equal("User: What are some planning tips?\nAssistant: Could you clarify your request?", axialCode.PositiveExampleTrace);
         Assert.Contains("closest available real trace", axialCode.PositiveExampleReasoning);
-        Assert.NotNull(axialCode.NegativeExampleTrace);
-        Assert.Equal("The advice is one unstructured sentence without a heading or bullets.", axialCode.NegativeExampleReasoning);
+        Assert.Equal("User: What are some planning tips?\nAssistant: This is one unstructured sentence.", axialCode.NegativeExampleTrace);
+        Assert.Null(axialCode.NegativeExampleReasoning);
+        await chatClient.Received(4).GetResponseAsync(
+            Arg.Any<IEnumerable<ChatMessage>>(),
+            Arg.Any<ChatOptions>(),
+            Arg.Any<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task GenerateNegativeExample_UsesOneLlmCallAndReturnsTheDraft()
+    {
+        var mediator = Substitute.For<IMediator>();
+        var chatClientBuilder = Substitute.For<IChatClientBuilder>();
+        var chatClient = Substitute.For<IChatClient>();
+        mediator
+            .Send(Arg.Any<GetVersionOpencodeQuery>(), Arg.Any<CancellationToken>())
+            .Returns(new GetVersionOpencodeResponse { Opencodes = [] });
+        mediator
+            .Send(Arg.Any<GetLlmConfigQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new GetLlmConfigResponse
+                {
+                    ProviderName = "openai",
+                    Endpoint = new Uri("https://fake-llm.local"),
+                    ModelName = "gpt-test",
+                    ApiKey = Guid.NewGuid().ToString(),
+                }
+            );
+        chatClientBuilder.WithProvider(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithEndpoint(Arg.Any<Uri>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithModel(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.WithApiKey(Arg.Any<string>()).Returns(chatClientBuilder);
+        chatClientBuilder.Build().Returns(Result.Success(chatClient));
+        chatClient
+            .GetResponseAsync(Arg.Any<IEnumerable<ChatMessage>>(), Arg.Any<ChatOptions>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new ChatResponse([
+                    new ChatMessage(
+                        ChatRole.Assistant,
+                        "{\"trace\":\"User: How should I format this?\\nAssistant: Use one sentence without headings.\",\"reasoning\":\"The response gives no headings or bullets.\"}"
+                    ),
+                ])
+            );
+
+        var handler = new GenerateAxialCodingResultHandler(
+            Substitute.For<AxialCodeDbContext>(new DbContextOptionsBuilder<AxialCodeDbContext>().Options),
+            mediator,
+            chatClientBuilder
+        );
+
+        var result = await handler.Handle(
+            new GenerateNegativeExampleRequest
+            {
+                ProjectId = Guid.NewGuid(),
+                ProjectVersionId = Guid.NewGuid(),
+                UserId = Guid.NewGuid(),
+                Label = "Clear formatting",
+                Description = "Uses headings and lists",
+                JudgeGuidelines = "Mark false when: the response has no structure.",
+                PositiveExampleTrace = "User: Format this\nAssistant: ## Plan\n- Step 1",
+            },
+            CancellationToken.None
+        );
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("without headings", result.Value.Trace);
+        Assert.Equal("The response gives no headings or bullets.", result.Value.Reasoning);
+        await chatClient.Received(1).GetResponseAsync(
+            Arg.Any<IEnumerable<ChatMessage>>(),
+            Arg.Any<ChatOptions>(),
+            Arg.Any<CancellationToken>()
+        );
     }
 
     private static GetTraceResponse CreateTraceResponse(Guid traceId, string assistantResponse) =>

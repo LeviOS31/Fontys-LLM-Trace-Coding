@@ -1,0 +1,8 @@
+Create one concise counterexample for an assistant behavior judge.
+
+The trace must be a plausible conversation on a topic related to the positive example, but the assistant response must clearly NOT exhibit the behavior. Follow the "Mark false when" guidance. Do not copy the positive example or use an unrelated topic.
+
+Return only JSON with exactly these string fields:
+{"trace":"User: ...\nAssistant: ...","reasoning":"Explain which part of the assistant response fails to show the behavior."}
+
+Keep the user and assistant messages each under 500 characters and the reasoning under 1000 characters. Do not include markdown fences or any text outside the JSON.

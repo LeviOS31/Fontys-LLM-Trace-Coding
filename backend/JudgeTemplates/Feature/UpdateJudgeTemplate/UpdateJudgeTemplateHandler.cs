@@ -80,9 +80,10 @@ public class UpdateJudgeTemplateHandler
                 var axialCode = axialCodesResponse.Value!.AxialCodes.First(a =>
                     a.AxialCodeId == judgeTemplate.AxialCodeId
                 );
-                var previousContent =
+                var previousContent = DefaultJudgeTemplate.Render(
+                    axialCode,
                     judgeTemplate.CustomJudgeTemplateContent
-                    ?? DefaultJudgeTemplate.Render(axialCode);
+                );
 
                 _dbContext.JudgeTemplateVersions.Add(
                     new JudgeTemplateVersion

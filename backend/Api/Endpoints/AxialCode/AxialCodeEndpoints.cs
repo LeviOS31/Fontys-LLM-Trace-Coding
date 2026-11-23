@@ -39,6 +39,31 @@ public static class AxialCodeEndpoints
             )
             .WithTags("AxialCodes");
 
+        app.MapPost(
+                "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/axial-coding-results/negative-example",
+                async (
+                    Guid projectId,
+                    Guid projectVersionId,
+                    GenerateNegativeExampleRequestDto dto,
+                    IMediator mediator
+                ) =>
+                {
+                    var request = new GenerateNegativeExampleRequest
+                    {
+                        ProjectId = projectId,
+                        ProjectVersionId = projectVersionId,
+                        UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get from claims
+                        Label = dto.Label,
+                        Description = dto.Description,
+                        JudgeGuidelines = dto.JudgeGuidelines,
+                        PositiveExampleTrace = dto.PositiveExampleTrace,
+                    };
+                    var result = await mediator.Send(request);
+                    return result.ToHttpResult();
+                }
+            )
+            .WithTags("AxialCodes");
+
         app.MapGet(
                 "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/axial-coding-results/current",
                 async (Guid projectId, Guid projectVersionId, IMediator mediator) =>
@@ -76,7 +101,13 @@ public static class AxialCodeEndpoints
 
         app.MapPost(
                 "/v1/projects/{projectId:guid}/versions/{projectVersionId:guid}/axial-coding-results/{axialCodingResultId:guid}/save",
-                async (Guid projectId, Guid projectVersionId, Guid axialCodingResultId, IMediator mediator) =>
+                async (
+                    Guid projectId,
+                    Guid projectVersionId,
+                    Guid axialCodingResultId,
+                    SaveAxialCodesDto dto,
+                    IMediator mediator
+                ) =>
                 {
                     var request = new SaveAxialCodesRequest
                     {
@@ -84,6 +115,12 @@ public static class AxialCodeEndpoints
                         ProjectVersionId = projectVersionId,
                         AxialCodingResultId = axialCodingResultId,
                         UserId = new Guid("EC1145A3-869D-4B06-B4AE-7308D85839B7"), // TODO: Get from claims
+                        NegativeExamples = dto.NegativeExamples.Select(example => new NegativeExampleUpdate
+                        {
+                            AxialCodeId = example.AxialCodeId,
+                            Trace = example.Trace,
+                            Reasoning = example.Reasoning,
+                        }),
                     };
 
                     var result = await mediator.Send(request);

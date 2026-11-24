@@ -1,8 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  saveAxialCodingResults,
-  type AxialCodeNegativeExampleUpdate,
-} from '../../../shared/api/axialCode.ts';
+import { saveAxialCodingResults } from '../../../shared/api/axialCode.ts';
 import { QUERY_KEYS } from '../../../shared/api/queryKeys.ts';
 
 export const useSaveAxialCodingResults = (
@@ -13,20 +10,12 @@ export const useSaveAxialCodingResults = (
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: {
-      axialCodingResultId: string;
-      negativeExamples: AxialCodeNegativeExampleUpdate[];
-    }) => {
+    mutationFn: (axialCodingResultId: string) => {
       if (!enabled) {
         return Promise.reject(new Error('Axial code saving is disabled.'));
       }
 
-      return saveAxialCodingResults(
-        projectId,
-        projectVersionId,
-        request.axialCodingResultId,
-        request.negativeExamples
-      );
+      return saveAxialCodingResults(projectId, projectVersionId, axialCodingResultId);
     },
 
     onSuccess: async () => {

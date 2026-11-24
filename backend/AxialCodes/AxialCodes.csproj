@@ -18,7 +18,6 @@
     <EmbeddedResource Include="Resources\Prompts\AxialCodingPrompt.txt" />
     <EmbeddedResource Include="Resources\Prompts\AxialCodingWithFeedbackPrompt.txt" />
     <EmbeddedResource Include="Resources\Prompts\AxialCodingVerificationPrompt.txt" />
-    <EmbeddedResource Include="Resources\Prompts\NegativeExamplePrompt.txt" />
      <EmbeddedResource Include="..\JudgeTemplates\Resources\JudgeTemplate\EmptyJudgeTemplate.txt"
                     Link="Resources\Prompts\JudgePrompt.txt" />
   </ItemGroup>

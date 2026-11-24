@@ -57,7 +57,8 @@ public class GetAllJudgeTemplateHandler
             {
                 var axialCode = axialCodeMap[jt.AxialCodeId];
 
-                var template = DefaultJudgeTemplate.Render(axialCode, jt.CustomJudgeTemplateContent);
+                var template = jt.CustomJudgeTemplateContent
+                    ?? DefaultJudgeTemplate.Render(axialCode);
 
                 return new GetAllJudgeTemplateResponse.JudgeTemplateViewModel
                 {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Button, Dialog, Flex, Spinner, TextArea } from '@radix-ui/themes';
-import { Sparkles } from 'lucide-react';
+import { Button, Dialog, Flex, TextArea } from '@radix-ui/themes';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import { colors } from '../../../shared/styling/colors.ts';
 import '../AxialCodePage.module.css';
 
@@ -46,13 +46,14 @@ export default function RegenerateFeedbackModal({
           rows={7}
           disabled={isPending}
         />
+        
 
         <Flex gap="2" mt="4" justify="end">
           <Button variant="soft" color="gray" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button color={colors.theme.radix.primary} onClick={handleSubmit} disabled={isPending}>
-            {isPending ? <Spinner /> : <Sparkles size={14} />}
+            {isPending ? <RefreshCw size={14} className="ai-icon-spin" /> : <Sparkles size={14} />}
             {isPending ? 'Working…' : 'Regenerate'}
           </Button>
         </Flex>

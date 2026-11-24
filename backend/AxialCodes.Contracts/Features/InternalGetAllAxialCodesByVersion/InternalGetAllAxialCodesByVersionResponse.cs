@@ -14,9 +14,5 @@ public record InternalGetAllAxialCodesByVersionResponse
 
         // Null for axial codes generated before judge guidelines existed.
         public string? JudgeGuidelines { get; init; }
-        public string? PositiveExampleTrace { get; init; }
-        public string? PositiveExampleReasoning { get; init; }
-        public string? NegativeExampleTrace { get; init; }
-        public string? NegativeExampleReasoning { get; init; }
     }
 }

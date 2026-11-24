@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import type { AxialCode } from '../../../../shared/types/axialCode.ts';
 import { useGenerateAxialCodingResults } from '../../hooks/useGenerateAxialCodingResult.ts';
 import { useGetOpenCodesByVersion } from '../../hooks/useGetOpenCodesByVersion.ts';
-import { Button, Kbd, Text, Box, Flex, Spinner } from '@radix-ui/themes';
-import { Sparkles } from 'lucide-react';
+import { Button, Kbd, Text, Box, Flex } from '@radix-ui/themes';
+import { Sparkles, RefreshCw } from 'lucide-react';
 import RegenerateFeedbackModal from '../RegenerateFeedbackModal.tsx';
 import { colors } from '../../../../shared/styling/colors.ts';
 
@@ -115,7 +115,11 @@ export function GenerateAxialCodesPanel({
               disabled={isPending}
               onClick={() => setModalOpen(true)}
             >
-              {isPending ? <Spinner /> : <Sparkles size={14} />}
+              {isPending ? (
+                <RefreshCw size={14} className="ai-icon-spin" />
+              ) : (
+                <Sparkles size={14} />
+              )}
               {isPending ? 'Working...' : 'Regenerate'}
               {!isPending && <Kbd>G</Kbd>}
             </Button>
@@ -127,7 +131,11 @@ export function GenerateAxialCodesPanel({
               disabled={isPending}
               onClick={() => handleGenerate(null)}
             >
-              {isPending ? <Spinner /> : <Sparkles size={14} />}
+              {isPending ? (
+                <RefreshCw size={14} className="ai-icon-spin" />
+              ) : (
+                <Sparkles size={14} />
+              )}
               {isPending ? 'Working...' : 'Generate Axial Codes'}
               {!isPending && <Kbd>G</Kbd>}
             </Button>

@@ -2,7 +2,6 @@
 
 public record AxialCodeViewModel
 {
-    public Guid AxialCodeId { get; init; }
     public required string Label { get; init; }
     public required string Description { get; init; }
     public required ICollection<Guid> TraceIds { get; init; }

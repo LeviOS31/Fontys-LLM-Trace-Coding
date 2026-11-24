@@ -59,10 +59,6 @@ public class InternalGetAllAxialCodesByVersionHandler
                         IsActive = r.IsActive,
                         TraceIds = a.TraceIds,
                         JudgeGuidelines = a.JudgeGuidelines,
-                        PositiveExampleTrace = a.PositiveExampleTrace,
-                        PositiveExampleReasoning = a.PositiveExampleReasoning,
-                        NegativeExampleTrace = a.NegativeExampleTrace,
-                        NegativeExampleReasoning = a.NegativeExampleReasoning,
                     })
                 )
                 .ToListAsync(cancellationToken);

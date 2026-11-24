@@ -151,15 +151,6 @@ export default function JudgeCollectionOverview({
                         aria-label="Collection name"
                         value={nameDraft}
                         onChange={(event) => setNameDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            void saveName(collection.judgeCollectionId);
-                          } else if (event.key === 'Escape' && !saving) {
-                            event.preventDefault();
-                            cancelEditing();
-                          }
-                        }}
                         style={{ flexGrow: 1 }}
                       />
                       <Button

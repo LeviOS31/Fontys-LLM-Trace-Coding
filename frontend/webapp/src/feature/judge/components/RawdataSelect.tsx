@@ -21,17 +21,17 @@ export default function Judgerawdataselect({ projectId, versionId, onChange }: P
     return rawdatas.filter((t) => t.name.toLowerCase().includes(query));
   }, [rawdatas, search]);
 
-    useEffect(() => {
-      if (!projectId || !versionId) return;
-      fetch(new URL(`/v1/projects/${projectId}/versions/${versionId}/raw-llm-output`, BASE_URL))
-        .then((r) => r.json())
-        .then((d: { rawdatas?: RawData[] }) => setRawdatas(d.rawdatas ?? []));
-    }, [projectId, versionId]);
+  useEffect(() => {
+    if (!projectId || !versionId) return;
+    fetch(new URL(`/v1/projects/${projectId}/versions/${versionId}/raw-llm-output`, BASE_URL))
+    .then((r) => r.json())
+    .then((d: { rawLLMOutputs?: RawData[] }) => setRawdatas( d.rawLLMOutputs ?? []));
+  }, [projectId, versionId]);
 
   const isFiltering = search.trim().length > 0;
 
   // "Select all" reflects only what is currently visible
-  const filteredSelectedCount = filteredrawdatas.filter((t) => selectedIds.includes(t.rawDataId)).length;
+  const filteredSelectedCount = filteredrawdatas.filter((t) => selectedIds.includes(t.rawLLMOutputId)).length;
   const allFilteredSelected =
     filteredrawdatas.length > 0 && filteredSelectedCount === filteredrawdatas.length;
   const someFilteredSelected = filteredSelectedCount > 0 && !allFilteredSelected;
@@ -46,7 +46,7 @@ export default function Judgerawdataselect({ projectId, versionId, onChange }: P
   }
 
   function toggleAllFiltered(checked: boolean) {
-    const visibleIds = filteredrawdatas.map((t) => t.rawDataId);
+    const visibleIds = filteredrawdatas.map((t) => t.rawLLMOutputId);
     if (checked) {
       update([...new Set([...selectedIds, ...visibleIds])]);
     } else {
@@ -65,7 +65,7 @@ export default function Judgerawdataselect({ projectId, versionId, onChange }: P
     selectedIds.length === 0
       ? 'Select Raw data'
       : selectedIds.length === 1
-        ? (rawdatas.find((t) => t.rawDataId === selectedIds[0])?.name ?? '1 selected')
+        ? (rawdatas.find((t) => t.rawLLMOutputId === selectedIds[0])?.name ?? '1 selected')
         : `${selectedIds.length} Raw data selected`;
 
   return (
@@ -163,7 +163,7 @@ export default function Judgerawdataselect({ projectId, versionId, onChange }: P
                   <Text
                     as="label"
                     size="2"
-                    key={t.rawDataId}
+                    key={t.rawLLMOutputId}
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -175,8 +175,8 @@ export default function Judgerawdataselect({ projectId, versionId, onChange }: P
                   >
                     {t.name}
                     <Checkbox
-                      checked={selectedIds.includes(t.rawDataId)}
-                      onCheckedChange={(checked) => toggleTemplate(t.rawDataId, checked === true)}
+                      checked={selectedIds.includes(t.rawLLMOutputId)}
+                      onCheckedChange={(checked) => toggleTemplate(t.rawLLMOutputId, checked === true)}
                     />
                   </Text>
                 ))

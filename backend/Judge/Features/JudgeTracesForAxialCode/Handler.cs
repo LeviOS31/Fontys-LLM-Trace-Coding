@@ -86,9 +86,22 @@ public class JudgeTracesForAxialCodeHandler
             ? transcripts.Where(t => t.TraceId == request.TraceId.Value).ToList()
             : request.TraceCollectionId.HasValue || request.TraceCollectionIds is { Length: > 0 }
                 ? transcripts
-                : transcripts;
+                : null;
 
-        if (request.TraceId.HasValue && tracesToJudge.Count != 1)
+        var rawDataToJudge = request.RawLLMOutputIds?.Length > 0 ? 
+            await _mediator.Send(
+                    new GetRawLLMOutputsRequest
+                    {
+                        UserId = request.UserId,
+                        ProjectId = request.ProjectId,
+                        ProjectVersionId = request.ProjectVersionId,
+                        RawLLMOutputIds = request.RawLLMOutputIds
+                    },
+                    cancellationToken
+                )
+            : null;
+
+        if ( tracesToJudge.Count < 1 || tracesToJudge == null )
         {
             return ErrorCode.EntityNotFound;
         }

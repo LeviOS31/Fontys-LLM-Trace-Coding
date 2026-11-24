@@ -1,4 +1,6 @@
 export type RawData = {
-    rawDataId: string;
+    rawLLMOutputId: string;
+    versionId: string;
     name: string;
+    output: string;
 }

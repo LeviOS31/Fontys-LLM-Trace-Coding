@@ -349,11 +349,11 @@ export default function JudgePage() {
         versionId={versionId}
         onCollectionChange={setSelectedTraceCollectionIds}
         onRun={runJudge}
-        canRun={!running && selectedTemplates.length > 0 && selectedTraceCollectionIds.length > 0}
+        canRun={!running && selectedTemplates.length > 0 && (selectedTraceCollectionIds.length > 0 || rawDataIds.length > 0)}
         loading={running}
         error={error}
         rawdatas={rawdatas}
-        onRawDataChange={(updatedIds: string[]) => setRawDataIds(updatedIds)}
+        onRawDataChange={setRawDataIds}
       />
 
       {selectedRun && selectedCollection ? (

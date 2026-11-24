@@ -80,7 +80,7 @@ export default function RunJudgePanel({
                 <RawDataSelect
                   projectId={projectId}
                   versionId={versionId}
-                  onChange={(updatedIds: string[]) => onRawDataChange(updatedIds)}
+                  onChange={onRawDataChange}
                 />
               </div>
             )}

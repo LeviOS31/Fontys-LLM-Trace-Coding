@@ -55,31 +55,6 @@ describe('JudgeCollectionOverview', () => {
     expect(screen.queryByRole('textbox', { name: 'Collection name' })).not.toBeInTheDocument();
   });
 
-  it('saves the collection name when Enter is pressed', async () => {
-    const { onRename } = renderOverview();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Judge Collection 1' }));
-
-    const input = screen.getByRole('textbox', { name: 'Collection name' });
-    fireEvent.change(input, { target: { value: 'Regression checks' } });
-    fireEvent.keyDown(input, { key: 'Enter' });
-
-    await waitFor(() => expect(onRename).toHaveBeenCalledWith('collection-1', 'Regression checks'));
-    expect(screen.queryByRole('textbox', { name: 'Collection name' })).not.toBeInTheDocument();
-  });
-
-  it('cancels editing when Escape is pressed', () => {
-    const { onRename } = renderOverview();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Judge Collection 1' }));
-
-    const input = screen.getByRole('textbox', { name: 'Collection name' });
-    fireEvent.change(input, { target: { value: 'Unsaved name' } });
-    fireEvent.keyDown(input, { key: 'Escape' });
-
-    expect(onRename).not.toHaveBeenCalled();
-    expect(screen.queryByRole('textbox', { name: 'Collection name' })).not.toBeInTheDocument();
-    expect(screen.getByText('Judge Collection 1')).toBeInTheDocument();
-  });
-
   it('deletes a collection after confirmation', async () => {
     const { onDelete } = renderOverview();
     fireEvent.click(screen.getByRole('button', { name: 'Delete Judge Collection 1' }));

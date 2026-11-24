@@ -1,3 +1,0 @@
-namespace JudgeTemplates.Contracts.Features.DeleteJudgeTemplatesOfAxialCodes;
-
-public record DeleteJudgeTemplatesOfAxialCodesResponse;

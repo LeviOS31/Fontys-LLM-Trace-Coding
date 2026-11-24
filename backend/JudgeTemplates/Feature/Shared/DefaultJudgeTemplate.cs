@@ -12,23 +12,16 @@ internal static class DefaultJudgeTemplate
         LoadTemplate("JudgeTemplates.Resources.JudgeTemplate.EmptyJudgeTemplate.txt")
     );
 
-    public static string Render(
-        InternalGetAllAxialCodesByVersionResponse.AxialCodeEntry axialCode,
-        string? templateContent = null
-    )
+    public static string Render(InternalGetAllAxialCodesByVersionResponse.AxialCodeEntry axialCode)
     {
         // Axial codes generated before judge guidelines existed fall back to their behaviour description.
         var judgeGuidelines = string.IsNullOrWhiteSpace(axialCode.JudgeGuidelines)
             ? axialCode.Description
             : axialCode.JudgeGuidelines;
 
-        return (templateContent ?? TemplateText.Value)
-            .Replace("{{axial_code_name}}", axialCode.Label)
-            .Replace("{{axial_code_judge_guidelines}}", judgeGuidelines)
-            .Replace("{{example_positive_trace}}", axialCode.PositiveExampleTrace ?? string.Empty)
-            .Replace("{{example_positive_reasoning}}", axialCode.PositiveExampleReasoning ?? string.Empty)
-            .Replace("{{example_negative_trace}}", axialCode.NegativeExampleTrace ?? string.Empty)
-            .Replace("{{example_negative_reasoning}}", axialCode.NegativeExampleReasoning ?? string.Empty);
+        return TemplateText
+            .Value.Replace("{{axial_code_name}}", axialCode.Label)
+            .Replace("{{axial_code_judge_guidelines}}", judgeGuidelines);
     }
 
     private static string LoadTemplate(string resourceName)

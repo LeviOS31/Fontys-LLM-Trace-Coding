@@ -13,6 +13,7 @@ const base: JudgeResult = {
   verdict: 'true',
   reasoning: 'The trace satisfies the criterion.',
   error: null,
+  judgingTrace: true,
 };
 
 const renderCard = (overrides: Partial<JudgeResult> = {}, onOpen = vi.fn()) => {

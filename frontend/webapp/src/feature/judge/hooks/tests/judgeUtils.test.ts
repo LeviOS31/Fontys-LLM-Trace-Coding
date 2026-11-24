@@ -15,6 +15,7 @@ const result = (overrides: Partial<JudgeResult> = {}): JudgeResult => ({
   verdict: 'true',
   reasoning: 'Because',
   error: null,
+  judgingTrace: true,
   ...overrides,
 });
 

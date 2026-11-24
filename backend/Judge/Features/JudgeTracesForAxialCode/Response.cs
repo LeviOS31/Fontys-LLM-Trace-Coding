@@ -14,4 +14,5 @@ public record TraceJudgeResultViewModel
     public string? Verdict { get; init; } // "True" | "False", null when Status is "Error"
     public string? Reasoning { get; init; }
     public string? Error { get; init; }
+    public bool JudgingTrace { get; init; } // true if the trace is judged, false if raw LLM data is judged
 }

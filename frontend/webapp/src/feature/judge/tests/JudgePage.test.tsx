@@ -343,6 +343,7 @@ describe('JudgePage', () => {
     expect(JSON.parse(String(postInit?.body))).toEqual({
       judgeTemplateIds: ['t1', 't2'],
       traceCollectionIds: ['trace-c1', 'trace-c2'],
+      RawLLMOutputIds: [],
     });
   });
 

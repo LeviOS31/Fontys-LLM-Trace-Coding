@@ -173,6 +173,7 @@ export default function JudgePage() {
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load run (${res.status})`);
         const data: { results: JudgeResult[] } = await res.json();
+        console.log('Fetched results:', data.results);
         setResults(data.results);
       })
       .catch((err) => {
@@ -211,7 +212,7 @@ export default function JudgePage() {
     setRunning(true);
     setError(null);
 
-    //const axialCodeIds = selectedTemplates.map((template) => template.axialCodeId);
+    console.log("selected raw data files: ", rawDataIds);
 
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
@@ -220,7 +221,7 @@ export default function JudgePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           judgeTemplateIds: selectedTemplates.map((template) => template.id),
-          rawDataIds: rawDataIds,
+          RawLLMOutputIds: rawDataIds,
           traceCollectionIds: selectedTraceCollectionIds,
         }),
       });

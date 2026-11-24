@@ -16,9 +16,7 @@ import type {
   AxialCodeSnapshotJustification,
 } from '../../../shared/types/axialCodeSnapshotCode.ts';
 import styles from '../components/AxialCodeCard/AxialCodeCard.module.css';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
+import AxialCodeExampleConversation from './AxialCodeExampleConversation.tsx';
 
 const VISIBLE_OPEN_CODES = 4;
 
@@ -131,52 +129,6 @@ function OpenCodeList({ code }: { readonly code: AxialCodeSnapshotCode }) {
 
 // ---------- Examples ----------
 
-/** The backend stores examples as "User: ...\nAssistant: ...". */
-function splitTrace(trace: string): { user: string; assistant: string } {
-  const match = /^User:\s*([\s\S]*?)\nAssistant:\s*([\s\S]*)$/.exec(trace);
-  return match ? { user: match[1], assistant: match[2] } : { user: '', assistant: trace };
-}
-
-function Bubble({ role, text }: { readonly role: string; readonly text: string }) {
-  return (
-    <Box p="2" style={{ background: 'var(--gray-2)', borderRadius: 'var(--radius-2)' }}>
-      <Text size="1" weight="bold" as="div" mb="1">
-        {role}
-      </Text>
-      <Box className={styles.exampleMarkdown}>
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkBreaks]}
-          components={{
-            p: ({ children }) => (
-              <Text as="p" size="2" mb="2">
-                {children}
-              </Text>
-            ),
-            strong: ({ children }) => <Text weight="bold">{children}</Text>,
-            ul: ({ children }) => (
-              <Box asChild>
-                <ul>{children}</ul>
-              </Box>
-            ),
-            ol: ({ children }) => (
-              <Box asChild>
-                <ol>{children}</ol>
-              </Box>
-            ),
-            li: ({ children }) => (
-              <li>
-                <Text size="2">{children}</Text>
-              </li>
-            ),
-          }}
-        >
-          {text}
-        </ReactMarkdown>
-      </Box>
-    </Box>
-  );
-}
-
 function ExampleView({
   example,
   kind,
@@ -184,7 +136,6 @@ function ExampleView({
   readonly example: AxialCodeSnapshotExample;
   readonly kind: 'positive' | 'negative';
 }) {
-  const { user, assistant } = splitTrace(example.trace);
   const accent = kind === 'positive' ? 'var(--green-9)' : 'var(--red-9)';
   return (
     <Flex
@@ -194,8 +145,7 @@ function ExampleView({
       style={{ borderLeft: `3px solid ${accent}` }}
       data-testid={`axial-code-${kind}-example`}
     >
-      {user && <Bubble role="User" text={user} />}
-      <Bubble role="Assistant" text={assistant} />
+      <AxialCodeExampleConversation trace={example.trace} />
       {example.reasoning && (
         <Text as="p" size="2">
           {example.reasoning}

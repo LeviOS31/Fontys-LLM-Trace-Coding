@@ -68,7 +68,10 @@ public class InternalGetJudgeTemplatesHandler
             JudgeTemplates = judgeTemplates.Select(jt => new JudgeTemplateViewModel
             {
                 JudgeTemplateId = jt.JudgeTemplateId,
-                Content = jt.CustomJudgeTemplateContent != null? jt.CustomJudgeTemplateContent : DefaultJudgeTemplate.Render(axialCodes.First(a => a.AxialCodeId == jt.AxialCodeId)),
+                Content = DefaultJudgeTemplate.Render(
+                    axialCodes.First(a => a.AxialCodeId == jt.AxialCodeId),
+                    jt.CustomJudgeTemplateContent
+                ),
                 IsDeprecated = jt.IsDeprecated
             }).ToArray()
         };

@@ -66,8 +66,8 @@ public class UpdateJudgeTemplateHandler
             return ErrorCode.EntityNotFound;
         }
 
-            try
-            {
+        try
+        {
             int? lastVersionNumber = await _dbContext
                 .JudgeTemplateVersions.Where(v => v.JudgeTemplateId == judgeTemplate.JudgeTemplateId)
                 .Select(v => (int?)v.VersionNumber)
@@ -80,9 +80,10 @@ public class UpdateJudgeTemplateHandler
                 var axialCode = axialCodesResponse.Value!.AxialCodes.First(a =>
                     a.AxialCodeId == judgeTemplate.AxialCodeId
                 );
-                var previousContent =
+                var previousContent = DefaultJudgeTemplate.Render(
+                    axialCode,
                     judgeTemplate.CustomJudgeTemplateContent
-                    ?? DefaultJudgeTemplate.Render(axialCode);
+                );
 
                 _dbContext.JudgeTemplateVersions.Add(
                     new JudgeTemplateVersion
@@ -94,30 +95,26 @@ public class UpdateJudgeTemplateHandler
                         CreatedAt = DateTimeOffset.UtcNow,
                     }
                 );
-
-                judgeTemplate.CustomJudgeTemplateContent = request.Content;
-                judgeTemplate.CurrentVersionNumber = lastVersionNumber.Value + 1; // new line
-                judgeTemplate.IsDeprecated = false;
-                lastVersionNumber = 1;
             }
 
+            var nextVersionNumber = (lastVersionNumber ?? 1) + 1;
             _dbContext.JudgeTemplateVersions.Add(
                 new JudgeTemplateVersion
                 {
                     JudgeTemplateVersionId = Guid.NewGuid(),
                     JudgeTemplateId = judgeTemplate.JudgeTemplateId,
-                    VersionNumber = lastVersionNumber.Value + 1,
+                    VersionNumber = nextVersionNumber,
                     Content = request.Content,
                     CreatedAt = DateTimeOffset.UtcNow,
                 }
             );
 
             judgeTemplate.CustomJudgeTemplateContent = request.Content;
-            judgeTemplate.CurrentVersionNumber = lastVersionNumber.Value + 1;
+            judgeTemplate.CurrentVersionNumber = nextVersionNumber;
             judgeTemplate.IsDeprecated = false;
 
             await _dbContext.SaveChangesAsync(cancellationToken);
-    }
+        }
         catch (Exception ex) when (ex is DbUpdateException or DbException or InvalidOperationException)
         {
             Logger.Error(ex, "Error updating judge template {JudgeTemplateId}", request.JudgeTemplateId);

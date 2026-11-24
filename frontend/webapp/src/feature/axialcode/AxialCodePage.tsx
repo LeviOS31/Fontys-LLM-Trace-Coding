@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Box, Flex, Grid, Heading, Text } from '@radix-ui/themes';
 import { useQueryClient } from '@tanstack/react-query';
-import type { CurrentAxialCodesResponse } from '../../shared/api/axialCode.ts';
+import type {
+  AxialCodeNegativeExampleUpdate,
+  CurrentAxialCodesResponse,
+} from '../../shared/api/axialCode.ts';
 import { QUERY_KEYS } from '../../shared/api/queryKeys.ts';
 import { LayoutDashboard } from 'lucide-react';
 import { Navigate, useParams } from 'react-router';
@@ -18,6 +21,7 @@ import { convertApiCodesToSnapshot } from '../../shared/util/convertApiCodesToSn
 import { compareAxialCodes } from '../../shared/util/compareAxialCodes.ts';
 import buildComparisonColors from '../../shared/util/buildComparisonColors.ts';
 import ChangesSection from './components/ChangesSection/ChangesSection.tsx';
+import NegativeExampleReview from './components/NegativeExampleReview.tsx';
 import './AxialCodePage.module.css';
 
 function formatDate(iso: string): string {
@@ -28,6 +32,20 @@ function formatDate(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function getNegativeExampleUpdates(
+  axialCodes: ApiAxialCode[]
+): AxialCodeNegativeExampleUpdate[] | null {
+  if (axialCodes.length === 0) return null;
+  const updates = axialCodes.flatMap((code) => {
+    const trace = code.negativeExampleTrace?.trim();
+    const reasoning = code.negativeExampleReasoning?.trim();
+    return code.axialCodeId && trace && reasoning
+      ? [{ axialCodeId: code.axialCodeId, trace, reasoning }]
+      : [];
+  });
+  return updates.length === axialCodes.length ? updates : null;
 }
 
 type PageParams = {
@@ -50,6 +68,13 @@ function SectionHead({ title, subtitle }: { readonly title: string; readonly sub
   );
 }
 
+type PendingReview = {
+  axialCodingResultId: string;
+  axialCodes: ApiAxialCode[];
+  feedback: string | null;
+  generatedAt: string;
+};
+
 export default function AxialCodePage() {
   const { id: projectId, versionId } = useParams<PageParams>();
 
@@ -58,6 +83,8 @@ export default function AxialCodePage() {
   const [snapshotAGeneratedAt, setSnapshotAGeneratedAt] = useState<string>('');
   const [snapshotBGeneratedAt, setSnapshotBGeneratedAt] = useState<string>('');
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -131,40 +158,73 @@ export default function AxialCodePage() {
     axialCodes: ApiAxialCode[];
     feedback?: string | null;
   }) => {
-    const timestamp = formatDate(new Date().toISOString());
-    if (savedCodes.length === 0) {
-      // First generation: auto-approve immediately
-      setLastFeedback(feedback ?? null);
-      setSnapshotAGeneratedAt(timestamp);
-      saveAxialCodes(axialCodingResultId, {
-        onSuccess: () => {
-          queryClient.setQueryData<CurrentAxialCodesResponse>(
-            QUERY_KEYS.axialCoding.currentAxialCodesOfVersion(versionId),
-            { axialCodes, createdAt: new Date().toISOString() }
-          );
-        },
-      });
-    } else {
-      // Regeneration: cache as draft B for comparison
-      setLastFeedback(feedback ?? null);
-      setSnapshotBGeneratedAt(timestamp);
-      setDraftAxialCodes(axialCodes);
-      setDraftAxialCodingResultId(axialCodingResultId);
+    setReviewError(null);
+    setPendingReview({
+      axialCodingResultId,
+      axialCodes,
+      feedback: feedback ?? null,
+      generatedAt: formatDate(new Date().toISOString()),
+    });
+  };
+
+  const handleNegativeExamplesReviewed = (axialCodes: ApiAxialCode[]) => {
+    if (!pendingReview) return;
+    const negativeExamples = getNegativeExampleUpdates(axialCodes);
+    if (!negativeExamples) {
+      setReviewError('Every axial code must have an approved negative example before continuing.');
+      return;
     }
+
+    if (savedCodes.length === 0) {
+      saveAxialCodes(
+        { axialCodingResultId: pendingReview.axialCodingResultId, negativeExamples },
+        {
+          onSuccess: () => {
+            const createdAt = new Date().toISOString();
+            setLastFeedback(pendingReview.feedback);
+            setSnapshotAGeneratedAt(pendingReview.generatedAt);
+            setReviewError(null);
+            setPendingReview(null);
+            queryClient.setQueryData<CurrentAxialCodesResponse>(
+              QUERY_KEYS.axialCoding.currentAxialCodesOfVersion(versionId),
+              { axialCodes, createdAt }
+            );
+          },
+          onError: (error) => setReviewError(error.message),
+        }
+      );
+      return;
+    }
+
+    setLastFeedback(pendingReview.feedback);
+    setSnapshotBGeneratedAt(pendingReview.generatedAt);
+    setDraftAxialCodes(axialCodes);
+    setDraftAxialCodingResultId(pendingReview.axialCodingResultId);
+    setPendingReview(null);
   };
 
   const handleApproveB = () => {
     if (!draftAxialCodingResultId || !draftAxialCodes) return;
     const timestamp = snapshotBGeneratedAt;
-    saveAxialCodes(draftAxialCodingResultId, {
-      onSuccess: () => {
-        setSnapshotAGeneratedAt(timestamp);
-        setDraftAxialCodes(null);
-        setDraftAxialCodingResultId(null);
-        setSnapshotBGeneratedAt('');
-        setLastFeedback(null);
-      },
-    });
+    const negativeExamples = getNegativeExampleUpdates(draftAxialCodes);
+    if (!negativeExamples) {
+      setReviewError('Every axial code must have an approved negative example before continuing.');
+      return;
+    }
+    saveAxialCodes(
+      { axialCodingResultId: draftAxialCodingResultId, negativeExamples },
+      {
+        onSuccess: () => {
+          setSnapshotAGeneratedAt(timestamp);
+          setDraftAxialCodes(null);
+          setDraftAxialCodingResultId(null);
+          setSnapshotBGeneratedAt('');
+          setLastFeedback(null);
+          setReviewError(null);
+        },
+        onError: (error) => setReviewError(error.message),
+      }
+    );
   };
 
   const handleDiscardB = () => {
@@ -172,6 +232,7 @@ export default function AxialCodePage() {
     setDraftAxialCodingResultId(null);
     setSnapshotBGeneratedAt('');
     setLastFeedback(null);
+    setReviewError(null);
   };
 
   const axialCodesForRegenerate = draftAxialCodes ?? savedCodes;
@@ -195,78 +256,93 @@ export default function AxialCodePage() {
         </Box>
       </Flex>
 
-      {/* Generate panel — only shown when not in comparison mode */}
-      {!showComparison && (
-        <GenerateAxialCodesPanel
+      {pendingReview ? (
+        <NegativeExampleReview
           projectId={projectId}
           projectVersionId={versionId}
-          axialCodes={axialCodesForRegenerate ?? undefined}
-          onGenerated={handleGenerated}
+          axialCodes={pendingReview.axialCodes}
+          isSaving={isSaving}
+          saveError={reviewError}
+          onComplete={handleNegativeExamplesReviewed}
         />
-      )}
-
-      {/* Single view: approved codes, no pending draft */}
-      {showSingle && (
+      ) : (
         <>
-          <Box>
-            <SectionHead title="Summary" />
-            <SnapshotSummaryCard snapshot={snapshotA} />
-          </Box>
-
-          <Box pb="9">
-            <SectionHead title="Axial codes" />
-            <AxialCodeList snapshot={snapshotA} />
-          </Box>
-        </>
-      )}
-
-      {/* Comparison view: approved A vs draft B */}
-      {showComparison && (
-        <>
-          <InterpretationPanel
-            snapshotA={snapshotA}
-            snapshotB={snapshotB}
-            userFeedback={lastFeedback}
-            projectId={projectId}
-            projectVersionId={versionId}
-            axialCodesForRegen={draftAxialCodes ?? []}
-            onRegenerated={handleGenerated}
-            onApprove={handleApproveB}
-            onDiscard={handleDiscardB}
-            isSaving={isSaving}
-            comparison={comparison?.result ?? null}
-          />
-
-          {comparison && (
-            <Box mt="2">
-              <ChangesSection
-                comparison={comparison.result}
-                previousCodes={savedCodes}
-                nextCodes={draftAxialCodes ?? []}
-                colorOf={comparison.colorOf}
-                openCodeTextById={openCodeTextById}
-              />
-            </Box>
+          {reviewError && (
+            <Text role="alert" color="red">
+              {reviewError}
+            </Text>
+          )}
+          {!showComparison && (
+            <GenerateAxialCodesPanel
+              projectId={projectId}
+              projectVersionId={versionId}
+              axialCodes={axialCodesForRegenerate ?? undefined}
+              onGenerated={handleGenerated}
+            />
           )}
 
-          <Box mt="2">
-            <SectionHead title="Version summary" />
-            <Grid columns="2" gap="4">
-              <SnapshotSummaryCard snapshot={snapshotA} isComparison />
-              <SnapshotSummaryCard snapshot={snapshotB} isB isComparison />
-            </Grid>
-          </Box>
+          {showSingle && (
+            <>
+              <Box>
+                <SectionHead title="Summary" />
+                <SnapshotSummaryCard snapshot={snapshotA} />
+              </Box>
 
-          <Box mt="2" pb="9">
-            <SectionHead
-              title="Axial Codes"
-              subtitle="Side-by-side comparison. Expand any card for open codes."
-            />
-            <Grid columns="2" gap="4">
-              <AxialCodeList snapshot={snapshotA} isComparison />
-              <AxialCodeList snapshot={snapshotB} isB isComparison />
-            </Grid>
-          </Box>
+              <Box pb="9">
+                <SectionHead title="Axial codes" />
+                <AxialCodeList snapshot={snapshotA} />
+              </Box>
+            </>
+          )}
+
+          {showComparison && (
+            <>
+              <InterpretationPanel
+                snapshotA={snapshotA}
+                snapshotB={snapshotB}
+                userFeedback={lastFeedback}
+                projectId={projectId}
+                projectVersionId={versionId}
+                axialCodesForRegen={draftAxialCodes ?? []}
+                onRegenerated={handleGenerated}
+                onApprove={handleApproveB}
+                onDiscard={handleDiscardB}
+                isSaving={isSaving}
+                comparison={comparison?.result ?? null}
+              />
+
+              {comparison && (
+                <Box mt="2">
+                  <ChangesSection
+                    comparison={comparison.result}
+                    previousCodes={savedCodes}
+                    nextCodes={draftAxialCodes ?? []}
+                    colorOf={comparison.colorOf}
+                    openCodeTextById={openCodeTextById}
+                  />
+                </Box>
+              )}
+
+              <Box mt="2">
+                <SectionHead title="Version summary" />
+                <Grid columns="2" gap="4">
+                  <SnapshotSummaryCard snapshot={snapshotA} isComparison />
+                  <SnapshotSummaryCard snapshot={snapshotB} isB isComparison />
+                </Grid>
+              </Box>
+
+              <Box mt="2" pb="9">
+                <SectionHead
+                  title="Axial Codes"
+                  subtitle="Side-by-side comparison. Expand any card for open codes."
+                />
+                <Grid columns="2" gap="4">
+                  <AxialCodeList snapshot={snapshotA} isComparison />
+                  <AxialCodeList snapshot={snapshotB} isB isComparison />
+                </Grid>
+              </Box>
+            </>
+          )}
         </>
       )}
     </Flex>

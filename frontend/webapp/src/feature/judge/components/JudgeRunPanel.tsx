@@ -58,8 +58,8 @@ export default function RunJudgePanel({
             radius="full"
             style={{ alignSelf: 'flex-start' }}
           >
-            <SegmentedControl.Item value="run">Evaluating templates</SegmentedControl.Item>
-            <SegmentedControl.Item value="testing">Testing templates</SegmentedControl.Item>
+            <SegmentedControl.Item value="run">Evaluating data</SegmentedControl.Item>
+            <SegmentedControl.Item value="testing">Evaluating judge templates</SegmentedControl.Item>
           </SegmentedControl.Root>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>

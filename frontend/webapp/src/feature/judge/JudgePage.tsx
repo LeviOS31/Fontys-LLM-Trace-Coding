@@ -218,6 +218,7 @@ export default function JudgePage() {
         body: JSON.stringify({
           judgeTemplateIds: selectedTemplates.map((template) => template.id),
           traceCollectionIds: selectedTraceCollectionIds,
+          isEvaluation: mode === 'run',
         }),
       });
       const data: unknown = await res.json();
@@ -340,6 +341,8 @@ export default function JudgePage() {
         onModeChange={(m) => {
           setMode(m);
           setTemplateIds([]);
+          setSelectedCollectionId(null);
+          setSelectedRunId(null);
         }}
         projectId={projectId}
         versionId={versionId}

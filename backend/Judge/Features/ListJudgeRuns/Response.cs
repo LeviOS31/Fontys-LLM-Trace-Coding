@@ -15,6 +15,7 @@ public record JudgeRunSummaryViewModel
     public required int TrueCount { get; init; }
     public required int FalseCount { get; init; }
     public required int FailedCount { get; init; }
+    public string? Feedback { get; init; }
 }
 
 // Aggregated over ALL runs of the version, not just the returned page.

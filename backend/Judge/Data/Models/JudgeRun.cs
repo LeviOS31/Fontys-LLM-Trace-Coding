@@ -14,6 +14,7 @@ public class JudgeRun
     public required int TrueCount { get; init; }
     public required int FalseCount { get; init; }
     public required int FailedCount { get; init; }
+    public string? Feedback { get; set; }
 }
 
 internal sealed class JudgeRunEntityConfiguration : IEntityTypeConfiguration<JudgeRun>

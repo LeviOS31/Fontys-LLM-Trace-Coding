@@ -61,6 +61,9 @@ namespace Judge.Migrations
                     b.Property<int>("FalseCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Feedback")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("JudgeCollectionId")
                         .HasColumnType("uuid");
 

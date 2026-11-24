@@ -5,6 +5,7 @@ import JudgeTemplateSelect from './JudgeTemplateSelect';
 import TraceCollectionSelect from './TraceCollectionSelect';
 import { colors } from '../../../shared/styling/colors';
 import styles from './JudgeRunPanel.module.css';
+import TemplatePreviewList from './TemplatePreviewList';
 
 export type JudgeMode = 'testing' | 'run';
 
@@ -20,6 +21,8 @@ type Props = {
   readonly projectId?: string;
   readonly versionId?: string;
   readonly onCollectionChange: (ids: string[]) => void;
+  readonly selectedTemplates: JudgeTemplate[];
+  readonly onEditTemplate: (templateId: string) => void;
 };
 
 export default function RunJudgePanel({
@@ -34,6 +37,8 @@ export default function RunJudgePanel({
   projectId,
   versionId,
   onCollectionChange,
+  selectedTemplates,
+  onEditTemplate,
 }: Props) {
   return (
     <Box
@@ -79,6 +84,10 @@ export default function RunJudgePanel({
               />
             </div>
           </div>
+
+          {mode === 'testing' && selectedTemplates.length > 0 && (
+            <TemplatePreviewList templates={selectedTemplates} onEdit={onEditTemplate} />
+          )}
 
           {mode === 'run' && (
             <Text size="2" color="gray">

@@ -1,7 +1,7 @@
 ﻿using System.Data.Common;
 using AxialCodes.Data;
 using AxialCodes.Data.Models;
-using JudgeTemplates.Contracts.Features.SetAllJudgeTemplatesToDeprecated;
+using JudgeTemplates.Contracts.Features.DeleteJudgeTemplatesOfAxialCodes;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 using Projects.Contracts.Features.GetProject;
@@ -53,10 +53,10 @@ public class SaveAxialCodesHandler : IRequestHandler<SaveAxialCodesRequest, Resu
             var targetResult = await _dbContext
                 .AxialCodingResults.Include(a => a.AxialCodes)
                 .FirstOrDefaultAsync(
-                a =>
-                    a.ProjectVersionId == request.ProjectVersionId
-                    && a.AxialCodingResultId == request.AxialCodingResultId,
-                cancellationToken
+                    a =>
+                        a.ProjectVersionId == request.ProjectVersionId
+                        && a.AxialCodingResultId == request.AxialCodingResultId,
+                    cancellationToken
                 );
 
             if (targetResult is null)
@@ -97,36 +97,49 @@ public class SaveAxialCodesHandler : IRequestHandler<SaveAxialCodesRequest, Resu
                 axialCode.NegativeExampleReasoning = example.Reasoning.Trim();
             }
 
-            // Get active results
-            var activeResults = await _dbContext
-                .AxialCodingResults.Where(a =>
-                    a.ProjectVersionId == request.ProjectVersionId
-                    && a.IsActive
-                    && a.AxialCodingResultId != request.AxialCodingResultId
-                )
-                .ToListAsync(cancellationToken);
+            // When the target becomes the approved result, it replaces every other result of this version:
+            // the previously approved one and any draft that was never approved. Saving an already approved
+            // result (to update its examples) deletes nothing, so a pending regenerated draft is kept.
+            var oldResults = targetWasActive
+                ? []
+                : await _dbContext
+                    .AxialCodingResults.Include(a => a.AxialCodes)
+                    .Where(a =>
+                        a.ProjectVersionId == request.ProjectVersionId
+                        && a.AxialCodingResultId != request.AxialCodingResultId
+                    )
+                    .ToListAsync(cancellationToken);
+
+            var oldAxialCodeIds = oldResults.SelectMany(r => r.AxialCodes).Select(c => c.AxialCodeId).ToList();
+
+            // Delete their judge templates first, so no template is ever left pointing to a deleted axial code.
+            if (oldAxialCodeIds.Count > 0)
+            {
+                var deleteTemplatesResult = await _mediator.Send(
+                    new DeleteJudgeTemplatesOfAxialCodesRequest
+                    {
+                        ProjectId = request.ProjectId,
+                        ProjectVersionId = request.ProjectVersionId,
+                        AxialCodeIds = oldAxialCodeIds,
+                    },
+                    cancellationToken
+                );
+                if (deleteTemplatesResult.IsError)
+                {
+                    return deleteTemplatesResult.ErrorCode!.Value;
+                }
+            }
 
             // Transaction to change the active result
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-            if (activeResults.Count > 0)
+            if (oldResults.Count > 0)
             {
-                foreach (var activeResult in activeResults)
-                {
-                    activeResult.IsActive = false;
-                }
+                // Their axial codes and open code justifications are removed by cascade.
+                _dbContext.AxialCodingResults.RemoveRange(oldResults);
 
-                // First save, otherwise we get constraint violations
+                // First save, otherwise activating the target violates the one-active-result index
                 await _dbContext.SaveChangesAsync(cancellationToken);
-
-                await _mediator.Send(
-                    new SetAllJudgeTemplatesToDeprecatedRequest
-                    {
-                        ProjectId = request.ProjectId,
-                        ProjectVersionId = request.ProjectVersionId,
-                    },
-                    cancellationToken
-                );
             }
 
             targetResult.IsActive = true;

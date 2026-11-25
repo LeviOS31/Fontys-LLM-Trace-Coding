@@ -12,6 +12,44 @@ export interface AxialCodingResultResponse {
   axialCodes: AxialCode[];
 }
 
+export interface NegativeExampleDraftRequest {
+  label: string;
+  description: string;
+  judgeGuidelines: string;
+  positiveExampleTrace?: string | null;
+}
+
+export interface NegativeExampleDraftResponse {
+  trace: string;
+  reasoning: string;
+}
+
+export interface AxialCodeNegativeExampleUpdate {
+  axialCodeId: string;
+  trace: string;
+  reasoning: string;
+}
+
+export async function generateNegativeExampleDraft(
+  projectId: string,
+  projectVersionId: string,
+  payload: NegativeExampleDraftRequest
+): Promise<NegativeExampleDraftResponse> {
+  const url = new URL(
+    `/v1/projects/${projectId}/versions/${projectVersionId}/axial-coding-results/negative-example`,
+    BASE_URL
+  );
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError('Failed to generate a negative-example draft', response.status);
+  }
+  return await response.json();
+}
+
 export async function generateAxialCodingResults(
   projectId: string,
   projectVersionId: string,
@@ -55,14 +93,19 @@ export async function generateAxialCodingResults(
 export async function saveAxialCodingResults(
   projectId: string,
   projectVersionId: string,
-  axialCodingResultId: string
+  axialCodingResultId: string,
+  negativeExamples: AxialCodeNegativeExampleUpdate[]
 ): Promise<void> {
   const url = new URL(
     `/v1/projects/${projectId}/versions/${projectVersionId}/axial-coding-results/${axialCodingResultId}/save`,
     BASE_URL
   );
 
-  const response = await fetch(url.toString(), { method: 'POST' });
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ negativeExamples }),
+  });
 
   if (!response.ok) {
     throw new ApiError('Failed to save axial coding results', response.status);

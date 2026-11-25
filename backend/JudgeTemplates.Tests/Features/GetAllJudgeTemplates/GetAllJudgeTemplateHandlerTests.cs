@@ -99,6 +99,7 @@ public class GetAllJudgeTemplateHandlerTests
         vm.Template.ShouldContain("Test Description");
         vm.Template.ShouldNotContain("{{axial_code_name}}");
         vm.Template.ShouldNotContain("{{axial_code_judge_guidelines}}");
+        vm.Template.ShouldNotContain("{{example_");
     }
 
     [Fact]
@@ -150,6 +151,78 @@ public class GetAllJudgeTemplateHandlerTests
         vm.Template.ShouldContain("Judging Guidelines:");
         vm.Template.ShouldContain("Mark true when: test guideline.");
         vm.Template.ShouldNotContain("Test Description");
+    }
+
+    [Fact]
+    public async Task WhenExamplesExist_RenderDefaultAndCustomTemplates()
+    {
+        var templates = new List<JudgeTemplate>
+        {
+            new()
+            {
+                JudgeTemplateId = Guid.NewGuid(),
+                JudgeTemplateName = "Default",
+                JudgeTemplateDescription = "Default template",
+                AxialCodeId = _axialCodeId,
+                ProjectId = _projectId,
+                ProjectVersionId = _projectVersionId,
+                IsDeprecated = false,
+            },
+            new()
+            {
+                JudgeTemplateId = Guid.NewGuid(),
+                JudgeTemplateName = "Custom",
+                JudgeTemplateDescription = "Custom template",
+                AxialCodeId = _axialCodeId,
+                ProjectId = _projectId,
+                ProjectVersionId = _projectVersionId,
+                IsDeprecated = false,
+                CustomJudgeTemplateContent =
+                    "{{example_positive_trace}}|{{example_positive_reasoning}}|"
+                    + "{{example_negative_trace}}|{{example_negative_reasoning}}",
+            },
+        };
+
+        var mockSet = templates.BuildMockDbSet();
+        var mockContext = Substitute.For<JudgeTemplatesDbContext>(
+            new DbContextOptionsBuilder<JudgeTemplatesDbContext>().Options
+        );
+        mockContext.JudgeTemplates.Returns(mockSet);
+
+        var mediator = CreateMediatorMock(
+            axialCodes:
+            [
+                new InternalGetAllAxialCodesByVersionResponse.AxialCodeEntry
+                {
+                    AxialCodeId = _axialCodeId,
+                    Label = "Test Label",
+                    Description = "Test Description",
+                    IsActive = true,
+                    TraceIds = [],
+                    PositiveExampleTrace = "Positive trace",
+                    PositiveExampleReasoning = "Positive reasoning",
+                    NegativeExampleTrace = "Negative trace",
+                    NegativeExampleReasoning = "Negative reasoning",
+                },
+            ]
+        );
+        var handler = new GetAllJudgeTemplateHandler(mockContext, mediator);
+
+        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+
+        result.IsSuccess.ShouldBeTrue();
+        var judgeTemplates = result.Value!.JudgeTemplates.ToList();
+        var defaultTemplate = judgeTemplates.Single(template => template.Name == "Default").Template;
+        defaultTemplate.ShouldContain("Positive trace");
+        defaultTemplate.ShouldContain("Positive reasoning");
+        defaultTemplate.ShouldContain("Negative trace");
+        defaultTemplate.ShouldContain("Negative reasoning");
+        defaultTemplate.ShouldNotContain("{{example_");
+
+        var customTemplate = judgeTemplates.Single(template => template.Name == "Custom").Template;
+        customTemplate.ShouldBe(
+            "Positive trace|Positive reasoning|Negative trace|Negative reasoning"
+        );
     }
 
     [Fact]

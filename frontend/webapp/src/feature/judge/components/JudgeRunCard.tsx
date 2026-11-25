@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { AlertDialog, Badge, Box, Button, Card, Code, Flex, Text } from '@radix-ui/themes';
-import { ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronRight, Trash2, MessageSquare } from 'lucide-react';
 import { formatDate, statsFromCounts, type JudgeRunListItem } from '../hooks/judgeUtils';
+import RunFeedbackModal from './RunFeedbackModal';
 
 type Props = {
   readonly run: JudgeRunListItem;
   readonly onSelect: (judgeRunId: string) => void;
   readonly onDelete: (judgeRunId: string) => Promise<boolean>;
+  readonly onFeedback?: (judgeRunId: string, feedback: string) => Promise<boolean>;
 };
 
-export default function JudgeRunCard({ run, onSelect, onDelete }: Props) {
+export default function JudgeRunCard({ run, onSelect, onDelete, onFeedback }: Props) {
   const stats = statsFromCounts(run);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const confirmDelete = async () => {
     if (deleting) return;
@@ -81,6 +84,18 @@ export default function JudgeRunCard({ run, onSelect, onDelete }: Props) {
               </Flex>
             </Flex>
           </button>
+          {onFeedback && (
+            <Button
+              type="button"
+              variant="ghost"
+              color="gray"
+              onClick={() => setFeedbackOpen(true)}
+              style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              <MessageSquare size={14} />
+              {run.feedback ? 'Feedback ✓' : 'Feedback'}
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -97,6 +112,14 @@ export default function JudgeRunCard({ run, onSelect, onDelete }: Props) {
           </Button>
         </Flex>
       </Card>
+      {onFeedback && feedbackOpen && (
+        <RunFeedbackModal
+          title={run.name ?? 'Judge run'}
+          initial={run.feedback ?? ''}
+          onSave={(text) => onFeedback(run.judgeRunId, text)}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      )}
       <AlertDialog.Root
         open={deleteOpen}
         onOpenChange={(open) => {

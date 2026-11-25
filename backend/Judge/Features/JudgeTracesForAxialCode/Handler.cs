@@ -176,6 +176,7 @@ public class JudgeTracesForAxialCodeHandler
             ProjectVersionId = request.ProjectVersionId,
             CreatedAt = DateTime.UtcNow,
             Name = $"Judge Collection {DateTime.UtcNow}",
+            IsEvaluation = request.IsEvaluation,
         };
 
         try

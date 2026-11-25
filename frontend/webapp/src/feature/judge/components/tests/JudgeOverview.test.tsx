@@ -16,6 +16,7 @@ const makeRun = (id: string): JudgeRunListItem => ({
   trueCount: 3,
   falseCount: 2,
   failedCount: 0,
+  feedback: null,
 });
 
 const totals: JudgeRunTotals = {

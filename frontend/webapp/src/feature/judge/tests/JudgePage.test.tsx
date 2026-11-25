@@ -144,10 +144,10 @@ vi.mock('../components/JudgeRunDetails.tsx', () => ({
 }));
 
 const templates: JudgeTemplate[] = [
-  { id: 't4', axialCodeId: 'a1', name: 'Reliability (old)', isDeprecated: true },
-  { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false },
-  { id: 't2', axialCodeId: 'a2', name: 'Latency', isDeprecated: false },
-  { id: 't3', axialCodeId: 'a3', name: 'Retired', isDeprecated: true },
+  { id: 't4', axialCodeId: 'a1', name: 'Reliability (old)', isDeprecated: true, description: 'd1', template: 'prompt 1' },
+  { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false, description: 'd2', template: 'prompt 2' },
+  { id: 't2', axialCodeId: 'a2', name: 'Latency', isDeprecated: false, description: 'd3', template: 'prompt 3' },
+  { id: 't3', axialCodeId: 'a3', name: 'Retired', isDeprecated: true, description: 'd4', template: 'prompt 4' },
 ];
 
 const makeCollection = (id: string, name: string): JudgeCollection => ({
@@ -169,6 +169,7 @@ const makeRun = (id: string): JudgeRunSummary => ({
   trueCount: 2,
   falseCount: 1,
   failedCount: 0,
+  feedback: null,
 });
 
 const makeTotals = (runs: number): JudgeRunTotals => ({
@@ -343,6 +344,7 @@ describe('JudgePage', () => {
     expect(JSON.parse(String(postInit?.body))).toEqual({
       judgeTemplateIds: ['t1', 't2'],
       traceCollectionIds: ['trace-c1', 'trace-c2'],
+      isEvaluation: true,
       RawLLMOutputIds: [],
     });
   });

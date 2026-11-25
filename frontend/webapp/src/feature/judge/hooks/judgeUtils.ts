@@ -1,9 +1,5 @@
-export type JudgeTemplate = {
-  id: string;
-  axialCodeId: string;
-  name: string;
-  isDeprecated: boolean;
-};
+export type { JudgeTemplate } from '../../../shared/types/judgeTemplate';
+
 
 export type JudgeCollection = {
   judgeCollectionId: string;
@@ -39,6 +35,7 @@ export type JudgeRunSummary = {
   trueCount: number;
   falseCount: number;
   failedCount: number;
+  feedback: string | null;
 };
 
 export type JudgeRunListItem = JudgeRunSummary & { name: string | null };

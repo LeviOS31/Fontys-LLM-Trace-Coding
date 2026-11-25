@@ -41,6 +41,7 @@ public class UpdateJudgeCollectionHandlerTests
                 ProjectVersionId = versionId ?? _projectVersionId,
                 Name = "Original collection",
                 CreatedAt = DateTimeOffset.UtcNow,
+                IsEvaluation = true,
             }
         );
         await context.SaveChangesAsync();

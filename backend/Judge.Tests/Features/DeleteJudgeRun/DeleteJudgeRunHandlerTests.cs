@@ -61,6 +61,7 @@ public class DeleteJudgeRunHandlerTests
                     ProjectVersionId = _projectVersionId,
                     Name = "Collection",
                     CreatedAt = DateTime.UtcNow,
+                    IsEvaluation = true,
                 }
             );
         }
@@ -121,6 +122,7 @@ public class DeleteJudgeRunHandlerTests
                     ProjectVersionId = _projectVersionId,
                     Name = "Collection",
                     CreatedAt = DateTime.UtcNow,
+                    IsEvaluation = true,
                 }
             );
             seedContext.JudgeRuns.Add(CreateRun());
@@ -237,6 +239,7 @@ public class DeleteJudgeRunHandlerTests
                 ProjectVersionId = _projectVersionId,
                 Name = "Collection",
                 CreatedAt = DateTime.UtcNow,
+                IsEvaluation = true,
             }
         );
         seedContext.JudgeRuns.Add(CreateRun());

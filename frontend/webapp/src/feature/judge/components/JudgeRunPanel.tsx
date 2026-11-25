@@ -20,6 +20,8 @@ type Props = {
   readonly error: RunError | null;
   readonly projectId?: string;
   readonly versionId?: string;
+  readonly description?: string;
+  readonly template?: string;
   readonly onCollectionChange: (ids: string[]) => void;
   readonly selectedTemplates: JudgeTemplate[];
   readonly onEditTemplate: (templateId: string) => void;

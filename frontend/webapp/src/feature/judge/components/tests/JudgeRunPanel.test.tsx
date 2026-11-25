@@ -24,7 +24,7 @@ vi.mock('../TraceCollectionSelect.tsx', () => ({
 afterEach(cleanup);
 
 const templates: JudgeTemplate[] = [
-  { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false },
+  { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false, description: 'd1', template: 'prompt 1' },
 ];
 
 type Overrides = Partial<React.ComponentProps<typeof RunJudgePanel>>;
@@ -34,6 +34,8 @@ function renderPanel(overrides: Overrides = {}) {
     mode: 'testing' as const,
     onModeChange: vi.fn(),
     templates,
+    selectedTemplates: [] as JudgeTemplate[],
+    onEditTemplate: vi.fn(),
     onTemplateChange: vi.fn(),
     onCollectionChange: vi.fn(),
     onRun: vi.fn(),
@@ -92,4 +94,20 @@ describe('RunJudgePanel', () => {
     expect(screen.getByText('Request failed (500).')).toBeInTheDocument();
     expect(screen.getByText('{"detail":"boom"}')).toBeInTheDocument();
   });
+
+  it('shows a preview of the selected templates in testing mode', () => {
+  renderPanel({ selectedTemplates: templates });
+  expect(screen.getByText('Reliability')).toBeInTheDocument();
+});
+
+it('opens the editor for a template via its Edit button', () => {
+  const { onEditTemplate } = renderPanel({ selectedTemplates: templates });
+  fireEvent.click(screen.getByRole('button', { name: /edit/i }));
+  expect(onEditTemplate).toHaveBeenCalledWith('t1');
+});
+
+it('does not show the template preview in evaluation mode', () => {
+  renderPanel({ mode: 'run', selectedTemplates: templates });
+  expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+});
 });

@@ -19,6 +19,7 @@ const run: JudgeRunListItem = {
   trueCount: 2,
   falseCount: 1,
   failedCount: 0,
+  feedback: null,
 };
 
 const results: JudgeResult[] = [

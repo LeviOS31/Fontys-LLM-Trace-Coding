@@ -8,17 +8,17 @@ const update = vi.fn((_vars: unknown, opts?: Opts) => opts?.onSuccess?.());
 const restore = vi.fn((_vars: unknown, opts?: Opts) => opts?.onSuccess?.());
 const remove = vi.fn((_id: string, opts?: Opts) => opts?.onSuccess?.());
 
-vi.mock('../../judgeTemplate/hooks/useUpdateJudgeTemplate.ts', () => ({
+vi.mock('../../../judgeTemplate/hooks/useUpdateJudgeTemplate.ts', () => ({
   useUpdateJudgeTemplate: () => ({ mutate: update, isPending: false }),
 }));
-vi.mock('../../judgeTemplate/hooks/useRestoreJudgeTemplateVersion.ts', () => ({
+vi.mock('../../../judgeTemplate/hooks/useRestoreJudgeTemplateVersion.ts', () => ({
   useRestoreJudgeTemplateVersion: () => ({ mutate: restore, isPending: false }),
 }));
-vi.mock('../../judgeTemplate/hooks/useDeleteJudgeTemplate.ts', () => ({
+vi.mock('../../../judgeTemplate/hooks/useDeleteJudgeTemplate.ts', () => ({
   useDeleteJudgeTemplate: () => ({ mutate: remove }),
 }));
 // Stub the real modal: it only exposes the callbacks TemplateEditor wires up.
-vi.mock('../../judgeTemplate/components/EditJudgeTemplateModal.tsx', () => ({
+vi.mock('../../../judgeTemplate/components/EditJudgeTemplateModal.tsx', () => ({
   EditJudgeTemplateModal: (p: {
     template: { name: string };
     projectId: string;

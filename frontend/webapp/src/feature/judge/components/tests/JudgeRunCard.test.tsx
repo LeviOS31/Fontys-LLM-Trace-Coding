@@ -16,16 +16,23 @@ const run: JudgeRunListItem = {
   trueCount: 2,
   falseCount: 1,
   failedCount: 0,
+  feedback: null,
 };
 
 const renderCard = (
   overrides: Partial<JudgeRunListItem> = {},
   onSelect = vi.fn(),
-  onDelete = vi.fn().mockResolvedValue(true)
+  onDelete = vi.fn().mockResolvedValue(true),
+  onFeedback?: (judgeRunId: string, feedback: string) => Promise<boolean>
 ) => {
   render(
     <Theme>
-      <JudgeRunCard run={{ ...run, ...overrides }} onSelect={onSelect} onDelete={onDelete} />
+      <JudgeRunCard
+        run={{ ...run, ...overrides }}
+        onSelect={onSelect}
+        onDelete={onDelete}
+        onFeedback={onFeedback}
+      />
     </Theme>
   );
   return { onSelect, onDelete };
@@ -75,5 +82,45 @@ describe('JudgeRunCard', () => {
 
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith('run-1'));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  });
+
+  describe('feedback', () => {
+    it('has no Feedback button without onFeedback (evaluation mode)', () => {
+      renderCard();
+      expect(screen.queryByRole('button', { name: /feedback/i })).not.toBeInTheDocument();
+    });
+
+    it('shows a Feedback button with onFeedback (testing mode)', () => {
+      renderCard({}, vi.fn(), vi.fn(), vi.fn());
+      expect(screen.getByRole('button', { name: 'Feedback' })).toBeInTheDocument();
+    });
+
+    it('marks runs that already have feedback', () => {
+      renderCard({ feedback: 'Too strict' }, vi.fn(), vi.fn(), vi.fn());
+      expect(screen.getByRole('button', { name: /Feedback ✓/ })).toBeInTheDocument();
+    });
+
+    it('opens the modal prefilled with the existing feedback', async () => {
+      renderCard({ feedback: 'Too strict' }, vi.fn(), vi.fn(), vi.fn());
+      fireEvent.click(screen.getByRole('button', { name: /Feedback ✓/ }));
+      expect(await screen.findByRole('textbox')).toHaveValue('Too strict');
+    });
+
+    it('saves feedback for this run and closes the modal', async () => {
+      const onFeedback = vi.fn().mockResolvedValue(true);
+      renderCard({}, vi.fn(), vi.fn(), onFeedback);
+      fireEvent.click(screen.getByRole('button', { name: 'Feedback' }));
+      fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Needs work' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => expect(onFeedback).toHaveBeenCalledWith('run-1', 'Needs work'));
+      await waitFor(() => expect(screen.queryByRole('textbox')).not.toBeInTheDocument());
+    });
+
+    it('does not open the run when the Feedback button is clicked', () => {
+      const { onSelect } = renderCard({}, vi.fn(), vi.fn(), vi.fn());
+      fireEvent.click(screen.getByRole('button', { name: 'Feedback' }));
+      expect(onSelect).not.toHaveBeenCalled();
+    });
   });
 });

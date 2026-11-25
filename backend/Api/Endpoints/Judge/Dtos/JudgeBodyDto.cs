@@ -4,5 +4,6 @@ namespace Api.Endpoints.Judge.Dtos
     {
         public required List<Guid> JudgeTemplateIds { get; set; }
         public Guid[]? TraceCollectionIds { get; init; }
+        public Guid[]? RawLLMOutputIds { get; init; }
     }
 }

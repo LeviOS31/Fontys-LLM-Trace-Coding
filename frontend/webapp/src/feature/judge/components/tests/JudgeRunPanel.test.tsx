@@ -35,6 +35,8 @@ function renderPanel(overrides: Overrides = {}) {
     onModeChange: vi.fn(),
     templates,
     onTemplateChange: vi.fn(),
+    rawdatas: [],
+    onRawDataChange: vi.fn(),
     onCollectionChange: vi.fn(),
     onRun: vi.fn(),
     canRun: true,

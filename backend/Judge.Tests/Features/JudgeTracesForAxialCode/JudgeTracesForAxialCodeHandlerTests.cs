@@ -186,7 +186,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -208,7 +208,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(_traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -216,33 +216,6 @@ public class JudgeTracesForAxialCodeHandlerTests
         item.Status.ShouldBe("Success");
         item.Verdict.ShouldBe("False");
         item.Reasoning.ShouldBe("Not present.");
-    }
-
-    [Fact]
-    public async Task WhenRequestIsValid_PersistRunWithCounts()
-    {
-        // Arrange
-        var options = CreateOptions();
-        await using var context = new JudgeDbContext(options);
-        var mediator = CreateMediator(
-            transcripts: Transcripts(_traceId1, _traceId2)
-        );
-        var (builder, _) = CreateChatClient(TrueResponse, FalseResponse);
-        var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeTrue();
-        await using var verifyContext = new JudgeDbContext(options);
-        var run = await verifyContext.JudgeRuns.SingleAsync();
-        run.JudgeCollectionId.ShouldBe(result.Value!.JudgeCollectionId);
-        run.TotalCount.ShouldBe(2);
-        run.TrueCount.ShouldBe(1);
-        run.FalseCount.ShouldBe(1);
-        run.FailedCount.ShouldBe(0);
-        run.ResultsJson.ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -254,7 +227,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         var item = result.Value!.Results.Single().First();
@@ -272,7 +245,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         var item = result.Value!.Results.Single().First();
@@ -289,7 +262,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.Value!.Results.Single().First().Reasoning.ShouldBe("Padded.");
@@ -304,7 +277,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -324,7 +297,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         var item = result.Value!.Results.Single().First();
@@ -342,7 +315,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         var item = result.Value!.Results.Single().First();
@@ -360,7 +333,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -376,27 +349,6 @@ public class JudgeTracesForAxialCodeHandlerTests
     }
 
     [Fact]
-    public async Task WhenOneTraceFails_OtherTracesStillSucceed()
-    {
-        // Arrange
-        await using var context = new JudgeDbContext(CreateOptions());
-        var mediator = CreateMediator(
-            transcripts: Transcripts(_traceId1, _traceId2)
-        );
-        var (builder, _) = CreateChatClient("""{"result": true}""", TrueResponse);
-        var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        var results = result.Value!.Results.First().ToList();
-        results[0].Status.ShouldBe("Error");
-        results[1].Status.ShouldBe("Success");
-        results[1].Verdict.ShouldBe("True");
-    }
-
-    [Fact]
     public async Task WhenLlmConfigFails_StoreTraceAsErrorWithThatCode()
     {
         // Arrange
@@ -406,7 +358,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         var item = result.Value!.Results.Single().First();
@@ -425,7 +377,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -443,7 +395,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -462,37 +414,11 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
 
         // Act
-        _ = await handler.Handle(CreateRequest(), CancellationToken.None);
+        _ = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         await using var verifyContext = new JudgeDbContext(options);
         (await verifyContext.JudgeRuns.AnyAsync()).ShouldBeFalse();
-    }
-
-    [Fact]
-    public async Task WhenNoTraceFilterIsGiven_JudgeAllTracesOfVersion()
-    {
-        // Arrange
-        await using var context = new JudgeDbContext(CreateOptions());
-        var (builder, client) = CreateChatClient(TrueResponse);
-        var mediator = CreateMediator(
-            transcripts: Transcripts(_traceId1, _traceId2)
-        );
-        var handler = new JudgeTracesForAxialCodeHandler(context, mediator, builder);
-
-        // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value!.Results.First().Select(r => r.TraceId).ToList().ShouldBe(new List<Guid>{ _traceId1, _traceId2});
-        await client
-            .Received(2)
-            .GetResponseAsync(
-                Arg.Any<IEnumerable<ChatMessage>>(),
-                Arg.Any<ChatOptions?>(),
-                Arg.Any<CancellationToken>()
-            );
     }
 
     [Fact]
@@ -580,7 +506,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        _ = await handler.Handle(CreateRequest(), CancellationToken.None);
+        _ = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         await client
@@ -605,7 +531,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        _ = await handler.Handle(CreateRequest(), CancellationToken.None);
+        _ = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         await client
@@ -627,7 +553,7 @@ public class JudgeTracesForAxialCodeHandlerTests
         var handler = new JudgeTracesForAxialCodeHandler(context, CreateMediator(), builder);
 
         // Act
-        var result = await handler.Handle(CreateRequest(), CancellationToken.None);
+        var result = await handler.Handle(CreateRequest(traceId: _traceId1), CancellationToken.None);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();

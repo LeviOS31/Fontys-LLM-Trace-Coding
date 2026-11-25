@@ -5,12 +5,16 @@ import JudgeTemplateSelect from './JudgeTemplateSelect';
 import TraceCollectionSelect from './TraceCollectionSelect';
 import { colors } from '../../../shared/styling/colors';
 import styles from './JudgeRunPanel.module.css';
+import RawDataSelect from './RawdataSelect';
+import type { RawData } from '../hooks/rawDataUtils';
 
 export type JudgeMode = 'testing' | 'run';
 
 type Props = {
   readonly templates: JudgeTemplate[];
   readonly onTemplateChange: (ids: string[]) => void;
+  readonly rawdatas: RawData[];
+  readonly onRawDataChange: (ids: string[]) => void;
   readonly mode: JudgeMode;
   readonly onModeChange: (mode: JudgeMode) => void;
   readonly onRun: () => void;
@@ -27,6 +31,7 @@ export default function RunJudgePanel({
   onTemplateChange,
   mode,
   onModeChange,
+  onRawDataChange,
   onRun,
   canRun,
   loading,
@@ -68,6 +73,14 @@ export default function RunJudgePanel({
                 <JudgeTemplateSelect
                   templates={templates}
                   onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
+                />
+              </div>
+            ) || (
+              <div style={{ gridArea: '1 / 1' }}>
+                <RawDataSelect
+                  projectId={projectId}
+                  versionId={versionId}
+                  onChange={onRawDataChange}
                 />
               </div>
             )}

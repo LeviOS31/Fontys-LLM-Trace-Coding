@@ -12,6 +12,7 @@ public record JudgeTracesForAxialCodeRequest : IRequest<Result<JudgeTracesForAxi
     public required Guid UserId { get; init; }
     public Guid? TraceCollectionId { get; init; }
     public Guid[]? TraceCollectionIds { get; init; }
+    public Guid[]? RawLLMOutputIds { get; init; }
     public Guid? TraceId { get; init; }
 }
 

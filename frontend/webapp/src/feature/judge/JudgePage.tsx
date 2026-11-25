@@ -17,6 +17,7 @@ import {
   type JudgeTemplate,
   type RunError,
 } from './hooks/judgeUtils';
+import type { RawData } from './hooks/rawDataUtils';
 
 type PageParams = { id: string; versionId: string };
 type CollectionListResponse = { judgeCollections: JudgeCollection[] };
@@ -38,6 +39,9 @@ export default function JudgePage() {
   const [templateIds, setTemplateIds] = useState<string[]>([]);
   const [mode, setMode] = useState<JudgeMode>('run');
   const [selectedTraceCollectionIds, setSelectedTraceCollectionIds] = useState<string[]>([]);
+
+  const [rawdatas] = useState<RawData[]>([]);
+  const [rawDataIds, setRawDataIds] = useState<string[]>([]);
 
   const [collections, setCollections] = useState<JudgeCollection[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
@@ -169,6 +173,7 @@ export default function JudgePage() {
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load run (${res.status})`);
         const data: { results: JudgeResult[] } = await res.json();
+        console.log('Fetched results:', data.results);
         setResults(data.results);
       })
       .catch((err) => {
@@ -207,7 +212,7 @@ export default function JudgePage() {
     setRunning(true);
     setError(null);
 
-    //const axialCodeIds = selectedTemplates.map((template) => template.axialCodeId);
+    console.log("selected raw data files: ", rawDataIds);
 
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
@@ -216,6 +221,7 @@ export default function JudgePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           judgeTemplateIds: selectedTemplates.map((template) => template.id),
+          RawLLMOutputIds: rawDataIds,
           traceCollectionIds: selectedTraceCollectionIds,
         }),
       });
@@ -344,9 +350,11 @@ export default function JudgePage() {
         versionId={versionId}
         onCollectionChange={setSelectedTraceCollectionIds}
         onRun={runJudge}
-        canRun={!running && selectedTemplates.length > 0 && selectedTraceCollectionIds.length > 0}
+        canRun={!running && selectedTemplates.length > 0 && (selectedTraceCollectionIds.length > 0 || rawDataIds.length > 0)}
         loading={running}
         error={error}
+        rawdatas={rawdatas}
+        onRawDataChange={setRawDataIds}
       />
 
       {selectedRun && selectedCollection ? (

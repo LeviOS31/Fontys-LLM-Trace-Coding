@@ -14,6 +14,7 @@
     <ProjectReference Include="..\AxialCodes.Contracts\AxialCodes.Contracts.csproj" />
     <ProjectReference Include="..\JudgeTemplates.Contracts\JudgeTemplates.Contracts.csproj" />
     <ProjectReference Include="..\Projects.Contracts\Projects.Contracts.csproj" />
+    <ProjectReference Include="..\RawLLMOutputs.Contracts\RawLLMOutputs.Contracts.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
     <ProjectReference Include="..\Traces.Contracts\Traces.Contracts.csproj" />
     <ProjectReference Include="..\Settings.Contracts\Settings.Contracts.csproj" />

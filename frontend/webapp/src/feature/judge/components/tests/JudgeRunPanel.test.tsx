@@ -37,6 +37,8 @@ function renderPanel(overrides: Overrides = {}) {
     selectedTemplates: [] as JudgeTemplate[],
     onEditTemplate: vi.fn(),
     onTemplateChange: vi.fn(),
+    rawdatas: [],
+    onRawDataChange: vi.fn(),
     onCollectionChange: vi.fn(),
     onRun: vi.fn(),
     canRun: true,

@@ -1,14 +1,16 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Judge.Data;
 using Judge.Data.Models;
 using JudgeTemplates.Contracts.Features.InternalGetJudgeTemplates;
 using Mediator;
 using Microsoft.Extensions.AI;
+using RawLLMOutputs.Contracts.Features.GetRawLLMOutput;
+using RawLLMOutputs.Contracts.Features.GetRawLLMOutputs;
 using Serilog;
 using Settings.Contracts.Features.GetLlmConfig;
 using Shared;
 using Shared.Interfaces;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Traces.Contracts.Features.InternalGetTraceTranscripts;
 
 namespace Judge.Features.JudgeTracesForAxialCode;
@@ -62,7 +64,7 @@ public class JudgeTracesForAxialCodeHandler
             return templateResult.ErrorCode!.Value;
         }
 
-        // 3. Trace transcripts
+        // 3. Trace transcripts & Raw LLM outputs
         var transcriptsResult = await _mediator.Send(
             new InternalGetTraceTranscriptsRequest
             {
@@ -80,15 +82,35 @@ public class JudgeTracesForAxialCodeHandler
             return transcriptsResult.ErrorCode!.Value;
         }
 
-        var transcripts = transcriptsResult.Value.Transcripts.ToList();
+        var transcripts = transcriptsResult.Value.Transcripts;
 
         var tracesToJudge = request.TraceId.HasValue
             ? transcripts.Where(t => t.TraceId == request.TraceId.Value).ToList()
             : request.TraceCollectionId.HasValue || request.TraceCollectionIds is { Length: > 0 }
                 ? transcripts
-                : transcripts;
+                : new List<TraceTranscriptViewModel>();
 
-        if (request.TraceId.HasValue && tracesToJudge.Count != 1)
+        var rawDataToJudgeList = new List<GetRawLLMOutputResponse>();
+
+        if (request.RawLLMOutputIds != null && request.RawLLMOutputIds.Length > 0)
+        {
+            var rawDataToJudge = await _mediator.Send(
+                new GetRawLLMOutputsRequest
+                {
+                    RawLLMOutputIds = request.RawLLMOutputIds,
+                },
+                cancellationToken
+            );
+
+            if (rawDataToJudge.IsError)
+            {
+                return rawDataToJudge.ErrorCode!.Value;
+            }
+
+            rawDataToJudgeList = rawDataToJudge.Value.RawLLMOutputs;
+        }
+
+        if (tracesToJudge.Count() < 1 && rawDataToJudgeList.Count() < 1)
         {
             return ErrorCode.EntityNotFound;
         }
@@ -115,6 +137,31 @@ public class JudgeTracesForAxialCodeHandler
                         Verdict = result.IsError ? null : (result.Value.Result ? "True" : "False"),
                         Reasoning = result.IsError ? null : result.Value.Reasoning,
                         Error = result.IsError ? result.ErrorCode!.Value.ToString() : null,
+                        JudgingTrace = true
+                    }
+                );
+            }
+
+
+            foreach (var rawdata in rawDataToJudgeList)
+            {
+                var result = await JudgeSingleTraceAsync(
+                    request.UserId,
+                    judge.Content,
+                    rawdata.Output,
+                    cancellationToken
+                );
+
+                results.Add(
+                    new TraceJudgeResultViewModel
+                    {
+                        TraceId = rawdata.RawLLMOutputId,
+                        JudgeTemplateId = judge.JudgeTemplateId,
+                        Status = result.IsError ? "Error" : "Success",
+                        Verdict = result.IsError ? null : (result.Value.Result ? "True" : "False"),
+                        Reasoning = result.IsError ? null : result.Value.Reasoning,
+                        Error = result.IsError ? result.ErrorCode!.Value.ToString() : null,
+                        JudgingTrace = false
                     }
                 );
             }

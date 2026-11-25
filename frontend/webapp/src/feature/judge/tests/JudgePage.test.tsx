@@ -345,6 +345,7 @@ describe('JudgePage', () => {
       judgeTemplateIds: ['t1', 't2'],
       traceCollectionIds: ['trace-c1', 'trace-c2'],
       isEvaluation: true,
+      RawLLMOutputIds: [],
     });
   });
 

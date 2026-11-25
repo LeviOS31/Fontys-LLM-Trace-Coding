@@ -20,6 +20,7 @@ export type JudgeResult = {
   verdict: string | null;
   reasoning: string | null;
   error: string | null;
+  judgingTrace: boolean; //true if trace is judged, false if raw LLM output is judged
 };
 
 // Response of the POST that runs the judge.

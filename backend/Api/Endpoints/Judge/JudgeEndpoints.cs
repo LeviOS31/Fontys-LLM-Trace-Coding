@@ -34,6 +34,7 @@ public static class JudgeEndpoints
                         JudgeTemplateIds = body.JudgeTemplateIds,
                         TraceCollectionIds = body.TraceCollectionIds,
                         IsEvaluation = body.IsEvaluation,
+                        RawLLMOutputIds = body.RawLLMOutputIds,
                     };
                     var result = await mediator.Send(request);
 

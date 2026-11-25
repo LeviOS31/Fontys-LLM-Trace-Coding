@@ -1,4 +1,4 @@
-import { Badge, Box, Callout, Card, Code, Flex, Text } from '@radix-ui/themes';
+import { Badge, Box, Callout, Card, Flex, Text } from '@radix-ui/themes';
 import { AlertCircle } from 'lucide-react';
 import { isOk, isTrue, type JudgeResult } from '../hooks/judgeUtils';
 
@@ -21,9 +21,17 @@ export default function ResultCard({
           <Flex align="start" justify="between" gap="3" wrap="wrap">
             <Box>
               <Text as="p" size="1" color="gray">
-                Trace
+                {result.judgingTrace ? 'Trace' : 'Raw LLM output'}
               </Text>
-              <Code size="2">{result.traceId}</Code>
+              <p
+                style={{
+                  backgroundColor: result.judgingTrace ? 'var(--green-3)' : 'var(--blue-3)',
+                  color: result.judgingTrace ? 'var(--green-11)' : 'var(--blue-11)',
+                  fontSize: '0.75em',
+                  padding: '0',
+                  margin: '0',
+                }}
+              >{result.traceId}</p>
             </Box>
             <Flex gap="2">
               <Badge color={isTrue(result) ? 'green' : 'red'} variant="soft" size="2">

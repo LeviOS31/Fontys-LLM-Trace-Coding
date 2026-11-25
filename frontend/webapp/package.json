@@ -13,7 +13,7 @@
     "test:watch": "vitest --watch",
     "visual:test": "cypress run --env skipDockerReset=true,skipDbReset=true --spec cypress/e2e/visual-regression.cy.ts",
     "visual:update": "cypress run --env skipDockerReset=true,skipDbReset=true,updateVisualBaselines=true --spec cypress/e2e/visual-regression.cy.ts",
-    "lighthouse": "lhci autorun --config=./lighthouserc.json",
+    "lighthouse": "node --env-file-if-exists=.env.lighthouse.local ./node_modules/@lhci/cli/src/cli.js autorun --config=./lighthouserc.json",
     "prettier": "prettier . --write",
     "prettier:check": "prettier . --check",
     "docker:up": "docker compose --env-file ../../.env -f ../../backend/Dbcompose.yaml up -d",

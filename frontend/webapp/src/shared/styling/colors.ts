@@ -1,4 +1,4 @@
-import { jade } from '@radix-ui/colors';
+import { jade, purple} from '@radix-ui/colors';
 
 export const colors = {
   theme: {
@@ -6,6 +6,7 @@ export const colors = {
       primary: 'jade',
       gray: 'gray',
       primaryScale: jade,
+      testing: purple,
     },
   },
 } as const;

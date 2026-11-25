@@ -63,7 +63,7 @@ export default function Judgerawdataselect({ projectId, versionId, onChange }: P
 
   const triggerLabel =
     selectedIds.length === 0
-      ? 'Select Raw data'
+      ? 'Select raw llm data'
       : selectedIds.length === 1
         ? (rawdatas.find((t) => t.rawLLMOutputId === selectedIds[0])?.name ?? '1 selected')
         : `${selectedIds.length} Raw data selected`;

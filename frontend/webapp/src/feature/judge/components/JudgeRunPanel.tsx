@@ -1,5 +1,5 @@
 import { Box, Button, Callout, Flex, SegmentedControl, Spinner, Text } from '@radix-ui/themes';
-import { AlertCircle, Gavel } from 'lucide-react';
+import { AlertCircle, FlaskConical, Gavel } from 'lucide-react';
 import type { JudgeTemplate, RunError } from '../hooks/judgeUtils';
 import JudgeTemplateSelect from './JudgeTemplateSelect';
 import TraceCollectionSelect from './TraceCollectionSelect';
@@ -50,8 +50,8 @@ export default function RunJudgePanel({
   return (
     <Box
       style={{
-        background: `var(--${colors.theme.radix.primary}-2)`,
-        border: `1px solid var(--${colors.theme.radix.primary}-6)`,
+        background: mode === 'run' ? `var(--${colors.theme.radix.primary}-2)` : `var(--purple-2)`,
+        border:  mode === 'run' ? `1px solid var(--${colors.theme.radix.primary}-6)` : `1px solid var(--purple-6)`,
         borderRadius: 'var(--radius-3)',
         padding: '14px 18px',
       }}
@@ -66,7 +66,10 @@ export default function RunJudgePanel({
           <SegmentedControl.Root
             className={styles.modeToggle}
             value={mode}
-            onValueChange={(v) => onModeChange(v as JudgeMode)}
+            onValueChange={(v) => {
+              console.log('SegmentedControl value:', v, 'Current mode prop:', mode);
+              onModeChange(v as JudgeMode);
+            }}
             radius="full"
             style={{ alignSelf: 'flex-start' }}
           >
@@ -110,9 +113,13 @@ export default function RunJudgePanel({
             </Text>
           )}
 
-          <Button type="submit" disabled={!canRun}>
-            {loading ? <Spinner /> : <Gavel size={16} />}
-            {loading ? 'Running judge' : 'Run judge'}
+          <Button
+            type="submit"
+            disabled={!canRun}
+            className={mode === 'run' ? styles.runButton : styles.testingButton}
+          >
+            {loading ? <Spinner /> : mode === 'run' ? <Gavel size={16} /> : <FlaskConical size={16} />}
+            {loading ? 'Running judge' : mode === 'run' ? 'Run judge' : 'Test judge'}
           </Button>
 
           {error && (

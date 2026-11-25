@@ -20,9 +20,9 @@ beforeAll(() => {
 afterEach(cleanup);
 
 const templates: JudgeTemplate[] = [
-  { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false },
-  { id: 't2', axialCodeId: 'a2', name: 'Latency', isDeprecated: false },
-  { id: 't3', axialCodeId: 'a3', name: 'Relevance', isDeprecated: false },
+  { id: 't1', axialCodeId: 'a1', name: 'Reliability', isDeprecated: false, description: 'd1', template: 'prompt 1' },
+  { id: 't2', axialCodeId: 'a2', name: 'Latency', isDeprecated: false, description: 'd2', template: 'prompt 2' },
+  { id: 't3', axialCodeId: 'a3', name: 'Relevance', isDeprecated: false, description: 'd3', template: 'prompt 3' },
 ];
 
 function renderSelect(list: JudgeTemplate[] = templates) {

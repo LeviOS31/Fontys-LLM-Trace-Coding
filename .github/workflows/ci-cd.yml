@@ -267,6 +267,15 @@ jobs:
                 interval: 5s
                 timeout: 5s
                 retries: 10
+            ollama:
+              image: ollama/ollama:latest
+              volumes:
+                - k6_ollama_data:/root/.ollama
+              healthcheck:
+                test: ["CMD", "ollama", "list"]
+                interval: 5s
+                timeout: 5s
+                retries: 30
             migrator:
               build:
                 cache_from:
@@ -280,12 +289,30 @@ jobs:
                   - type=gha,scope=backend
               extra_hosts:
                 - "host.docker.internal:host-gateway"
+              environment:
+                AI__Ollama__Endpoint: http://ollama:11434/
+                AI__Ollama__Model: qwen2.5:3b
               depends_on:
                 db:
                   condition: service_healthy
                 migrator:
                   condition: service_completed_successfully
+                ollama:
+                  condition: service_healthy
+          volumes:
+            k6_ollama_data:
           EOF
+
+      - name: Start Ollama and pull the k6 model
+        run: |
+          docker compose -f docker-compose.yaml -f docker-compose.k6.yml up -d ollama
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.yaml -f docker-compose.k6.yml exec -T ollama ollama list; then
+              break
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.yaml -f docker-compose.k6.yml exec -T ollama ollama pull qwen2.5:3b
 
       - name: Start backend stack
         env:
@@ -310,6 +337,11 @@ jobs:
         run: k6 run --summary-export backend/k6/summary.json backend/k6/api.js
         env:
           K6_BASE_URL: http://localhost:8080
+          K6_LLM_PROVIDER: ollama
+          K6_LLM_ENDPOINT: http://ollama:11434/
+          K6_LLM_MODEL: qwen2.5:3b
+          K6_TEST_SETTINGS_WRITE: "true"
+          K6_COVERAGE_VUS: "1"
 
       - name: Add k6 results to workflow summary
         if: always() && hashFiles('backend/k6/summary.md') != ''

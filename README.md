@@ -278,7 +278,7 @@ Run from `frontend/webapp/`.
 | `npm run lint:fix`       | ESLint with `--fix` (auto-fix)                                       |
 | `npm run test`           | Run Vitest unit tests                                                |
 | `npm run test:watch`     | Run Vitest in watch mode                                             |
-| `npm run lighthouse`     | Run Lighthouse CI audits against the frontend routes                |
+| `npm run lighthouse`     | Run Lighthouse CI audits against the frontend routes                 |
 | `npm run prettier`       | Format the project with Prettier (`--write`)                         |
 | `npm run prettier:check` | Check formatting without writing (used in CI)                        |
 | `npm run docker:up`      | Start Postgres + MigrationRunner via `backend/Dbcompose.yaml`        |
@@ -466,13 +466,13 @@ Per the PR template, every PR must include unit tests for changed business logic
 
 ## 11. Testing ([ADR-020](docs/ADR/ADR-020-testing-strategy.md))
 
-| Layer         | Stack                            | How to run                                                       |
-| ------------- | -------------------------------- | ---------------------------------------------------------------- |
-| Backend unit  | xUnit + NSubstitute + Shouldly   | `dotnet test backend/LlmTracing.sln`                             |
-| Frontend unit | Vitest + Testing Library (jsdom) | `npm run test`                                                   |
-| E2E           | Cypress                          | `npx cypress open` / `npx cypress run` (from `frontend/webapp/`) |
+| Layer                | Stack                            | How to run                                                       |
+| -------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| Backend unit         | xUnit + NSubstitute + Shouldly   | `dotnet test backend/LlmTracing.sln`                             |
+| Frontend unit        | Vitest + Testing Library (jsdom) | `npm run test`                                                   |
+| E2E                  | Cypress                          | `npx cypress open` / `npx cypress run` (from `frontend/webapp/`) |
 | Frontend performance | Lighthouse CI                    | `npm run lighthouse` (from `frontend/webapp/`)                   |
-| Backend performance | k6                               | `k6 run backend/k6/api.js` (from the repository root)             |
+| Backend performance  | k6                               | `k6 run backend/k6/api.js` (from the repository root)            |
 
 **Cypress** resets and seeds the database before each run via Docker. `cypress.config.ts` runs `npm run docker:reset` on `before:run`, then registers `task` hooks (`resetDb`, `seedProjects`, `seedTraces`, …) that talk to Postgres directly. Requirements:
 
@@ -481,7 +481,9 @@ Per the PR template, every PR must include unit tests for changed business logic
 
 The Lighthouse audit covers the app routes listed in `frontend/webapp/lighthouserc.json`. It collects three runs per route, saves detailed Lighthouse result files under `frontend/webapp/.lighthouseci`, and applies warning budgets to Core Web Vitals and related timing metrics. Category score thresholds remain CI-failing checks. GitHub Actions uploads the reports as the `lighthouse-reports` artifact on Lighthouse runs. Running it locally requires Chrome or Chromium.
 
-The k6 backend load test sends read-only requests to `GET /v1/projects` for one minute with 10 virtual users by default. It requires the backend and its migrated database to be running at `http://localhost:8080`; override the target with `K6_BASE_URL`, and workload with `K6_VUS` or `K6_DURATION`. The test requires a 200 response, a 95th-percentile response time below 500 ms, and fewer than 1% failed requests. CI runs it in a separate `Backend k6 load test` job on pushes to `develop` and manual pre-release runs. It adds a threshold table to the job summary and uploads a readable HTML report plus the raw JSON summary as the `backend-k6-report` artifact.
+The backend k6 job covers all 51 API operations currently mapped by the backend, grouped by feature in its report. It runs one CRUD journey against a project/version it creates and deletes, including trace import, coding, judge-template, judge, statistics, settings, and LLM-backed operations. A separate one-minute load scenario sends read-only requests to `GET /v1/projects` with 10 virtual users by default. The projects-list load p95 target is 500 ms; all API checks must pass and fewer than 1% of requests may fail. Per-operation fastest, average, p95, and slowest response times are included in the HTML report and workflow summary.
+
+Run k6 against a disposable database because the feature journey creates and deletes records. LLM-backed operations require a reachable configured model; adjust `K6_LLM_PROVIDER`, `K6_LLM_ENDPOINT`, and `K6_LLM_MODEL` for the backend's model service. The settings-update operation is opt-in locally via `K6_TEST_SETTINGS_WRITE=true` because it changes the configured model for the hardcoded test user; CI enables it only against its disposable stack. `K6_BASE_URL` sets the API address, `K6_LOAD_VUS`/`K6_LOAD_DURATION` control the read-only load, and `K6_COVERAGE_VUS` controls concurrent feature journeys. CI runs this as a separate `Backend k6 load test` job on pushes to `develop` and manual pre-release runs, uses a disposable Ollama service for model-backed requests, adds the Markdown report to the job summary, and uploads the HTML and raw JSON summaries as the `backend-k6-report` artifact.
 
 **Coverage / integration tests:** there is no dedicated coverage threshold or separate integration-test suite configured in the repo. Add this if required — it needs developer input.
 

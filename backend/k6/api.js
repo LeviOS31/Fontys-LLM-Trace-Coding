@@ -1,7 +1,10 @@
 import http from 'k6/http';
 import { check } from 'k6';
+import { Counter, Trend } from 'k6/metrics';
 
 const baseUrl = (__ENV.K6_BASE_URL || 'http://localhost:8080').replace(/\/+$/, '');
+const projectsRequestCount = new Counter('projects_request_count');
+const projectsResponseTime = new Trend('projects_response_time', true);
 const thresholds = {
   checks: 0.99,
   failedRequests: 0.01,
@@ -22,6 +25,8 @@ export default function () {
   const response = http.get(`${baseUrl}/v1/projects`, {
     tags: { name: 'GET /v1/projects' },
   });
+  projectsRequestCount.add(1);
+  projectsResponseTime.add(response.timings.duration);
 
   check(response, {
     'GET /v1/projects returns HTTP 200': (result) => result.status === 200,
@@ -62,6 +67,16 @@ function buildReport(data) {
   const requests = getMetricValue(data, 'http_reqs', 'count');
   const requestsPerSecond = getMetricValue(data, 'http_reqs', 'rate');
   const virtualUsers = getMetricValue(data, 'vus_max', 'value') ?? getMetricValue(data, 'vus', 'max');
+  const endpoints = [
+    { name: 'GET /v1/projects', metricName: 'projects_response_time' },
+  ].map((endpoint) => ({
+    name: endpoint.name,
+    requests: getMetricValue(data, 'projects_request_count', 'count'),
+    fastest: getMetricValue(data, endpoint.metricName, 'min'),
+    average: getMetricValue(data, endpoint.metricName, 'avg'),
+    p95: getMetricValue(data, endpoint.metricName, 'p(95)'),
+    slowest: getMetricValue(data, endpoint.metricName, 'max'),
+  }));
   const rows = [
     {
       metric: 'HTTP checks passed',
@@ -92,8 +107,13 @@ function buildReport(data) {
     requests,
     requestsPerSecond,
     virtualUsers,
+    endpoints,
     passed: rows.every((row) => row.passed),
   };
+}
+
+function formatDuration(value) {
+  return value === null ? 'N/A' : `${formatNumber(value)} ms`;
 }
 
 function toMarkdown(report) {
@@ -101,9 +121,24 @@ function toMarkdown(report) {
   const rows = report.rows
     .map((row) => `| ${row.metric} | ${row.value} | ${row.target} | ${row.passed ? 'PASS' : 'FAIL'} |`)
     .join('\n');
+  const endpointRows = report.endpoints
+    .map(
+      (endpoint) =>
+        `| ${endpoint.name} | ${formatNumber(endpoint.requests, 0)} | ${formatDuration(endpoint.fastest)} | ` +
+        `${formatDuration(endpoint.average)} | ${formatDuration(endpoint.p95)} | ${formatDuration(endpoint.slowest)} |`
+    )
+    .join('\n');
 
   return [
     `## Backend load test (k6): ${status}`,
+    '',
+    '### Response time by endpoint',
+    '',
+    '| Endpoint | Requests | Fastest | Average | p95 | Slowest |',
+    '| --- | ---: | ---: | ---: | ---: | ---: |',
+    endpointRows,
+    '',
+    '### Thresholds',
     '',
     '| Metric | Result | Target | Status |',
     '| --- | ---: | ---: | :---: |',
@@ -123,6 +158,14 @@ function toHtml(report) {
       (row) =>
         `<tr><th scope="row">${escapeHtml(row.metric)}</th><td>${escapeHtml(row.value)}</td>` +
         `<td>${escapeHtml(row.target)}</td><td class="${row.passed ? 'passed' : 'failed'}">${row.passed ? 'Pass' : 'Fail'}</td></tr>`
+    )
+    .join('');
+  const endpointRows = report.endpoints
+    .map(
+      (endpoint) =>
+        `<tr><th scope="row">${escapeHtml(endpoint.name)}</th><td>${formatNumber(endpoint.requests, 0)}</td>` +
+        `<td>${formatDuration(endpoint.fastest)}</td><td>${formatDuration(endpoint.average)}</td>` +
+        `<td>${formatDuration(endpoint.p95)}</td><td>${formatDuration(endpoint.slowest)}</td></tr>`
     )
     .join('');
 
@@ -159,6 +202,13 @@ function toHtml(report) {
       <div class="stat"><strong>${formatNumber(report.virtualUsers, 0)}</strong><span>Peak virtual users</span></div>
     </div>
   </header>
+  <section>
+    <h2>Response time by endpoint</h2>
+    <table>
+      <thead><tr><th scope="col">Endpoint</th><th scope="col">Requests</th><th scope="col">Fastest</th><th scope="col">Average</th><th scope="col">p95</th><th scope="col">Slowest</th></tr></thead>
+      <tbody>${endpointRows}</tbody>
+    </table>
+  </section>
   <section>
     <h2>Thresholds</h2>
     <table>

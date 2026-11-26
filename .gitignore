@@ -756,6 +756,8 @@ frontend/webapp/cypress/screenshots
 frontend/webapp/cypress/visual-diffs
 frontend/webapp/.lighthouseci
 backend/k6/summary.json
+backend/k6/summary.html
+backend/k6/summary.md
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/

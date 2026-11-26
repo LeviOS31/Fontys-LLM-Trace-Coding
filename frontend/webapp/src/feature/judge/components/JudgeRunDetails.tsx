@@ -11,6 +11,8 @@ import {
 import ResultCard from './ResultCard';
 import { SectionHead, SummaryStat } from './Primitives';
 import JudgeTraceDialog from './JudgeTraceDialog';
+import JudgeEvaluation from './JudgeEvalutation';
+import styles from './JudgeRunPanel.module.css';
 
 type View = 'formatted' | 'raw';
 
@@ -21,6 +23,7 @@ type Props = {
   readonly results: JudgeResult[] | null;
   readonly resultsLoading: boolean;
   readonly onBack: () => void;
+  readonly evaluating: boolean;
 };
 
 export default function JudgeRunDetails({
@@ -30,10 +33,12 @@ export default function JudgeRunDetails({
   results,
   resultsLoading,
   onBack,
+  evaluating,
 }: Props) {
   const [view, setView] = useState<View>('formatted');
   const [copied, setCopied] = useState(false);
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
+  const [evaluatingResults, setEvaluatingResults] = useState(false);
 
   const stats = statsFromCounts(run);
   const rawJson = JSON.stringify({ judgeRunId: run.judgeRunId, results }, null, 2);
@@ -61,13 +66,32 @@ export default function JudgeRunDetails({
         <Text as="p" size="5" weight="bold" mt="3">
           {run.name ?? 'Judge run'}
         </Text>
-        <Flex align="center" gap="3" mt="1" wrap="wrap">
-          <Text size="2" color="gray">
+        <Flex align="center" justify="between" gap="3" mt="1" wrap="wrap">
+          <div>
+          <Text size="2" color="gray"
+          style={{
+            marginRight: '10px',
+          }}>
             {formatDate(run.createdAt)}
           </Text>
           <Code size="1" color="gray" variant="ghost">
             {run.judgeRunId}
           </Code>
+          </div>
+          {
+            evaluating ?
+            <Button
+              className={styles.testingButton}
+              onClick={() => setEvaluatingResults((current) => !current)}
+              disabled={!results?.length}
+              style={{
+                alignSelf: 'flex-start',
+              }}
+            >
+              {evaluatingResults ? 'back to results' : 'evaluate results'}
+            </Button>
+            : null
+          }
         </Flex>
       </Box>
 
@@ -116,7 +140,15 @@ export default function JudgeRunDetails({
           </Flex>
         </Flex>
 
-        {resultsLoading || !results ? (
+        {evaluatingResults && results ? (
+          <JudgeEvaluation
+            key={run.judgeRunId}
+            projectId={projectId}
+            versionId={versionId}
+            results={results}
+            onClose={() => setEvaluatingResults(false)}
+          />
+        ) : resultsLoading || !results ? (
           <Text as="p" size="2" color="gray">
             Loading results…
           </Text>

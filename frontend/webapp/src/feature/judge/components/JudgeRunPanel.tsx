@@ -50,8 +50,8 @@ export default function RunJudgePanel({
   return (
     <Box
       style={{
-        background: mode === 'run' ? `var(--${colors.theme.radix.primary}-2)` : `var(--purple-2)`,
-        border:  mode === 'run' ? `1px solid var(--${colors.theme.radix.primary}-6)` : `1px solid var(--purple-6)`,
+        background: mode === 'run' ? `var(--${colors.theme.radix.primary}-2)` : `var(--blue-2)`,
+        border:  mode === 'run' ? `1px solid var(--${colors.theme.radix.primary}-6)` : `1px solid var(--blue-6)`,
         borderRadius: 'var(--radius-3)',
         padding: '14px 18px',
       }}

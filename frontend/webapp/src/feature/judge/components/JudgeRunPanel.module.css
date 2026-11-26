@@ -10,11 +10,11 @@
 }
 
 .testingButton:not(:disabled) {
-  background-color: var(--purple-9);
+  background-color: var(--blue-9);
   color: white;
   transition: background-color 120ms ease;
 }
 
 .testingButton:not(:disabled):hover {
-  background-color: var(--purple-10);
+  background-color: var(--blue-10);
 }

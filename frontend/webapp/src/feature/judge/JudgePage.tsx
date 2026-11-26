@@ -401,6 +401,7 @@ export default function JudgePage() {
           results={results}
           resultsLoading={resultsLoading}
           onBack={() => setSelectedRunId(null)}
+          evaluating={mode === 'testing'}
         />
       ) : selectedCollection ? (
         <JudgeOverview

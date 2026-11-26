@@ -51,6 +51,7 @@ function renderDetails(overrides: Overrides = {}) {
     results,
     resultsLoading: false,
     onBack: vi.fn(),
+    evaluating: false,
     ...overrides,
   };
   render(

@@ -1,0 +1,9 @@
+.testingButton:not(:disabled) {
+    background-color: var(--blue-9);
+    color: white;
+    transition: background-color 120ms ease;
+}
+
+.testingButton:not(:disabled):hover {
+    background-color: var(--blue-10);
+}

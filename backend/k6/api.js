@@ -1,5 +1,6 @@
 import http from "k6/http";
 import { check } from "k6";
+import { Counter, Trend } from "k6/metrics";
 
 const baseUrl = (__ENV.K6_BASE_URL || "http://localhost:8080").replace(
   /\/+$/,

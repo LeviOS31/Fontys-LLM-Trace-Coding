@@ -1019,6 +1019,7 @@ function buildReport(data) {
     requests,
     requestsPerSecond,
     virtualUsers,
+    endpoints,
     passed: rows.every((row) => row.passed),
   };
 }

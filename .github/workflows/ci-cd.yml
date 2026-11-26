@@ -10,11 +10,11 @@ name: CI/CD
 #                           selected E2E tests with visual regression
 #                           (smoke-test job)
 #   Before a release     manual run with "run_full_browser_suite" ticked
-#                        -> full Cypress suite, Lighthouse performance audit,
-#                           reminder for the manual accessibility review
+#                        -> full Cypress suite, Lighthouse and k6 performance
+#                           audits, reminder for the manual accessibility review
 #
 # Pushes to main and develop (i.e. merged PRs) also run everything a PR does,
-# plus the Lighthouse audit on develop. Only pushes to main deploy.
+# plus the Lighthouse and k6 audits on develop. Only pushes to main deploy.
 on:
   push:
     branches: ["**"]
@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       run_full_browser_suite:
-        description: "Pre-release checks: full Cypress suite and Lighthouse performance audit"
+        description: "Pre-release checks: full browser suite and performance audits"
         type: boolean
         default: false
         required: false
@@ -199,7 +199,7 @@ jobs:
   frontend-lighthouse:
     name: Frontend Lighthouse audits
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: [frontend-build]
     # Performance audit: after merges into develop, and on a manual
     # pre-release run with the box ticked.
@@ -404,6 +404,16 @@ jobs:
           echo "Backend did not become ready in time"
           exit 1
 
+      - name: Setup k6
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run backend k6 load test
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
+        run: k6 run --summary-export backend/k6/summary.json backend/k6/api.js
+        env:
+          K6_BASE_URL: http://localhost:8080
+
       - name: Wait for frontend to respond
         run: |
           for i in $(seq 1 15); do
@@ -416,6 +426,15 @@ jobs:
           done
           echo "Frontend did not become ready in time"
           exit 1
+
+      - name: Upload backend k6 report
+        if: always() && ((github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite))
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-k6-report
+          path: backend/k6/summary.json
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Run selected LLM and trace-group E2E tests
         run: npx cypress run --browser electron --spec "cypress/e2e/llm-content.cy.ts,cypress/e2e/trace-group.cy.ts"

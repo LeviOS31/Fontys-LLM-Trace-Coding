@@ -755,6 +755,7 @@ MigrationBackup/
 frontend/webapp/cypress/screenshots
 frontend/webapp/cypress/visual-diffs
 frontend/webapp/.lighthouseci
+backend/k6/summary.json
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/

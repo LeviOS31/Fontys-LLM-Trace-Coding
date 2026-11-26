@@ -278,6 +278,7 @@ Run from `frontend/webapp/`.
 | `npm run lint:fix`       | ESLint with `--fix` (auto-fix)                                       |
 | `npm run test`           | Run Vitest unit tests                                                |
 | `npm run test:watch`     | Run Vitest in watch mode                                             |
+| `npm run lighthouse`     | Run Lighthouse CI audits against the frontend routes                |
 | `npm run prettier`       | Format the project with Prettier (`--write`)                         |
 | `npm run prettier:check` | Check formatting without writing (used in CI)                        |
 | `npm run docker:up`      | Start Postgres + MigrationRunner via `backend/Dbcompose.yaml`        |
@@ -470,11 +471,17 @@ Per the PR template, every PR must include unit tests for changed business logic
 | Backend unit  | xUnit + NSubstitute + Shouldly   | `dotnet test backend/LlmTracing.sln`                             |
 | Frontend unit | Vitest + Testing Library (jsdom) | `npm run test`                                                   |
 | E2E           | Cypress                          | `npx cypress open` / `npx cypress run` (from `frontend/webapp/`) |
+| Frontend performance | Lighthouse CI                    | `npm run lighthouse` (from `frontend/webapp/`)                   |
+| Backend performance | k6                               | `k6 run backend/k6/api.js` (from the repository root)             |
 
 **Cypress** resets and seeds the database before each run via Docker. `cypress.config.ts` runs `npm run docker:reset` on `before:run`, then registers `task` hooks (`resetDb`, `seedProjects`, `seedTraces`, …) that talk to Postgres directly. Requirements:
 
 - Frontend running at `http://localhost:5173`, API at `https://localhost:7030`, Docker available.
 - Test data lives in `cypress/testData/`; specs in `cypress/e2e/`.
+
+The Lighthouse audit covers the app routes listed in `frontend/webapp/lighthouserc.json`. It collects three runs per route, saves detailed Lighthouse result files under `frontend/webapp/.lighthouseci`, and applies warning budgets to Core Web Vitals and related timing metrics. Category score thresholds remain CI-failing checks. GitHub Actions uploads the reports as the `lighthouse-reports` artifact on Lighthouse runs. Running it locally requires Chrome or Chromium.
+
+The k6 backend load test sends read-only requests to `GET /v1/projects` for one minute with 10 virtual users by default. It requires the backend and its migrated database to be running at `http://localhost:8080`; override the target with `K6_BASE_URL`, and workload with `K6_VUS` or `K6_DURATION`. The test requires a 200 response, a 95th-percentile response time below 500 ms, and fewer than 1% failed requests. CI runs it against the full stack on pushes to `develop` and on manual pre-release runs, and uploads its summary as the `backend-k6-report` artifact.
 
 **Coverage / integration tests:** there is no dedicated coverage threshold or separate integration-test suite configured in the repo. Add this if required — it needs developer input.
 

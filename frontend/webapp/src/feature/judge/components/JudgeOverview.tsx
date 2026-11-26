@@ -19,6 +19,7 @@ type Props = {
   readonly onLoadMore: () => void;
   readonly onSelect: (judgeRunId: string) => void;
   readonly onDelete: (judgeRunId: string) => Promise<boolean>;
+  readonly onFeedback?: (judgeRunId: string, feedback: string) => Promise<boolean>;
 };
 
 export default function JudgeOverview({
@@ -31,6 +32,7 @@ export default function JudgeOverview({
   onLoadMore,
   onSelect,
   onDelete,
+  onFeedback,
 }: Props) {
   // Statistics are aggregated by the backend over every run, not just the loaded page.
   const overall = statsFromCounts(totals);
@@ -64,18 +66,6 @@ export default function JudgeOverview({
         </Card>
       </Box>
 
-      {/* <TextField.Root
-        placeholder="Search judge runs…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        aria-label="Search axial codes"
-        style={{ flex: 1, minWidth: 180 }}
-      >
-        <TextField.Slot>
-          <Search size={14} />
-        </TextField.Slot>
-      </TextField.Root> */}
-
       <Box pb="9">
         <SectionHead title="Judge runs" subtitle="Select a run to see its judged traces." />
         {runs.length === 0 ? (
@@ -92,6 +82,7 @@ export default function JudgeOverview({
                 run={run}
                 onSelect={onSelect}
                 onDelete={onDelete}
+                onFeedback={onFeedback}
               />
             ))}
             {hasMore && (

@@ -1,9 +1,5 @@
-export type JudgeTemplate = {
-  id: string;
-  axialCodeId: string;
-  name: string;
-  isDeprecated: boolean;
-};
+export type { JudgeTemplate } from '../../../shared/types/judgeTemplate';
+
 
 export type JudgeCollection = {
   judgeCollectionId: string;
@@ -24,6 +20,7 @@ export type JudgeResult = {
   verdict: string | null;
   reasoning: string | null;
   error: string | null;
+  judgingTrace: boolean; //true if trace is judged, false if raw LLM output is judged
 };
 
 // Response of the POST that runs the judge.
@@ -38,6 +35,7 @@ export type JudgeRunSummary = {
   trueCount: number;
   falseCount: number;
   failedCount: number;
+  feedback: string | null;
 };
 
 export type JudgeRunListItem = JudgeRunSummary & { name: string | null };

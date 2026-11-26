@@ -7,6 +7,7 @@ import JudgeCollectionOverview from './components/JudgeCollectionOverview';
 import JudgeOverview from './components/JudgeOverview';
 import JudgeRunDetails from './components/JudgeRunDetails';
 import RunJudgePanel, { type JudgeMode } from './components/JudgeRunPanel';
+import TemplateEditor from './components/TemplateEditor';
 import {
   isJudgeResponse,
   type JudgeCollection,
@@ -17,6 +18,7 @@ import {
   type JudgeTemplate,
   type RunError,
 } from './hooks/judgeUtils';
+import type { RawData } from './hooks/rawDataUtils';
 
 type PageParams = { id: string; versionId: string };
 type CollectionListResponse = { judgeCollections: JudgeCollection[] };
@@ -36,8 +38,12 @@ export default function JudgePage() {
 
   const [templates, setTemplates] = useState<JudgeTemplate[]>([]);
   const [templateIds, setTemplateIds] = useState<string[]>([]);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [mode, setMode] = useState<JudgeMode>('run');
   const [selectedTraceCollectionIds, setSelectedTraceCollectionIds] = useState<string[]>([]);
+
+  const [rawdatas] = useState<RawData[]>([]);
+  const [rawDataIds, setRawDataIds] = useState<string[]>([]);
 
   const [collections, setCollections] = useState<JudgeCollection[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
@@ -53,10 +59,14 @@ export default function JudgePage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<RunError | null>(null);
 
-  const collectionListUrl = useCallback(
-    () => new URL(`/v1/projects/${projectId}/versions/${versionId}/judgecollection`, BASE_URL),
-    [projectId, versionId]
-  );
+  const collectionListUrl = useCallback(() => {
+    const url = new URL(
+      `/v1/projects/${projectId}/versions/${versionId}/judgecollection`,
+      BASE_URL
+    );
+    url.searchParams.set('isEvaluation', String(mode === 'run'));
+    return url;
+  }, [projectId, versionId, mode]);
 
   const collectionUrl = useCallback(
     (judgeCollectionId: string) =>
@@ -85,13 +95,17 @@ export default function JudgePage() {
     [projectId, versionId]
   );
 
-  useEffect(() => {
+  const loadTemplates = useCallback(() => {
     if (!projectId || !versionId) return;
     const endpoint = `${BASE_URL.replace(/\/$/, '')}/v1/projects/${projectId}/versions/${versionId}/judge-templates`;
     fetch(endpoint)
       .then((r) => r.json())
       .then((d: { judgeTemplates: JudgeTemplate[] }) => setTemplates(d.judgeTemplates));
   }, [projectId, versionId]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   const loadCollections = useCallback(
     async (signal?: AbortSignal) => {
@@ -169,6 +183,7 @@ export default function JudgePage() {
       .then(async (res) => {
         if (!res.ok) throw new Error(`Failed to load run (${res.status})`);
         const data: { results: JudgeResult[] } = await res.json();
+        console.log('Fetched results:', data.results);
         setResults(data.results);
       })
       .catch((err) => {
@@ -183,6 +198,7 @@ export default function JudgePage() {
   }, [selectedRunId, selectedCollectionId, runUrl]);
 
   const activeTemplates = useMemo(() => templates.filter((t) => !t.isDeprecated), [templates]);
+  const editingTemplate = templates.find((t) => t.id === editingTemplateId) ?? null;
   const selectedCollection =
     collections.find((collection) => collection.judgeCollectionId === selectedCollectionId) ?? null;
   const runs: JudgeRunListItem[] = summaries.map((summary) => ({
@@ -207,7 +223,7 @@ export default function JudgePage() {
     setRunning(true);
     setError(null);
 
-    //const axialCodeIds = selectedTemplates.map((template) => template.axialCodeId);
+    console.log("selected raw data files: ", rawDataIds);
 
     try {
       const url = new URL(`/v1/projects/${projectId}/versions/${versionId}/judge`, BASE_URL);
@@ -216,7 +232,9 @@ export default function JudgePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           judgeTemplateIds: selectedTemplates.map((template) => template.id),
+          RawLLMOutputIds: rawDataIds,
           traceCollectionIds: selectedTraceCollectionIds,
+          isEvaluation: mode === 'run',
         }),
       });
       const data: unknown = await res.json();
@@ -254,6 +272,26 @@ export default function JudgePage() {
       return true;
     } catch (err) {
       setError({ message: 'Could not delete run.', raw: String(err) });
+      return false;
+    }
+  };
+
+  const saveFeedback = async (judgeRunId: string, feedback: string): Promise<boolean> => {
+    if (!selectedCollectionId) return false;
+    try {
+      const url = runUrl(selectedCollectionId, judgeRunId);
+      url.pathname += '/feedback';
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback }),
+      });
+      if (!res.ok) return false;
+      setSummaries((current) =>
+        current.map((s) => (s.judgeRunId === judgeRunId ? { ...s, feedback: feedback || null } : s))
+      );
+      return true;
+    } catch {
       return false;
     }
   };
@@ -339,14 +377,20 @@ export default function JudgePage() {
         onModeChange={(m) => {
           setMode(m);
           setTemplateIds([]);
+          setSelectedCollectionId(null);
+          setSelectedRunId(null);
         }}
         projectId={projectId}
         versionId={versionId}
         onCollectionChange={setSelectedTraceCollectionIds}
         onRun={runJudge}
-        canRun={!running && selectedTemplates.length > 0 && selectedTraceCollectionIds.length > 0}
+        canRun={!running && selectedTemplates.length > 0 && (selectedTraceCollectionIds.length > 0 || rawDataIds.length > 0)}
         loading={running}
         error={error}
+        selectedTemplates={selectedTemplates}
+        onEditTemplate={setEditingTemplateId}
+        rawdatas={rawdatas}
+        onRawDataChange={setRawDataIds}
       />
 
       {selectedRun && selectedCollection ? (
@@ -369,6 +413,7 @@ export default function JudgePage() {
           onLoadMore={() => loadRuns(selectedCollection.judgeCollectionId, summaries.length)}
           onSelect={setSelectedRunId}
           onDelete={deleteRun}
+          onFeedback={mode === 'testing' ? saveFeedback : undefined}
         />
       ) : (
         <JudgeCollectionOverview
@@ -380,6 +425,16 @@ export default function JudgePage() {
             setError(null);
             setSelectedCollectionId(judgeCollectionId);
           }}
+        />
+      )}
+
+      {editingTemplate && (
+        <TemplateEditor
+          template={editingTemplate}
+          projectId={projectId}
+          versionId={versionId}
+          onClose={() => setEditingTemplateId(null)}
+          onChanged={loadTemplates}
         />
       )}
     </Flex>

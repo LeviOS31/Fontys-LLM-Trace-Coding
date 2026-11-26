@@ -19,6 +19,7 @@ const run: JudgeRunListItem = {
   trueCount: 2,
   falseCount: 1,
   failedCount: 0,
+  feedback: null,
 };
 
 const results: JudgeResult[] = [
@@ -28,6 +29,7 @@ const results: JudgeResult[] = [
     verdict: 'true',
     reasoning: 'Looks right',
     error: null,
+    judgingTrace: true,
   },
   {
     traceId: 'trace-2',
@@ -35,6 +37,7 @@ const results: JudgeResult[] = [
     verdict: null,
     reasoning: null,
     error: 'Timeout',
+    judgingTrace: true,
   },
 ];
 

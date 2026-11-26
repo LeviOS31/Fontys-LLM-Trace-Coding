@@ -63,6 +63,7 @@ public class GetJudgeRunHandlerTests
                     JudgeCollectionId = _judgeCollectionId,
                     ProjectVersionId = _projectVersionId,
                     CreatedAt = DateTime.UtcNow,
+                    IsEvaluation = true,
                 }
             );
         }

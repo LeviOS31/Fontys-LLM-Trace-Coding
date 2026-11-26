@@ -11,6 +11,7 @@ namespace Judge.Features.GetAllJudgeCollectionsByVersion
     {
         public required Guid ProjectId { get; init; } 
         public required Guid VersionId { get; init; }
+        public bool IsEvaluation { get; init; } = true;
     }
 
     public sealed class GetAllJudgeCollectionsByVersionRequestValidator : AbstractValidator<GetAllJudgeCollectionsByVersionRequest>

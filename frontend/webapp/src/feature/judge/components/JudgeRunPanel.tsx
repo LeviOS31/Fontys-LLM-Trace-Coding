@@ -5,12 +5,17 @@ import JudgeTemplateSelect from './JudgeTemplateSelect';
 import TraceCollectionSelect from './TraceCollectionSelect';
 import { colors } from '../../../shared/styling/colors';
 import styles from './JudgeRunPanel.module.css';
+import TemplatePreviewList from './TemplatePreviewList';
+import RawDataSelect from './RawdataSelect';
+import type { RawData } from '../hooks/rawDataUtils';
 
 export type JudgeMode = 'testing' | 'run';
 
 type Props = {
   readonly templates: JudgeTemplate[];
   readonly onTemplateChange: (ids: string[]) => void;
+  readonly rawdatas: RawData[];
+  readonly onRawDataChange: (ids: string[]) => void;
   readonly mode: JudgeMode;
   readonly onModeChange: (mode: JudgeMode) => void;
   readonly onRun: () => void;
@@ -19,7 +24,11 @@ type Props = {
   readonly error: RunError | null;
   readonly projectId?: string;
   readonly versionId?: string;
+  readonly description?: string;
+  readonly template?: string;
   readonly onCollectionChange: (ids: string[]) => void;
+  readonly selectedTemplates: JudgeTemplate[];
+  readonly onEditTemplate: (templateId: string) => void;
 };
 
 export default function RunJudgePanel({
@@ -27,6 +36,7 @@ export default function RunJudgePanel({
   onTemplateChange,
   mode,
   onModeChange,
+  onRawDataChange,
   onRun,
   canRun,
   loading,
@@ -34,6 +44,8 @@ export default function RunJudgePanel({
   projectId,
   versionId,
   onCollectionChange,
+  selectedTemplates,
+  onEditTemplate,
 }: Props) {
   return (
     <Box
@@ -58,8 +70,8 @@ export default function RunJudgePanel({
             radius="full"
             style={{ alignSelf: 'flex-start' }}
           >
-            <SegmentedControl.Item value="run">Evaluating templates</SegmentedControl.Item>
-            <SegmentedControl.Item value="testing">Testing templates</SegmentedControl.Item>
+            <SegmentedControl.Item value="run">Evaluate data</SegmentedControl.Item>
+            <SegmentedControl.Item value="testing">Test templates</SegmentedControl.Item>
           </SegmentedControl.Root>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
@@ -68,6 +80,14 @@ export default function RunJudgePanel({
                 <JudgeTemplateSelect
                   templates={templates}
                   onChange={(updatedIds: string[]) => onTemplateChange(updatedIds)}
+                />
+              </div>
+            ) || (
+              <div style={{ gridArea: '1 / 1' }}>
+                <RawDataSelect
+                  projectId={projectId}
+                  versionId={versionId}
+                  onChange={onRawDataChange}
                 />
               </div>
             )}
@@ -79,6 +99,10 @@ export default function RunJudgePanel({
               />
             </div>
           </div>
+
+          {mode === 'testing' && selectedTemplates.length > 0 && (
+            <TemplatePreviewList templates={selectedTemplates} onEdit={onEditTemplate} />
+          )}
 
           {mode === 'run' && (
             <Text size="2" color="gray">

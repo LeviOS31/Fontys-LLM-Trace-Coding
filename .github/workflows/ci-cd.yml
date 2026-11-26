@@ -238,6 +238,102 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
 
+  backend-k6:
+    name: Backend k6 load test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [docker-build]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Expose GitHub runtime for cache backend
+        uses: crazy-max/ghaction-github-runtime@v3
+
+      - name: Write Compose override for backend readiness
+        run: |
+          cat > docker-compose.k6.yml <<'EOF'
+          services:
+            db:
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+                interval: 5s
+                timeout: 5s
+                retries: 10
+            migrator:
+              build:
+                cache_from:
+                  - type=gha,scope=migrator
+              depends_on:
+                db:
+                  condition: service_healthy
+            backend:
+              build:
+                cache_from:
+                  - type=gha,scope=backend
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+              depends_on:
+                db:
+                  condition: service_healthy
+                migrator:
+                  condition: service_completed_successfully
+          EOF
+
+      - name: Start backend stack
+        env:
+          COMPOSE_BAKE: "true"
+        run: docker compose -f docker-compose.yaml -f docker-compose.k6.yml up -d --build db backend migrator
+
+      - name: Wait for API and database migrations
+        run: |
+          for i in $(seq 1 60); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/v1/projects || echo "000")
+            if [ "$status" = "200" ]; then
+              echo "Projects API is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Projects API did not become ready in time"
+          docker compose -f docker-compose.yaml -f docker-compose.k6.yml logs backend db migrator
+          exit 1
+
+      - name: Run backend k6 load test
+        run: k6 run --summary-export backend/k6/summary.json backend/k6/api.js
+        env:
+          K6_BASE_URL: http://localhost:8080
+
+      - name: Add k6 results to workflow summary
+        if: always() && hashFiles('backend/k6/summary.md') != ''
+        run: cat backend/k6/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload backend k6 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-k6-report
+          path: |
+            backend/k6/summary.html
+            backend/k6/summary.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yaml -f docker-compose.k6.yml logs
+
+      - name: Tear down backend stack
+        if: always()
+        run: docker compose -f docker-compose.yaml -f docker-compose.k6.yml down -v
+
   docker-build:
     name: Docker build (with layer cache)
     runs-on: ubuntu-latest
@@ -404,15 +500,6 @@ jobs:
           echo "Backend did not become ready in time"
           exit 1
 
-      - name: Setup k6
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
-        uses: grafana/setup-k6-action@v1
-
-      - name: Run backend k6 load test
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite)
-        run: k6 run --summary-export backend/k6/summary.json backend/k6/api.js
-        env:
-          K6_BASE_URL: http://localhost:8080
 
       - name: Wait for frontend to respond
         run: |
@@ -427,15 +514,6 @@ jobs:
           echo "Frontend did not become ready in time"
           exit 1
 
-      - name: Upload backend k6 report
-        if: always() && ((github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite))
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-k6-report
-          path: backend/k6/summary.json
-          if-no-files-found: ignore
-          retention-days: 14
-
       - name: Run selected LLM and trace-group E2E tests
         run: npx cypress run --browser electron --spec "cypress/e2e/llm-content.cy.ts,cypress/e2e/trace-group.cy.ts"
         working-directory: frontend/webapp
@@ -445,9 +523,9 @@ jobs:
         run: npx cypress run --browser electron --spec "cypress/e2e/**/*.a11y.cy.ts"
         working-directory: frontend/webapp
 
-      - name: Report accessibility checks are not implemented yet
+      - name: Explain accessibility test coverage
         if: hashFiles('frontend/webapp/cypress/e2e/**/*.a11y.cy.ts') == ''
-        run: echo "No Cypress-specific accessibility specs found; axe route scans run in the frontend Vitest suite."
+        run: echo "No Cypress-specific accessibility specs are defined. axe route and component checks run in the frontend-unit-component Vitest job."
 
       - name: Run visual regression E2E checks when present
         if: github.event_name == 'pull_request' && hashFiles('frontend/webapp/cypress/e2e/visual-regression.cy.ts') != ''
@@ -465,7 +543,7 @@ jobs:
 
       - name: Remind reviewers about manual release audits
         if: github.event_name == 'workflow_dispatch' && inputs.run_full_browser_suite
-        run: echo "::notice::Complete the manual accessibility review and performance audit before release; automated checks are not configured yet."
+        run: echo "::notice::Complete the manual accessibility review before release. Automated axe checks and Lighthouse/k6 performance audits run in this workflow."
 
       - name: Upload Cypress screenshots and videos
         if: always()
